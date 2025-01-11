@@ -1,6 +1,6 @@
 // abc2svg - subs.js - text output
 //
-// Copyright (C) 2014-2023 Jean-Francois Moine
+// Copyright (C) 2014-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -19,23 +19,17 @@
 
 // add font styles
     var	sheet
-var add_fstyle = typeof document != "undefined" ?
-    function(s) {
+var add_fstyle = abc2svg.el
+    ? function(s) {
     var	e
-	if (cfmt.fullsvg)
-		font_style += "\n" + s
-	if (!sheet) {
-		if (abc2svg.sheet) {	// if styles from a previous generation
-			sheet = abc2svg.sheet
-			e = sheet.cssRules.length
-			while (--e >= 0)
-				sheet.deleteRule(e)
-		} else {
-			e = document.createElement('style')
-			document.head.appendChild(e)
-			abc2svg.sheet = sheet = e.sheet
-		}
+
+	font_style += "\n" + s
+	if (!abc2svg.styles) {
+		e = document.createElement('style')
+		document.head.appendChild(e)
+		abc2svg.styles = e
 	}
+	sheet = abc2svg.styles.sheet
 	s = s.match(/[^{]+{[^}]+}/g)	// insert each style
 	while (1) {
 		e = s.shift()
@@ -121,31 +115,34 @@ function cwidf(c) {
 	return cwid(c) * gene.curfont.swfac
 }
 
+// make XML clean
+function clean_txt(p) {
+	return p.replace(/<|>|&[^&\s]*?;|&/g, function(c) {
+		switch (c) {
+		case '<': return "&lt;"
+		case '>': return "&gt;"
+		case '&': return "&amp;"
+		}
+		return c		// &xxx;
+	})
+} // clean_txt()
+
 // estimate the width and height of a string ..
 var strwh
 
 (function() {
-    if (typeof document != "undefined") {
+    if (typeof document != "undefined"
+     && abc2svg.el) {
 
     // .. by the browser
-
-	// create a text element if not done yet
-      var	el
 
 	// change the function
 	strwh = function(str) {
 		if (str.wh)
 			return str.wh
-		if (!el) {
-			el = document.createElement('text')
-			el.style.position = 'absolute'
-			el.style.top = '-1000px'
-			el.style.padding = '0'
-			el.style.visibility = "hidden"
-			document.body.appendChild(el)
-		}
 
 	    var	c,
+		el = abc2svg.el,	// hidden <span> created by edit/abcweb/...
 		font = gene.curfont,
 		h = font.size,
 		w = 0,
@@ -153,23 +150,16 @@ var strwh
 		i0 = 0,
 		i = 0
 
+		if (!el.parentElement)		// insert back the <span> in the document
+			document.body.appendChild(el)
 		el.className = font_class(font)
-		el.style.lineHeight = 1
 
 		if (typeof str == "object") {	// if string already converted
 			el.innerHTML = str
 			str.wh = [ el.clientWidth, el.clientHeight ]
 			return str.wh
 		}
-
-		str = str.replace(/<|>|&[^&\s]*?;|&/g, function(c){
-			switch (c) {
-			case '<': return "&lt;"
-			case '>': return "&gt;"
-			case '&': return "&amp;"
-			}
-			return c		// &xxx;
-		})
+		str = clean_txt(str)
 
 		while (1) {
 			i = str.indexOf('$', i)
@@ -183,6 +173,7 @@ var strwh
 					i++
 					continue
 				}
+				el.className = font_class(font)
 			}
 
 			el.innerHTML = str.slice(i0, i >= 0 ? i : undefined)
@@ -190,9 +181,9 @@ var strwh
 //fixme: bad width if space(s) at end of string
 			if (el.clientHeight > h)
 				h = el.clientHeight
+
 			if (i < 0)
 				break
-			el.style.font = style_font(font).slice(5);
 			i += 2;
 			i0 = i
 		}
@@ -305,7 +296,7 @@ function str2svg(str) {
 
 	// convert to String and memorize the string width and height
 	o = new String(o)
-	if (typeof document != "undefined")
+	if (abc2svg.el)
 		strwh(o)		// browser
 	else
 		o.wh = strwh(str)	// CLI
@@ -340,7 +331,7 @@ function xy_str(x, y,
 		wh) {		// optional [width, height]
 	if (!wh)
 		wh = str.wh || strwh(str)
-	if (cfmt.trimsvg) {
+	if (cfmt.singleline || cfmt.trimsvg) {
 	    var wx = wh[0]
 		switch (action) {
 		case 'c':
@@ -528,7 +519,8 @@ function write_text(text, action) {
 					vskip(wh * cfmt.lineskipfac)
 					xy_str(0, ww[1] * .2,
 						words.slice(k, j).join(' '),
-						action, strlw)
+						action, strlw,
+						[w - ww[0], ww[1]])
 					k = j;
 					w = ww[0]
 					wh = 0
@@ -595,10 +587,6 @@ function put_words(words) {
 			xy_str(x + 5, y, p.slice(i), 'l')
 	} // put_wline()
 
-	set_font("words")
-	vskip(cfmt.wordsspace)
-	svg_flush()
-
 	// estimate the width of the lines
 	words = words.split('\n')
 	nw = words.length
@@ -613,6 +601,12 @@ function put_words(words) {
 			i1 = i		// keep this line
 		}
 	}
+	if (i1 == undefined)
+		return			// no text in the W: lines!
+
+	set_font("words")
+	vskip(cfmt.wordsspace)
+	svg_flush()
 
 	w = get_lwidth() / 2		// half line width
 	lw = strwh(words[i1])[0]
@@ -735,7 +729,7 @@ var info_font_init = {
 	X: "title"
 }
 function write_headform(lwidth) {
-    var	c, font, font_name, align, x, y, sz, w,
+    var	c, font, font_name, align, x, y, sz, w, yd,
 		info_val = {},
 		info_font = Object.create(info_font_init),
 		info_sz = {
@@ -882,6 +876,7 @@ function write_headform(lwidth) {
 			set_font(font);
 			x = xa[align];
 			y = ya[align] + sz
+			yd = y - font.size * .22	// descent
 
 			if (c == 'Q') {			/* special case for tempo */
 				self.set_width(glovar.tempo)
@@ -900,7 +895,7 @@ function write_headform(lwidth) {
 				if (c == 'T')
 					str = trim_title(str,
 							 info_font.T[0] == 's')
-				xy_str(x, -y, str, align)
+				xy_str(x, -yd, str, align)
 			}
 
 			if (c == 'T') {
@@ -918,7 +913,7 @@ function write_headform(lwidth) {
 				while (info_val[c].length > 0) {
 					y += sz;
 					str = info_val[c].shift();
-					xy_str(x, -y, str, align)
+					xy_str(x, -yd, str, align)
 				}
 			}
 			info_nb[c]--;
@@ -935,10 +930,41 @@ function write_headform(lwidth) {
 	vskip(ya.l)
 }
 
+// get the meaningful names of a part (P:)
+function partname(c) {
+    var	i,
+	tmp = cfmt.partname.split('\n')
+
+	for (i = 0; i < tmp.length; i++) {
+		if (tmp[i][0] == c) {
+			c = tmp[i].match(/.\s+(\w+)\s*(.+)?/)
+			if (!c[2])
+				c[2] = c[1]
+			if (c[2][0] == '"')
+				c[2] = c[2].slice(1, -1)
+			return c
+		}
+	}
+	return [0, c, c]
+} // partname()
+
 /* -- output the tune heading -- */
 function write_heading() {
-	var	i, j, area, composer, origin, rhythm, down1, down2,
+    var	i, j, area, composer, origin, rhythm, down1, down2, p,
 		lwidth = get_lwidth()
+
+	// build a new sequence of the parts with clearer names
+	function new_part() {
+	    var	i,
+		o = ""
+
+		for (i = 0; i < info.P.length; i++) {
+			if (i)
+				o += ' '
+			o += partname(info.P[i])[1]
+		}
+		return o
+	} // new_part()
 
 	vskip(cfmt.topspace)
 
@@ -1036,7 +1062,10 @@ function write_heading() {
 			down2 = down1 + i
 		else
 			down2 += i
-		xy_str(0, -down2 + gene.curfont.size *.22, info.P)
+		p = info.P
+		if (cfmt.partname)
+			p = new_part()
+		xy_str(0, -down2 + gene.curfont.size *.22, p)
 		down2 += gene.curfont.pad
 	} else if (down1 > down2) {
 		down2 = down1

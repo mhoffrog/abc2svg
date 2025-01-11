@@ -1,6 +1,6 @@
 // abc2svg - abc2svg.js
 //
-// Copyright (C) 2014-2022 Jean-Francois Moine
+// Copyright (C) 2014-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -171,6 +171,9 @@ abc2svg.ch_alias = {
 // global fonts
 abc2svg.font_tb = []	// fonts - index = font.fid
 abc2svg.font_st = {}	// font style => font_tb index for incomplete user fonts
+
+// cache for converting a duration into [head, dots, nflags]
+abc2svg.hdn = {}
 
 // font weight
 // reference:
@@ -356,7 +359,7 @@ function errbld(sev, txt, fn, idx) {
 function error(sev, s, msg, a1, a2, a3, a4) {
 	var i, j, regex, tmp
 
-	if (!sev && cfmt.quiet)
+	if (sev < cfmt.quiet)
 		return
 	if (s) {
 		if (s.err)		// only one error message per symbol

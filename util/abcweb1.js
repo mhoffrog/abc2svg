@@ -1,6 +1,6 @@
 // abcweb1-1.js file to include in html pages with abc2svg-1.js
 //
-// Copyright (C) 2019-2022 Jean-Francois Moine
+// Copyright (C) 2019-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -60,7 +60,7 @@ if (typeof abc2svg == "undefined")
 
 // function called when abc2svg is fully loaded
 function dom_loaded() {
-    var	abc,
+    var	abc, e,
 	new_page,
 	playing,
 	abcplay,
@@ -316,6 +316,7 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 			user.anno_stop = function(){}
 
 		tune_lst = []
+		abc2svg.abc =			// for external access
 		abc = new abc2svg.Abc(user)
 		new_page = ""
 
@@ -514,6 +515,16 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 		playing = true
 		abcplay.play(s, null)
 	} // click()
+
+	// create a hidden span for string width computation
+	e = document.createElement("span")
+	e.style.position = "absolute"
+	e.style.top =
+		e.style.padding = 0
+	e.style.visibility = "hidden"
+	e.style.lineHeight = 1
+	document.body.appendChild(e)
+	abc2svg.el = e
 
 	// accept page formatting
 	abc2svg.abc_end = function() {}

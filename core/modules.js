@@ -53,6 +53,7 @@ abc2svg.modules = {
 	sth: {},
 	strtab: {},
 	temperament: { fn: 'temper' },
+	temponame: { fn: 'tempo' },
 	tropt: {},
 
 	nreq: 0,
@@ -86,7 +87,7 @@ abc2svg.modules = {
 		// test if some keyword in the file
 	    var	m, i, fn,
 		nreq_i = this.nreq,
-		ls = file.match(/(^|\n)(%%|I:).+?\b/g)
+		ls = file.match(/(%%|I:).+?\b/g)
 
 		if (!ls)
 			return true

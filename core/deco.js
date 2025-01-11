@@ -57,16 +57,16 @@ var	dd_tb = {},		// definition of the decorations
 
 // decorations - populate with standard decorations
 var decos = {
-	dot: "0 stc 6 1.5 1",
+	dot: "0 stc 6 .7 1",
 	tenuto: "0 emb 6 4 3",
-	slide: "1 sld 3 7 1",
+	slide: "1 sld 10 7 1",
 	arpeggio: "2 arp 12 10 3",
 	roll: "3 roll 5,4 5 6",
 	lowermordent: "3 lmrd 6,5 4 6",
 	uppermordent: "3 umrd 6,5 4 6",
 	trill: "3 trl 14 5 8",
-	upbow: "3 upb 10,2 3 7",
-	downbow: "3 dnb 9 4 6",
+	upbow: "3 upb 12,2 3 7",
+	downbow: "3 dnb 8,2 4 6",
 	gmark: "3 grm 7 4 6",
 	wedge: "0 wedge 8 1.5 1",		// (staccatissimo or spiccato)
 	longphrase: "5 lphr 0 1 16",
@@ -175,13 +175,14 @@ var decos = {
 	cacc3: "3 cacc3 0 0 0",
 	cacc1: "3 cacc1 0 0 0",
 	"tie(": "44 0 0 0 0",
-	"tie)": "44 0 0 0 0"},
+	"tie)": "44 0 0 0 0",
+	fg: "45 0 0 0 0"},
 
 	// types of decoration per function
 	f_near = [
 		d_near,		// 0 - near the note
-		d_slide,	// 1
-		d_arp		// 2
+		d_slide,	// 1 - slide or tied to the note stem
+		d_arp		// 2 - arpeggio
 	],
 	f_note = [
 		null, null, null,
@@ -265,6 +266,9 @@ function up3(s, pos) {
 	case C.SL_BELOW:
 		return 0	// false
 	}
+	if (!s.multi		// if voice alone in the staff
+	 && !s.invis)		// but not invisible symbol of a secondary voice
+		return 1 //true
 //	if (s.multi)
 //		return s.multi > 0
 //	return 1		// true
@@ -340,8 +344,16 @@ function d_near(de) {
 		y = (((y + 9) / 6) | 0) * 6 - 6	// between lines
 	}
 	if (up) {
-		y += dd.hd
-		s.ymx = y + dd.h
+		if (s.ys > 27
+		 && dd.name[0] == 'd'		// if dot (staccato)
+		 && s.a_dd[0].name == "dot"	// as the first decoration
+		 && s.stem > 0 && s.nflags >= 0
+		 && s.beam_st && s.beam_end)
+			y -= 6			// put the dot a bit lower
+		else
+			y += dd.hd
+		if (s.ymx < y + dd.h)
+			s.ymx = y + dd.h
 	} else if (dd.name[0] == 'w') {		// wedge (no descent)
 		de.inv = true
 		y -= dd.h
@@ -354,34 +366,15 @@ function d_near(de) {
 	de.y = y
 	if (s.type == C.NOTE)
 		de.x += s.notes[s.stem >= 0 ? 0 : s.nhd].shhd
-	if (dd.name[0] == 'd') {		// if dot (staccato)
-	    if (!(s.beam_st && s.beam_end)) {	// if in a beam sequence
-		if (up) {
-			if (s.stem > 0)
-				de.x += 3.5	// stem_xoff
-		} else {
-			if (s.stem < 0)
-				de.x -= 3.5
-		}
-	    } else {
-		if (up && s.stem > 0) {
-			y = s.y + (y - s.y) * .6
-			if (y >= 27) {
-				de.y = y	// put the dot a bit lower
-				s.ymx = de.y + dd.h
-			}
-		}
-	    }
-	}
 }
 
 /* 1: special case for slide */
 function d_slide(de) {
-	var	m, dx,
-		s = de.s,
-		yc = s.notes[0].pit,
-		xc = 5
+    var	m, dx, xc,
+	s = de.s,
+	yc = s.y
 
+      if (de.dd.glyph == "sld") {		// !slide!
 	for (m = 0; m <= s.nhd; m++) {
 		if (s.notes[m].acc) {
 			dx = 4 + s.notes[m].shac
@@ -397,12 +390,42 @@ function d_slide(de) {
 				break
 			}
 		}
-		if (s.notes[m].pit <= yc + 3 && dx > xc)
-			xc = dx
+		if (s.notes[m].pit <= yc + 3 && dx > 5)
+			xc = -dx
+		else
+			xc = -5
 	}
-//	de.x = s.x - xc;
-	de.x -= xc;
-	de.y = 3 * (yc - 18)
+      } else {					// decoration tied to the stem
+		if (de.s.stem >= 0) {
+			if (s.nflags >= -1) {
+				xc = 3.5
+				yc = s.ys
+				if (s.nflags > 1)
+					yc -= 4 * (s.nflags - 1)
+			} else {
+				xc = 0
+				yc = s.y + 21
+			}
+			yc = (yc + 3 * (s.notes[s.nhd].pit - 18)) / 2
+		} else {
+			de.rotpi = 1//true	// rotate pi (180°)
+			if (s.nflags >= -1) {
+				xc = -3.5
+				yc = s.ys
+				if (s.nflags > 1)
+					yc += 4 * (s.nflags - 1)
+			} else {
+				xc = 0
+				yc = s.y - 21
+			}
+			yc = (yc + 3 * (s.notes[0].pit - 18)) / 2
+		}
+      }
+	de.x += xc;
+	de.y = yc
+
+	if (de.y < 0)
+		y_set(s.st, 0, de.x, de.dd.wl, de.y - de.dd.h)
 }
 
 // special case for long decoration
@@ -562,17 +585,18 @@ function d_upstaff(de) {
 
 	// glyphs inside the staff
 	switch (dd.glyph) {
-	case "brth":
-	case "caes":
 	case "lphr":
 	case "mphr":
 	case "sphr":
 	case "short":
 	case "tick":
-		y = staff_tb[s.st].topbar + 2 + dd.hd
-		if (s.type == C.BAR) {
+		if (s.type == C.BAR)
 			s.invis = 1
-		} else {
+		// fall thru
+	case "brth":
+	case "caes":
+		y = staff_tb[s.st].topbar + 2 + dd.hd
+		if (!s.invis) {
 			if (dd.glyph == "brth" && y < s.ymx)
 				y = s.ymx
 			for (s = s.ts_next; s; s = s.ts_next)
@@ -678,7 +702,7 @@ function deco_def(nm, nmd) {
 		return //undefined
 	}
 	if (c_func > 10
-	 && (c_func < 32 || c_func > 44)) {
+	 && (c_func < 32 || c_func > 45)) {
 		error(1, null, "%%deco: bad C function index '$1'", c_func)
 		return //undefined
 	}
@@ -768,6 +792,9 @@ function do_ctie(nm, s, nt1) {
 		error(1, s, "Conflict on !$1!", nm)
 		return
 	}
+	if (nt1.tie_ty)			// if normal '-'
+		curvoice.tie_s = null
+
 	nt1.s = s
 	nt2 = cross[nm2]
 	if (!nt2) {
@@ -780,10 +807,11 @@ function do_ctie(nm, s, nt1) {
 	}
 	cross[nm2] = null
 	if (nt1.midi != nt2.midi
-	 || nt1.s.time + nt1.s.dur != nt2.s.time) {
+	 || nt1.s.time + nt1.dur != nt2.s.time) {
 		error(1, s, "Bad tie")
 	} else {
-		nt1.tie_ty = C.SL_AUTO
+		if (!nt1.tie_ty)		// if not normal '-'
+			nt1.tie_ty = C.SL_AUTO
 		nt1.tie_e = nt2
 		nt2.tie_s = nt1
 		nt1.s.ti1 = nt2.s.ti2 = true
@@ -826,7 +854,40 @@ function get_dd(nm) {
 
 /* -- convert the decorations -- */
 function deco_cnv(s, prev) {
-    var	i, j, dd, nm, note, s1, court
+    var	i, j, dd, nm, note, s1, court, fg
+
+	// mark a finger glissando
+	function sav_fg() {
+	    var	i,
+		s1 = prev
+
+		if (s.type != C.NOTE)
+			return 1
+		while (s1 && s1.type != C.NOTE)
+			s1 = s1.prev
+		if (!s1)
+			return 1
+		for (i = 0; i < s1.a_dd.length; i++) {
+			if (s1.a_dd[i].name == dd.name) {
+				if (!s.fg)
+					s.fg = []
+				s.fg.push({
+					ty: 1,		// end of glissando
+					s: s1,
+					nm: dd.name
+				})
+				if (!s1.fg)
+					s1.fg = []
+				s1.fg.push({
+					ty: 0,		// start of glissando
+					s: s,
+					nm: dd.name
+				})
+				return 0
+			}
+		}
+		return 1
+	} // sav_fg()
 
 	while (1) {
 		nm = a_dcn.shift()
@@ -844,12 +905,24 @@ function deco_cnv(s, prev) {
 				continue
 			}
 			// fall thru
-		case 1:			// slide
+		case 1:			// slide & deco on stem
+			if (nm != "slide")
+				s.decstm=dd.h		// deco stem
+			// fall thru
 		case 2:			// arp
 //			if (s.type != C.NOTE && s.type != C.REST) {
 			if (!s.notes) {
 				error(1, s, errs.must_note_rest, nm)
 				continue
+			}
+			break
+		case 3:
+			if (fg && dd.glyph == "fng") { // move the fingers out of staves
+				for (i = 0; i <= 5; i++) {
+					decos[i.toString()] = "5 fng 5,5 3 3 " + i
+					if (dd_tb[i.toString()])
+						dd_tb[i.toString()].func = 5
+				}
 			}
 			break
 		case 4:			// below the staff
@@ -1006,8 +1079,22 @@ function deco_cnv(s, prev) {
 			}
 			do_ctie(nm, s, s.notes[0])	// (only one note for now)
 			continue
+		case 45:		// finger glissando
+			fg = 1 //true
+			continue
 //		default:
 //			break
+		}
+
+		// handle the fingering in case finger glissando
+		if (fg && dd.glyph == 'fng') {
+			fg = 0 //false
+			if (sav_fg()) {
+				error(1, s,
+					"!$1! must be on the last of a couple of notes",
+					nm)
+				continue
+			}
 		}
 
 		// add the decoration in the symbol
@@ -1162,6 +1249,49 @@ Abc.prototype.draw_all_deco = function() {
 		new_de = [],
 		ymid = []
 
+	// display a finger glissando
+	function out_fg() {
+	    var	k, l, de2, fg, fg2, x2,
+		j = s.fg.length
+
+		while (--j >= 0) {
+			fg = s.fg[j]
+			if (fg.nm == dd.name)
+				break
+		}
+		if (j < 0)
+			return
+
+		if (fg.ty) {		// end
+			if (fg.ty == 1)		// no start (not treated yet)
+				out_wln(x - 19, y, 12)
+			return
+		}
+
+		x2 = x + 7		// start
+		for (k = 0; k < a_de.length; k++) {
+			de2 = a_de[k]
+			if (de2.s != fg.s
+			 || de2.dd.name != dd.name)
+				continue
+			for (l = 0; l < de2.s.fg.length; l++) {
+				fg2 = de2.s.fg[l]
+				if (fg2.nm == fg.nm)
+					break
+			}
+			if (fg2.nm == fg.nm) {		// if same finger
+				fg2.ty = 2		// end done
+				xypath(x2, y + 1)
+				output += 'l' + (de2.x - 7 - x2).toFixed(1)
+					+ ' ' + (y - de2.y
+						- staff_tb[s.st].y).toFixed(1)
+					+ '" stroke-width=".7"/>\n'
+				return
+			}
+		}
+		out_wln(x2, y, 12)	// start without end
+	} // out_fg()
+
 		st = nstaff;
 		y = staff_tb[st].y
 		while (--st >= 0) {
@@ -1271,6 +1401,9 @@ Abc.prototype.draw_all_deco = function() {
 			y = y + dd.h - dd.hd
 			g_open(x, y, 0, 1, -1);
 			x = y = 0
+		} else if (de.rotpi) {
+			g_open(x, y, 180)
+			x = y = 0
 		}
 		if (de.has_val) {
 			if (dd.func != 2	// if not !arpeggio!
@@ -1284,6 +1417,8 @@ Abc.prototype.draw_all_deco = function() {
 		} else if (dd.str != undefined		// string
 			&& !tgls[dd.glyph]
 			&& !glyphs[dd.glyph]) {		// with a class
+			if (s.fg)			// if finger glissando
+				out_fg()		// (may change y)
 			out_deco_str(x, y,		// - dd.h * .2,
 					de)
 		} else if (de.lden) {
@@ -2015,7 +2150,7 @@ function draw_measnb() {
 /* -- draw the parts and the tempo information -- */
 // (unscaled delayed output)
 function draw_partempo() {
-    var	s, s2, some_part, some_tempo, h, w, y, st,
+    var	s, s2, some_part, some_tempo, h, w, y, st, p,
 	sy = cur_sy
 
 	// search the top staff
@@ -2047,7 +2182,10 @@ function draw_partempo() {
 		}
 		if (s2.x == undefined)
 			s2.x = s.x - 10
-		w = strwh(s2.text)[0]
+		p = s2.text
+		if (cfmt.partname)
+			s2.ntxt = p = partname(p)[2]
+		w = strwh(p)[0]
 		y = y_get(st, true, s2.x, w + 3)
 		if (ymin < y)
 			ymin = y
@@ -2059,7 +2197,8 @@ function draw_partempo() {
 			s2 = s.part
 			if (!s2 || s2.invis)
 				continue
-			w = strwh(s2.text)[0]
+			p = s2.ntxt || s2.text
+			w = strwh(p)[0]
 			if (user.anno_start || user.anno_stop) {
 				s2.wl = 0
 				s2.wr = w
@@ -2069,8 +2208,9 @@ function draw_partempo() {
 			}
 			xy_str(s2.x,
 				ymin + 2 + gene.curfont.pad + gene.curfont.size * .22,
-				s2.text)
-			y_set(st, 1, s2.x, w + 3, ymin + 2 + h)
+				p)
+			y_set(st, 1, s2.x, w + 3,
+				(ymin + 2 + h) / staff_tb[st].staffscale)
 			if (s2.x < 0)
 				yn = ymin + 2 + h
 			anno_stop(s2)
@@ -2123,7 +2263,8 @@ function draw_partempo() {
 			}
 			writempo(s, s.x - 16, y)
 			anno_stop(s)
-			y_set(st, 1, s.x - 16, w, y + h + 2)
+			y_set(st, 1, s.x - 16, w,
+				(y + h + 2) / staff_tb[st].staffscale)
 			dosh >>= 1
 		}
 	}

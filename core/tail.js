@@ -26,6 +26,7 @@ Abc.prototype.add_style = function(s) { style += s };
 Abc.prototype.anno_a = anno_a
 Abc.prototype.cfmt = function() { return cfmt };
 Abc.prototype.clone = clone;
+Abc.prototype.clr_sty = clr_sty
 Abc.prototype.deco_put = function(nm, s) {
 	a_dcn.push(nm)
 	deco_cnv(s)
@@ -75,10 +76,12 @@ Abc.prototype.parse = parse;
 Abc.prototype.psdeco = empty_function;
 Abc.prototype.psxygl = empty_function;
 Abc.prototype.set_cur_sy = function(sy) { cur_sy = sy };
+Abc.prototype.set_curvoice = function(p_v) { curvoice = p_v }
 Abc.prototype.set_dscale = set_dscale;
 Abc.prototype.set_font = set_font;
 Abc.prototype.set_a_gch = function(s, a) { a_gch = a; csan_add(s) }
 Abc.prototype.set_hl = set_hl
+Abc.prototype.set_map = set_map
 Abc.prototype.set_page = set_page
 Abc.prototype.set_pagef = function() { blkdiv = 1 }
 Abc.prototype.set_realwidth = function(v) { realwidth = v }

@@ -26,9 +26,10 @@ rule jsc
 	d=`date -Idate`;$
 	v="abc2svg.version=\"$$v\";abc2svg.vdate=\"$$d\"";$
    else $
-	v=`grep abc2svg.version $out`;$
+	v=`cat version.txt`;$
    fi;$
    cp core/license $out;$
+   head -qn1 $in >> $out;$
    if [ "x$$NOMIN" = "x" ]; then $
       if command -v jsmin >/dev/null 2>&1; then $
 	cat $in | jsmin >> $out;$
@@ -47,6 +48,7 @@ rule jsc
 
 rule jscu
   command = cp core/license $out;$
+   head -qn1 $in >> $out;$
    if [ "x$$NOMIN" = "x" ]; then $
       if command -v jsmin >/dev/null 2>&1; then $
 	cat $in | jsmin >> $out;$
@@ -94,7 +96,6 @@ build abc2svg-$MAJOR.js: jsc core/abc2svg.js core/deco.js core/draw.js $
  font.js core/format.js core/front.js core/music.js core/parse.js core/subs.js $
  core/svg.js core/tune.js core/lyrics.js core/gchord.js core/tail.js $
  core/modules.js
-#| package.json
 
 build ambitus-$MAJOR.js: jscu modules/ambitus.js
 build break-$MAJOR.js: jscu modules/break.js
@@ -123,6 +124,7 @@ build soloffs-$MAJOR.js: jscu modules/soloffs.js
 build sth-$MAJOR.js: jscu modules/sth.js
 build strtab-$MAJOR.js: jscu modules/strtab.js
 build temper-$MAJOR.js: jscu modules/temper.js
+build tempo-$MAJOR.js: jscu modules/tempo.js
 build tropt-$MAJOR.js: jscu modules/tropt.js
 
 build edit-$MAJOR.css: cp editor/edit.css
@@ -149,8 +151,8 @@ build all: phony abc2svg-$MAJOR.js abcdoc-$MAJOR.js $
  jazzchord-$MAJOR.js  mdnn-$MAJOR.js MIDI-$MAJOR.js $
  nns-$MAJOR.js page-$MAJOR.js pedline-$MAJOR.js perc-$MAJOR.js psvg-$MAJOR.js $
  roman-$MAJOR.js soloffs-$MAJOR.js sth-$MAJOR.js strtab-$MAJOR.js $
- temper-$MAJOR.js tropt-$MAJOR.js edit-$MAJOR.css edit-$MAJOR.js edit-$MAJOR.xhtml $
- abckbd-$MAJOR.js abckbd2-$MAJOR.js
+ temper-$MAJOR.js tempo-$MAJOR.js tropt-$MAJOR.js edit-$MAJOR.css edit-$MAJOR.js $
+ edit-$MAJOR.xhtml abckbd-$MAJOR.js abckbd2-$MAJOR.js
 
 default all
 
@@ -167,11 +169,12 @@ rule version
 	else $
 		v=`echo $$v|awk -F. -v OFS=. '{$$2 += 1; $$3=0; print}'`;$
 	fi;$
-	fossil commit --allow-empty -m "New release $$v" -tag $$v;$
+	d=`date -Idate`;$
+	echo "abc2svg.version=\"$$v\";abc2svg.vdate=\"$$d\"" > version.txt;$
+	fossil commit -m "New release $$v" -tag $$v;$
 	n=`tail -1 abc2svg-1.js|wc -c`;$
 	truncate -s -$$n abc2svg-1.js;$
-	d=`date -Idate`;$
-	echo "abc2svg.version=\"$$v\";abc2svg.vdate=\"$$d\"" >> abc2svg-1.js;$
+	cat version.txt >> abc2svg-1.js;$
 	r="abc2svg-$$v";$
 	ln -s . $$r;$
 	sed "s#^#$$r/#" dist_bin | pax -wj -x tar -f abc2svg.tar.bz2;$

@@ -87,11 +87,11 @@ done
 
 # check if some chromium-based browser is available
 for c in "$BROWSER" chromium-browser vivaldi opera brave-browser epic google-chrome; do
-	if command -v "$c" >/dev/null 2>&1; then
+	if command -v $c >/dev/null 2>&1; then
 		echo "and $c"
 		command $abcscr "$@" > /tmp/o.html
-# --headless=new does not work
-		"$c" --headless --print-to-pdf=$out --no-pdf-header-footer\
+# --headless does not work anymore (since vivaldi 6.9 2024-09-10)
+		$c --headless=old --print-to-pdf=$out --no-pdf-header-footer\
 			/tmp/o.html
 		rm /tmp/o.html
 		exit 0

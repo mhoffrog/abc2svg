@@ -25,7 +25,7 @@ gen() {
 fi
 
 out=abc2svg-$MAJOR.js
-VERSION='??????'
+VERSION=`sed -e 's/^[^"]*"//' -e's/".*//' version.txt`
 DATE=`date -Idate`
 cp core/license $out
 gen core/abc2svg.js core/deco.js core/draw.js\

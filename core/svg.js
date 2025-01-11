@@ -1,6 +1,6 @@
 // abc2svg - svg.js - svg functions
 //
-// Copyright (C) 2014-2023 Jean-Francois Moine
+// Copyright (C) 2014-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -24,6 +24,8 @@ var	output = "",		// output buffer
 \n.bthW{stroke:currentColor;fill:none;stroke-width:3}\
 \n.slW{stroke:currentColor;fill:none;stroke-width:.7}\
 \n.slthW{stroke:currentColor;fill:none;stroke-width:1.5}\
+\n.sltnW{stroke:currentColor;fill:none;stroke-width:.25}\
+\n.sldW{stroke:currentColor;fill:none;stroke-width:.7;stroke-dasharray:5,10}\
 \n.sW{stroke:currentColor;fill:none;stroke-width:.7}\
 \n.box{outline:1px solid black;outline-offset:1px}',
 	font_style = '',
@@ -41,6 +43,8 @@ var	output = "",		// output buffer
 	fulldefs = '',		// unreferenced defs as <filter>
 	stv_g = {		/* staff/voice graphic parameters */
 		scale: 1,
+		stsc: 1,	// staff scale
+		vsc: 1,		// voice scale
 		dy: 0,
 		st: -1,
 		v: -1,
@@ -59,10 +63,11 @@ var tgls = {
   brace: {x:0, y:0, c:"\ue000"},
   lphr: {x:0, y:23, c:"\ue030"},
   mphr: {x:0, y:23, c:"\ue038"},
-  sphr: {x:0, y:26, c:"\ue039"},
+  sphr: {x:0, y:25, c:"\ue039"},
   short: {x:0, y:32, c:"\ue038"},
-  tick: {x:0, y:29, c:"\ue039"},
-  rdots: {x:-1, y:0, c:"\ue043"},	// repeat dots
+  tick: {x:0, y:25, c:"\ue039"},
+  rdots: {x:0, y:0, c:"\ue043"},	// repeat dots
+  rdot: {x:0, y:0, c:"\ue044"},		// single repeat dot
   dsgn: {x:-12, y:0, c:"\ue045"},	// D.S.
   dcap: {x:-12, y:0, c:"\ue046"},	// D.C.
   sgno: {x:-5, y:0, c:"\ue047"},	// segno
@@ -170,7 +175,7 @@ var tgls = {
   umrd: {x:-6, y:2, c:"\ue56c"},
   lmrd: {x:-6, y:2, c:"\ue56d"},
   dplus: {x:-3, y:0, c:"\ue582"},	// plus
-  sld: {x:-8, y:12, c:"\ue5d0"},	// slide
+  sld: {x:-8, y:2, c:"\ue5d0"},		// slide
   grm: {x:-3, y:-2, c:"\ue5e2"},	// grace mark
   dnb: {x:-3, y:0, c:"\ue610"},		// down bow
   upb: {x:-2, y:0, c:"\ue612"},		// up bow
@@ -330,15 +335,18 @@ function set_sscale(st) {
 	var	new_scale, dy
 
 	if (st != stv_g.st && stv_g.scale != 1)
-		stv_g.scale = 0;
+		stv_g.scale = 1
 	new_scale = st >= 0 ? staff_tb[st].staffscale : 1
 	if (st >= 0 && new_scale != 1)
 		dy = staff_tb[st].y
 	else
 		dy = posy
-	if (new_scale == stv_g.scale && dy == stv_g.dy)
+	if (new_scale == stv_g.scale && dy == stv_g.dy
+	 && stv_g.st == st && stv_g.vsc == 1)
 		return
-	stv_g.scale = new_scale;
+	stv_g.stsc =
+		stv_g.scale = new_scale
+	stv_g.vsc = 1
 	stv_g.dy = dy;
 	stv_g.st = st;
 	stv_g.v = -1;
@@ -347,23 +355,20 @@ function set_sscale(st) {
 
 /* -- set the voice or staff scale -- */
 function set_scale(s) {
-    var	new_dy,
+    var	new_dy = posy,
+	st = staff_tb[s.st].staffscale == 1 ? -1 : s.st,
 	new_scale = s.p_v.scale
 
-	if (new_scale == 1) {
-		set_sscale(s.st)
-		return
+	if (st >= 0) {
+		new_scale *= staff_tb[st].staffscale
+		new_dy = staff_tb[st].y
 	}
-	new_dy = posy
-	if (staff_tb[s.st].staffscale != 1) {
-		new_scale *= staff_tb[s.st].staffscale;
-		new_dy = staff_tb[s.st].y
-	}
-	if (new_scale == stv_g.scale && stv_g.dy == posy)
+	if (new_scale == stv_g.scale && stv_g.dy == new_dy)
 		return
 	stv_g.scale = new_scale;
+	stv_g.vsc = s.p_v.scale
 	stv_g.dy = new_dy;
-	stv_g.st = staff_tb[s.st].staffscale == 1 ? -1 : s.st;
+	stv_g.st = st
 	stv_g.v = s.v;
 	set_g()
 }
@@ -531,7 +536,7 @@ function sy(y) {
 	if (stv_g.scale == 1)
 		return posy - y
 	if (stv_g.v >= 0)
-		return (stv_g.dy - y) / voice_tb[stv_g.v].scale
+		return (stv_g.dy - y) / stv_g.vsc
 	return stv_g.dy - y	// staff scale only
 }
 Abc.prototype.sy = sy;
@@ -684,7 +689,7 @@ function xygl(x, y, gl) {
 				gla[1].push(sy(y))
 				gla[2] += tgl.c
 			}
-		} else {
+		} else if (gl != 'nil') {
 			error(1, null, 'no definition of $1', gl)
 		}
 	}
@@ -913,7 +918,7 @@ function out_deco_str(x, y, de) {
 	if (name == 'fng') {
 		out_XYAB('\
 <text x="X" y="Y" style="font-size:14px">A</text>\n',
-			x - 2, y, m_gl(de.dd.str))
+			x - 2, y + 1, m_gl(de.dd.str))
 		return
 	}
 
@@ -1192,8 +1197,8 @@ function out_deco_long(x, y, de) {
 	deco_l_tb[name](x, y, de)
 }
 
-// return a tempo note
-function tempo_note(s, dur) {
+// add a tempo note in 'str' and return its number of characters
+function tempo_note(str, s, dur, dy) {
     var	p,
 	elts = identify_note(s, dur)
 
@@ -1218,9 +1223,14 @@ function tempo_note(s, dur) {
 		}
 		break
 	}
-	if (elts[1])			// dot
-		p += '<tspan dx=".1em">\uecb7</tspan>'
-	return p
+	str.push('<tspan\nclass="' +
+			font_class(cfmt.musicfont) +
+		'" style="font-size:' +
+		(gene.curfont.size * 1.3).toFixed(1) + 'px"' +
+		dy + '>' +
+		p + '</tspan>'
+		+ (elts[1] ? '\u2009.' : ''))		// dot
+	return elts[1] ? 2 : 1
 } // tempo_note()
 
 // build the tempo string
@@ -1244,14 +1254,7 @@ function tempo_build(s) {
 	if (s.tempo_notes) {
 		dy = ' dy="-1"'			// notes a bit higher
 		for (i = 0; i < s.tempo_notes.length; i++) {
-			p = tempo_note(s, s.tempo_notes[i])
-			str.push('<tspan\nclass="' +
-					font_class(cfmt.musicfont) +
-				'" style="font-size:' +
-				(gene.curfont.size * 1.3).toFixed(1) + 'px"' +
-				dy + '>' +
-				p + '</tspan>')
-			j = p.length > 1 ? 2 : 1	// (note and optional dot)
+			j = tempo_note(str, s, s.tempo_notes[i], dy)
 			w += j * gene.curfont.swfac
 			dy = ''
 		}
@@ -1266,14 +1269,7 @@ function tempo_build(s) {
 			str.push(s.tempo)
 			w += strwh(s.tempo.toString())[0]
 		} else {			// with a beat as a note
-			p = tempo_note(s, s.new_beat)
-			str.push('<tspan\nclass="' +
-					font_class(cfmt.musicfont) +
-				'" style="font-size:' +
-				(gene.curfont.size * 1.3).toFixed(1) +
-				'px" dy="-1">' +
-				p + '</tspan>')
-			j = p.length > 1 ? 2 : 1
+			j = tempo_note(str, s, s.new_beat, ' dy="-1"')
 			w += j * gene.curfont.swfac
 			dy = 'y'
 		}
@@ -1328,9 +1324,23 @@ function vskip(h) {
 	posy += h
 }
 
+// clear the styles
+function clr_sty() {
+	font_style = ''
+	if (cfmt.fullsvg) {
+		defined_glyph = {}
+		for (var i = 0; i < abc2svg.font_tb.length; i++)
+			abc2svg.font_tb[i].used = 0 //false
+		ff.used = 0 //false		// clear the font-face
+	} else {
+		style =
+			fulldefs = ''
+	}
+} // clr_sty()
+
 // create the SVG image of the block
 function svg_flush() {
-	if (multicol || !output || !user.img_out || posy == 0)
+	if (multicol || !user.img_out || posy == 0)
 		return
 
     var	i, font,
@@ -1345,6 +1355,8 @@ function svg_flush() {
 
 	glout()
 
+	if (cfmt.fgcolor)
+		head += ' color="' + cfmt.fgcolor + '"'
 	font = get_font("music")
 	head += ' class="' + font_class(font) +
 		' tune' + tunes.length + '"\n'	// tune index for play
@@ -1356,15 +1368,11 @@ function svg_flush() {
 		head += ' width="' + w
 			+ 'px" height="' + posy.toFixed(0) + 'px"'
 	head += ' viewBox="0 0 ' + w + ' '
-		+ posy.toFixed(0) + '"'
-	if (cfmt.fgcolor || cfmt.bgcolor)
-		head += ' style="'
-			+ (cfmt.fgcolor ? ('color:' + cfmt.fgcolor + ';')
-					: '')
-			+ (cfmt.bgcolor ? ('background-color:' + cfmt.bgcolor)
-					: '')
-			+ '"'
-	head += '>\n' + fulldefs
+		+ posy.toFixed(0) + '">\n'
+	head += fulldefs
+	if (cfmt.bgcolor)
+		head += '<rect width="100%" height="100%" fill="'
+			+ cfmt.bgcolor + '"/>\n'
 
 	if (style || font_style)
 		head += '<style>' + font_style + style + '\n</style>\n'
@@ -1386,24 +1394,23 @@ function svg_flush() {
 		psvg.ps_flush(true);	// + setg(0)
 
 	// start a block if needed
+	if (parse.state == 1 && user.page_format && !blkdiv)
+		blkdiv = 1		// new tune
 	if (blkdiv > 0) {
 		user.img_out(blkdiv == 1 ?
 			'<div class="nobrk">' :
 			'<div class="nobrk newpage">')
 		blkdiv = -1		// block started
+	} else if (blkdiv < 0 && cfmt.splittune) {
+		i = 1			// header and first music line
+		blkdiv = 0
 	}
 	user.img_out(head + output + g + "</svg>");
+	if (i)
+		user.img_out("</div>")
 	output = ""
 
-	font_style = ''
-	if (cfmt.fullsvg) {
-		defined_glyph = {}
-		for (i = 0; i < abc2svg.font_tb.length; i++)
-			abc2svg.font_tb[i].used = false
-	} else {
-		style = '';
-		fulldefs = ''
-	}
+	clr_sty()
 	defs = '';
 	posy = 0
 	img.wx = 0			// space used between the margins
@@ -1412,7 +1419,7 @@ function svg_flush() {
 // mark the end of a <div> block
 function blk_flush() {
 	svg_flush()
-	if (blkdiv < 0 && (!parse.state || cfmt.splittune)) {
+	if (blkdiv < 0 && !parse.state) {
 		user.img_out('</div>')
 		blkdiv = 0
 	}

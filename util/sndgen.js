@@ -32,6 +32,21 @@
 if (!abc2svg)
     var	abc2svg = {}
 
+// tempo table
+	abc2svg.tmp_tb = {
+		grave:		30,
+		lento:		40,
+		largo:		50,
+		adagio:		66,
+		andante:	86,
+		moderato:	96,
+		allegretto:	112,
+		allegro:	130,
+		vivace:		150,
+		presto:		180,
+		prestissimo:	210
+	}
+
 function ToAudio() {
  return {
 
@@ -44,7 +59,7 @@ function ToAudio() {
 	p_time = 0,		// last playing time
 	abc_time = 0,		// last ABC time
 	play_fac = C.BLEN / 4 * 120 / 60, // play time factor - default: Q:1/4=120
-	i, n, dt, d, v,
+	i, n, dt, d, v, s_m,
 	s = first,
 	rst = s,		// left repeat (repeat restart)
 	rst_fac,		// play factor on repeat restart
@@ -220,6 +235,29 @@ function ToAudio() {
 		}
 	} // build_parts()
 
+	// update the time linkage when the start time has changed
+	function relink(s, dt) {
+	    var	tim = s.time + dt,		// new time
+		s2 = s.ts_next
+
+		s.ts_prev.ts_next = s2		// remove from the time linkage
+		s2.ts_prev = s.ts_prev
+
+		while (!s2.seqst && s2.ts_next)
+			s2 = s2.ts_next
+		if (s2.time < s.time + dt)	// don't move after the next time seq.
+			dt = s2.time - s.time
+		s.time += dt			// update time and duration
+		s.dur -= dt
+		s.ts_prev = s2.ts_prev		// update the time linkage
+		s.ts_prev.ts_next = s
+		s.ts_next = s2
+		s2.ts_prev = s
+		s.seqst = 1 //true
+		if (s2.time == s.time)
+			s2.seqst = 0 //false
+	} // relink()
+
 	// generate the grace notes
 	function gen_grace(s) {
 	    var	g, i, n, t, d, s2,
@@ -241,8 +279,7 @@ function ToAudio() {
 				d = next.dur / 3
 			if (s.p_v.key.k_bagpipe)
 				d /= 2
-			next.time += d
-			next.dur -= d
+			relink(next, d)
 		}
 //fixme: assume the grace notes in the sequence have the same duration
 		n = 0
@@ -259,12 +296,33 @@ function ToAudio() {
 
 	// change the tempo
 	function set_tempo(s) {
+		if (!s.tempo && !s.new_beat) {
+		    var	p = (s.tempo_str1 || s.tempo_str2)
+			if (!p)
+				return play_fac		// no change
+		    var	upm = abc2svg.tmp_tb[p.toLowerCase()]
+
+			if (!upm)
+				return play_fac		// no change
+			upm *= C.BLEN / 240 // (/4/60)
+			if (!s_m.a_meter)
+				return upm
+			if (!s_m.a_meter[0].bot)
+				return (s_m.a_meter[1] && s_m.a_meter[1].top == '|')
+						? upm * 2 : upm
+			if (s_m.a_meter[0].bot == "8"
+			 && !(s_m.a_meter[0].top % 3))
+			 	return upm / 2 * 3
+			return upm * s_m.a_meter[0].bot / 4
+		}
 	    var	i,
 		d = 0,
 		n = s.tempo_notes.length
 
 		for (i = 0; i < n; i++)
 			d += s.tempo_notes[i]
+		if (s.new_beat)
+			return play_fac * s.new_beat / d
 		return d * s.tempo / 60
 	} // set_tempo()
 
@@ -293,7 +351,9 @@ function ToAudio() {
 		abc2svg.chord(first, voice_tb, cfmt)
 
 	// if %%playbeats, create the sounds
-	if (cfmt.playbeats)
+	s_m = first.p_v.meter			// current meter
+	if (cfmt.playbeats
+	  && first.p_v.meter.wmeasure != 1)	// if not M:none
 		def_beats()
 
 	if (s.parts)
@@ -343,6 +403,7 @@ function ToAudio() {
 				s.rep_p = rst		// :| to |:
 				if (rst == rsk[0])
 					s.rep_v = rsk	// to know the number of variants
+				rst = s			// possible restart (..:|..:|)
 			}
 
 			// 1st time repeat
@@ -404,9 +465,11 @@ function ToAudio() {
 			s.pdur = d
 			v = s.v
 			break
+		case C.METER:
+			s_m = s				// current meter
+			break
 		case C.TEMPO:
-			if (s.tempo)
-				play_fac = set_tempo(s)
+			play_fac = set_tempo(s)
 			break
 		}
 		s = s.ts_next
@@ -508,16 +571,22 @@ abc2svg.play_next = function(po) {
 			v: s2.v
 		}
 
+		p_v.vol = p_v.pan = undefined	// reset the controllers
+
 		for (i in p_v.midictl) { // MIDI controls at voice start time
 			s.ctrl = Number(i)
 			s.val = p_v.midictl[i]
 			po.midi_ctrl(po, s, t)
 		}
 		for (s = p_v.sym; s != s2; s = s.next) {
-			if (s.subtype == "midictl")
+			if (s.subtype == "midictl") {
 				po.midi_ctrl(po, s, t)
-			else if (s.subtype == 'midiprog')
+			} else if (s.subtype == 'midiprog') {
+				po.v_c[s.v] = s.chn
+				if (s.instr != undefined)
+					po.c_i[po.v_c[s.v]] = s.instr
 				po.midi_prog(po, s)
+			}
 		}
 
 		// if no %%MIDI, set 'grand acoustic piano' as the instrument
@@ -526,13 +595,16 @@ abc2svg.play_next = function(po) {
 			po.v_c[s2.v] = i = s2.v < 9 ? s2.v : s2.v + 1
 		if (po.c_i[i] == undefined)
 			po.c_i[i] = 0	// piano
-
+		while (p_v.voice_down) {
+			p_v = p_v.voice_down
+			po.v_c[p_v.v] = i
+		}
 		po.p_v[s2.v] = true	// synchronization done
 	} // set_ctrl()
 
     // start and continue to play
     function play_cont(po) {
-    var	d, i, st, m, note, g, s2, t, maxt, now,
+    var	d, i, st, m, note, g, s2, t, maxt, now, p_v,
 	C = abc2svg.C,
 	s = po.s_cur
 
@@ -604,6 +676,8 @@ abc2svg.play_next = function(po) {
 					if (s.rep_v)
 						s2 = var_end(s)
 					po.repn = false
+					if (s.bar_type.slice(-1) == ':') // if ::
+						po.repv = 1
 				}
 			}
 			if (s.rep_s) {			// first variant
@@ -663,10 +737,19 @@ abc2svg.play_next = function(po) {
 		case C.BAR:
 			break
 		case C.BLOCK:
-			if (s.subtype == "midictl")
+			if (s.subtype == "midictl") {
 				po.midi_ctrl(po, s, t)
-			else if (s.subtype == 'midiprog')
+			} else if (s.subtype == 'midiprog') {
+				po.v_c[s.v] = s.chn
+				if (s.instr != undefined)
+					po.c_i[po.v_c[s.v]] = s.instr
 				po.midi_prog(po, s)
+				p_v = s.p_v
+				while (p_v.voice_down) {
+					p_v = p_v.voice_down
+					po.v_c[p_v.v] = s.chn
+				}
+			}
 			break
 		case C.GRACE:
 			for (g = s.extra; g; g = g.next) {

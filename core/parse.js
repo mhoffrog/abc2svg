@@ -310,7 +310,7 @@ function set_user(parm) {
 function get_st_lines(param) {
 	if (!param)
 		return
-	if (/^[\]\[|.-]+$/.test(param))
+	if (/^[\]\[|.':-]+$/.test(param))	// '
 		return param.replace(/\]/g, '[')
 
     var	n = +param
@@ -327,19 +327,13 @@ function get_st_lines(param) {
 
 // create a block symbol in the tune body
 function new_block(subtype) {
-    var	c_v,
-	s = {
+    var	s = {
 			type: C.BLOCK,
 			subtype: subtype,
 			dur: 0
 		}
 
-	c_v = curvoice
-	if (subtype.slice(0, 4) != "midi")	// if not a play command
-		curvoice = voice_tb[0]		// set the block in the first voice
 	sym_link(s)
-	if (c_v)
-		curvoice = c_v
 	return s
 }
 
@@ -510,12 +504,13 @@ Abc.prototype.set_vp = function(a) {
 			break
 		case "stafflines=":
 			val = get_st_lines(a.shift())
-			if (val == undefined)
+			if (val == undefined) {
 				syntax(1, "Bad %%stafflines value")
-			else if (curvoice.st != undefined)
+				break
+			}
+			if (curvoice.st != undefined)
 				par_sy.staves[curvoice.st].stafflines = val
-			else
-				curvoice.stafflines = val
+			curvoice.stafflines = val
 			break
 		case "staffnonote=":
 			val = +a.shift()
@@ -776,8 +771,8 @@ function new_key(param) {
 		? abc2svg.keys[9]		// implicit F# and C#
 		: abc2svg.keys[sf + 7]
 	if (s.k_a_acc) {
-		s.k_map = new Int8Array(s.k_map)
-		i = s.k_a_acc.length
+		s.k_map = Array.prototype.slice.call(s.k_map)	// simple Array
+		i = s.k_a_acc.length			// (for micro-accidentals)
 		while (--i >= 0) {
 			note = s.k_a_acc[i]
 			s.k_map[(note.pit + 19) % 7] = note.acc
@@ -908,7 +903,7 @@ function new_meter(p) {
 						break
 					meter.top += p[i++]
 				}
-				m1 = eval(meter.top)
+				m1 = eval(meter.top.replace(/ /g, '+'))
 				break
 			}
 			if (!in_parenth) {
@@ -1753,40 +1748,76 @@ function parse_acc_pit(line) {
 // - normal = ABC note
 // - octave = 'o' + ABC note in C..B interval
 // - key    = 'k' + scale index
-// - all    = 'all'
+// - tonic  = 't' + mode index
+// - any    = '*'
 // The 'map' is stored in the note. It is an array of
 //	[0] array of heads (glyph names)
 //	[1] print (note)
 //	[2] color
 //	[3] play (note)
 function set_map(p_v, note, acc,
-		 trp) {			// transpose done
+		trp_p) {			// flag "do transpose?"
     var	nn = not2abc(note.pit, acc),
-	map = maps[p_v.map]		// never null
+	map = maps[p_v.map]
 
-	if (!map[nn]) {
-		nn = 'o' + nn.replace(/[',]+/, '')	// ' octave
-		if (!map[nn]) {
-			nn = 'k' + ntb[(note.pit + 75 -
-					p_v.ckey.k_sf * 11) % 7]
-			if (!map[nn]) {
-				nn = 'all'		// 'all'
-				if (!map[nn])
-					return
-			}
-		}
-	}
+	if (!map)
+		return
+
+	// test if 'nn' is in the map
+	function map_p() {
+		if (map[nn])
+			return 1 //true
+	    var	sf, d
+
+		nn = 'o' + nn.replace(/[',]+/, '')	// '
+		if (map[nn])
+			return 1 //true
+//fixme: useless
+		nn = 'k' + ['__','_','=','^','^^','='][acc + 2]	// key chromatic
+			+ ntb[(note.pit + 75 - p_v.ckey.k_sf * 11) % 7]
+		if (map[nn])
+			return 1 //true
+		nn = nn.replace(/[_=^]/g,'')		// key diatonic
+		if (map[nn])
+			return 1 //true
+		sf = p_v.ckey.k_sf + [0, 2, 4, -1, 1, 3, -2][p_v.ckey.k_mode]
+		if (sf < -7)
+			sf += 7
+		else if (sf > 7)
+			sf -= 7
+		d = abc2svg.keys[sf + 7]
+				[(note.pit + 75) % 7]
+		nn = 't' + ['__','_','=','^','^^','=']	// tonic chromatic
+				[acc - d + 2]
+			+ ntb[(note.pit + 75 - p_v.ckey.k_mode
+				 - p_v.ckey.k_sf * 11) % 7]
+		if (map[nn])
+			return 1 //true
+		nn = nn.replace(/[_=^]/g,'')		// tonic diatonic
+		if (map[nn])
+			return 1 //true
+		nn = '*'				// any note
+		return map[nn]
+	} // map_p()
+
+	if (!map_p())					// note in the map?
+		return					// no
 	map = map[nn]
-	if (!trp) {				// transpose not done yet
-		if (map[1]) {			// if note shift
+
+	if (trp_p) {
+		if (map[1] && map[1].notrp)
+			note.notrp = 1 //true	// no transpose
+		return
+	}
+
+	if (map[1]				// if note transpose
+	 && !note.map) {			// for the first time
 			note.pit = map[1].pit
 			note.acc = map[1].acc
 			if (map[1].notrp) {
 				note.notrp = 1 //true	// no transpose
 				note.noplay = 1 //true	// no play
 			}
-		}
-		return
 	}
 	note.map = map
 
@@ -2003,8 +2034,9 @@ function do_ties(s, tie_s) {
 
 // (possible hook)
 Abc.prototype.new_note = function(grace, sls) {
-    var	note, s, in_chord, c, dcn, type, tie_s, acc_tie,
-	i, n, s2, nd, res, num, dur, apit, div, ty,
+    var	note, s, in_chord, c, tie_s, acc_tie,
+	i, n, s2, nd, res, num, apit, div, ty,
+	chdur = 1,
 	dpit = 0,
 	sl1 = [],
 	line = parse.line,
@@ -2053,13 +2085,6 @@ Abc.prototype.new_note = function(grace, sls) {
 			return
 		}
 		s.dur = curvoice.wmeasure * s.nmes
-
-		// ignore if in second voice
-		if (curvoice.second) {
-			delete curvoice.eoln	// ignore the end of line
-			curvoice.time += s.dur
-			return //null
-		}
 
 		// convert 'Z'/'Z1' to a whole measure rest
 		if (s.nmes == 1) {
@@ -2112,6 +2137,17 @@ Abc.prototype.new_note = function(grace, sls) {
 	case '[':			// chord
 		in_chord = true;
 		c = line.next_char()
+		i = line.buffer.indexOf(']', line.index)
+		if (i < 0) {
+			syntax(1, "No end of chord")
+			return
+		}
+		n = line.index			// save the parser index
+		line.index = i + 1		// set the parser to the end of chord
+		nd = parse_dur(line)
+		chdur = nd[0] / nd[1]		// length factor of the chord
+		in_chord = reg_dur.lastIndex	// hack: index after the chord length
+		line.index = n			// restore the parser index
 		// fall thru
 	default:			// accidental, chord, note
 		if (curvoice.acc_tie) {
@@ -2133,15 +2169,15 @@ Abc.prototype.new_note = function(grace, sls) {
 						syntax(1, errs.not_ascii)
 						return //null
 					}
-					type = char_tb[i]
-					switch (type[0]) {
+					ty = char_tb[i]
+					switch (ty[0]) {
 					case '(':
 						sl1.push(parse_vpos());
 						c = line.char()
 						continue
 					case '!':
-						if (type.length > 1)
-							a_dcn.push(type.slice(1, -1))
+						if (ty.length > 1)
+							a_dcn.push(ty.slice(1, -1))
 						else
 							get_deco()	// line -> a_dcn
 						c = line.next_char()
@@ -2158,6 +2194,7 @@ Abc.prototype.new_note = function(grace, sls) {
 			if (!note)
 				return //null
 
+			note.dur *= chdur		// chord factor
 			if (curvoice.octave)
 				note.pit += curvoice.octave * 7
 
@@ -2173,7 +2210,8 @@ Abc.prototype.new_note = function(grace, sls) {
 					i = curvoice.ckey.k_map[apit % 7] || 0
 			}
 
-			if (i) {
+			if (i
+			 && !curvoice.ckey.k_drum) {
 				if (cfmt["propagate-accidentals"][0] == 'p')
 					curvoice.acc[apit % 7] = i
 				else if (cfmt["propagate-accidentals"][0] != 'n')
@@ -2188,11 +2226,9 @@ Abc.prototype.new_note = function(grace, sls) {
 				note.midi = pit2mid(apit, i)
 
 			// transpose
-			if (curvoice.map
-			 && maps[curvoice.map])
-				set_map(curvoice, note, i)	// transpose not done
 			if (curvoice.tr_sco) {
-			    if (!note.notrp) {
+				set_map(curvoice, note, i, 1)	// possible transpose?
+			    if (!note.notrp) {			// yes
 				i = nt_trans(note, i)
 				if (i == -3) {		// if triple sharp/flat
 					error(1, s, "triple sharp/flat")
@@ -2205,6 +2241,8 @@ Abc.prototype.new_note = function(grace, sls) {
 			}
 			if (curvoice.tr_snd)
 				note.midi += curvoice.tr_snd
+			if (curvoice.map)
+				set_map(curvoice, note, i)
 
 //fixme: does not work if transposition
 			if (i) {
@@ -2239,10 +2277,6 @@ Abc.prototype.new_note = function(grace, sls) {
 						nts: note	// starting note
 					})
 				}
-			}
-			if (a_dcn.length) {
-				s.time = curvoice.time	// (needed for !tie)!
-				dh_cnv(s, note)
 			}
 			s.notes.push(note)
 			if (!in_chord)
@@ -2286,16 +2320,14 @@ Abc.prototype.new_note = function(grace, sls) {
 				}
 				break
 			}
-			if (c == ']') {
-				line.index++;
+			if (a_dcn.length) {
+				s.time = curvoice.time	// (needed for !tie)!
+				dh_cnv(s, note)
+			}
 
-				// adjust the chord duration
-				nd = parse_dur(line);
+			if (c == ']') {
+				line.index = in_chord
 				s.nhd = s.notes.length - 1
-				for (i = 0; i <= s.nhd ; i++) {
-					note = s.notes[i];
-					note.dur = note.dur * nd[0] / nd[1]
-				}
 				break
 			}
 		}
@@ -2328,6 +2360,17 @@ Abc.prototype.new_note = function(grace, sls) {
 	}
 
 	if (s.notes) {				// if note or rest
+		if (!s.fmr) {			// (but not full measure rest)
+			n = s.dur_orig / 12	// check its duration
+			i = 0
+			while (!(n & 1)) {
+				n >>= 1
+				i++
+			}
+			if ((n + 1) & n)
+				error(0, s, "Non standard note duration $1",
+					n + '/' + (1 << (6 - i)))
+		}
 		if (!grace) {
 			switch (curvoice.pos.stm & 0x07) {
 			case C.SL_ABOVE: s.stem = 1; break
