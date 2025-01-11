@@ -16,11 +16,11 @@ abc2svg.equalbars = {
     },
 
     // get the equalbars parameter
-    set_fmt: function(of, cmd, param, lock) {
+    set_fmt: function(of, cmd, param) {
 	if (cmd == "equalbars")
 		this.cfmt().equalbars = this.get_bool(param)
 	else
-		of(cmd, param, lock)
+		of(cmd, param)
     },
 
     // adjust the symbol offsets of a music line
@@ -34,10 +34,8 @@ abc2svg.equalbars = {
 	if (!this.cfmt().equalbars)
 		return
 
-	// search the first note/rest/bar
+	// search the first note/rest/space
 	for (s2 = tsfirst; s2; s2 = s2.ts_next) {
-		if (!s2.seqst)
-			continue
 		switch (s2.type) {
 		default:
 			continue
@@ -61,7 +59,13 @@ abc2svg.equalbars = {
 			t = s.time
 		}
 	}
-	bars.push([s, s.time - t]);
+
+	// push the last bar if it is not the invisible bar after a key change
+	if (!s.invis || s.prev.type != C.KEY)
+		bars.push([s, s.time - t])
+	else
+		bars[bars.length - 1][0] = s	// replace the last bar
+	width = s.x
 	t = s.time
 	if (s.dur)
 		t += s.dur;
@@ -72,10 +76,10 @@ abc2svg.equalbars = {
 
 	// set the measure parameters
 	x = s2.type == C.GRACE ? s2.extra.x : s2.x;
-	d = this.equalbars_d
-	if (!d)
-		d = this.equalbars_d = x;	// offset first note/rest
+	if (this.equalbars_d < x)
+		this.equalbars_d = x		// new offset of the first note/rest
 
+	d = this.equalbars_d
 	w = (width - d) / (t - t0)		// width per time unit
 
 	// loop on the bars

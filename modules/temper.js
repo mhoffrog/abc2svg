@@ -40,7 +40,7 @@ abc2svg.temper = {
     },
 
     // get the temperament
-    set_fmt: function(of, cmd, param, lock) {
+    set_fmt: function(of, cmd, param) {
 	if (cmd == "temperament") {
 	    var	ls = new Float32Array(param.split(/ +/)),
 		i = ls.length
@@ -58,7 +58,7 @@ abc2svg.temper = {
 		this.syntax(1, this.errs.bad_val, "%%temperament")
 		return
 	}
-	of(cmd, param, lock)
+	of(cmd, param)
     },
 
     set_hooks: function(abc) {

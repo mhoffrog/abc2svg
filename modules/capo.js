@@ -25,8 +25,7 @@ abc2svg.capo = {
 	}
 	gch2 = Object.create(gch);
 	gch2.capo = false;		// (would be erased when setting gch)
-	gch2.text = this.gch_tr1(gch2.text,
-			[0, 5, -2, 3, -4, 1, -6, -1, 4, -3, 2, -5][transp % 12])
+	gch2.text = this.gch_tr1(gch2.text, -abc2svg.ifb40[transp % 12])
 	if (!this.capo_first) {			// if new tune
 		this.capo_first = true;
 		gch2.text += "  (capo: " + transp.toString() + ")"
@@ -51,12 +50,12 @@ abc2svg.capo = {
 	of()
     },
 
-    set_fmt: function(of, cmd, param, lock) {
+    set_fmt: function(of, cmd, param) {
 	if (cmd == "capo") {
 		this.cfmt().capo = param
 		return
 	}
-	of(cmd, param, lock)
+	of(cmd, param)
     },
 
     set_hooks: function(abc) {

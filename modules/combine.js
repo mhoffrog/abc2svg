@@ -11,7 +11,8 @@ abc2svg.combine = {
 
     // function called at start of the generation when multi-voices
     comb_v: function() {
-    var	C = abc2svg.C
+    var	C = abc2svg.C,
+	delsym = []		// deleted symbols for slurs and ties
 
     // check if voice combine may occur
     function may_combine(s) {
@@ -38,9 +39,7 @@ abc2svg.combine = {
 			return false
 		return true
 	}
-	if (s2.a_ly
-	 || s2.sl1 || s2.sl2
-	 || s2.slur_start || s2.slur_end)
+	if (s2.a_ly)
 		return false
 	if (s2.beam_st != s.beam_st
 	 || s2.beam_end != s.beam_end)
@@ -56,9 +55,11 @@ abc2svg.combine = {
     function combine_notes(s, s2) {
     var	nhd, type, m;
 
-	s.notes = s.notes.concat(s2.notes);
+	for (m = 0; m <= s2.nhd; m++)	// change the container of the notes
+		s2.notes[m].s = s
+	Array.prototype.push.apply(s.notes, s2.notes);
 	s.nhd = nhd = s.notes.length - 1;
-	this.sort_pitch(s)		// sort the notes by pitch
+	s.notes.sort(abc2svg.pitcmp)	// sort the notes by pitch
 
 	if (s.combine >= 3) {		// remove unison heads
 		for (m = nhd; m > 0; m--) {
@@ -73,12 +74,12 @@ abc2svg.combine = {
 	s.ymn = 3 * (s.notes[0].pit - 18) - 4;
 
 	// force the tie directions
-	type = s.notes[0].ti1
-	if ((type & 0x0f) == C.SL_AUTO)
-		s.notes[0].ti1 = C.SL_BELOW | (type & ~C.SL_DOTTED);
-	type = s.notes[nhd].ti1
-	if ((type & 0x0f) == C.SL_AUTO)
-		s.notes[nhd].ti1 = C.SL_ABOVE | (type & ~C.SL_DOTTED)
+	type = s.notes[0].tie_ty
+	if ((type & 0x07) == C.SL_AUTO)
+		s.notes[0].tie_ty = C.SL_BELOW | (type & C.SL_DOTTED);
+	type = s.notes[nhd].tie_ty
+	if ((type & 0x07) == C.SL_AUTO)
+		s.notes[nhd].tie_ty = C.SL_ABOVE | (type & C.SL_DOTTED)
 } // combine_notes()
 
 // combine 2 voices
@@ -100,16 +101,30 @@ function do_combine(s) {
 				delete s.invis
 		} else {
 			combine_notes.call(this, s, s2)
+			if (s2.tie_s)
+				s.tie_s = s2.tie_s
 		}
 
+		if (s2.sls) {
+			if (s.sls)
+				Array.prototype.push.apply(s.sls, s2.sls)
+			else
+				s.sls = s2.sls
+		}
+		if (s2.sl1)
+			s.sl1 = true
 		if (s2.a_gch)
 			s.a_gch = s2.a_gch
 		if (s2.a_dd) {
 			if (!s.a_dd)
 				s.a_dd = s2.a_dd
 			else
-				s.a_dd = s.a_dd.concat(s2.a_dd)
+				Array.prototype.push.apply(s.a_dd, s2.a_dd)
 		}
+
+		// memorize the deleted symbol: it may support slur or tie endings
+		delsym.push({s: s2, r: s});
+
 		this.unlksym(s2)			// remove the next symbol
 
 		// there may be more voices
@@ -118,6 +133,20 @@ function do_combine(s) {
 	}
 } // do_combine()
 
+    // replace tie endings
+    function tie_repl(s) {
+    var	s1 = s.tie_s,
+	i = delsym.length
+
+	while (--i >= 0) {
+		if (delsym[i].s == s1) {
+			s.tie_s = delsym[i].r
+			break
+		}
+	}
+    } // tie_repl()
+
+	// code of comb_v()
 	var s, s2, g, i, r
 
 	for (s = this.get_tsfirst(); s; s = s.ts_next) {
@@ -169,6 +198,12 @@ function do_combine(s) {
 				s2 = s2.next
 			} while (s2.type != C.NOTE && s2.type != C.REST)
 		}
+	}
+
+	// replace the tie endings
+	for (s = this.get_tsfirst(); s; s = s.ts_next) {
+		if (s.tie_s)
+			tie_repl(s)
 	}
     }, // comb_v()
 

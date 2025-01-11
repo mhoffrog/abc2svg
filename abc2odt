@@ -39,6 +39,12 @@ abc2svg.readFile = function(fname) {
 	return fs.readFileSync(fname).toString()
 }
 
+abc2svg.get_mtime = function(fn) {
+    var	fs = require("fs")
+
+	return fs.statSync(fn).mtime
+}
+
 abc2svg.loadjs = function(fn, relay, onerror) {
 	try {
 		var geval = eval;

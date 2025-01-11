@@ -17,27 +17,17 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
-// PostScript hooks
-function psdeco() { return false }
-function psxygl() { return false }
-
 // initialize
 	init_tune()
 
 // Abc functions used by the modules
 Abc.prototype.add_style = function(s) { style += s };
-Abc.prototype.calculate_beam = calculate_beam;
 Abc.prototype.cfmt = function() { return cfmt };
 Abc.prototype.clone = clone;
 Abc.prototype.deco_cnv = deco_cnv;
-Abc.prototype.do_pscom = do_pscom;
-Abc.prototype.do_begin_end = do_begin_end;
-Abc.prototype.draw_gchord = draw_gchord;
 Abc.prototype.draw_note = draw_note;
-Abc.prototype.draw_symbols = draw_symbols;
 Abc.prototype.errs = errs;
 Abc.prototype.font_class = font_class;
-Abc.prototype.gch_build = gch_build;
 Abc.prototype.gch_tr1 = gch_tr1;
 Abc.prototype.get_a_gch = function() { return a_gch };
 Abc.prototype.get_bool = get_bool;
@@ -45,7 +35,6 @@ Abc.prototype.get_cur_sy = function() { return cur_sy };
 Abc.prototype.get_curvoice = function() { return curvoice };
 Abc.prototype.get_delta_tb = function() { return delta_tb };
 Abc.prototype.get_decos = function() { return decos };
-Abc.prototype.get_fname = function() { return parse.fname };
 Abc.prototype.get_font = get_font;
 Abc.prototype.get_font_style = function() { return font_style };
 Abc.prototype.get_glyphs = function() { return glyphs };
@@ -67,35 +56,25 @@ Abc.prototype.get_voice_tb = function() { return voice_tb };
 Abc.prototype.goto_tune = goto_tune;
 Abc.prototype.info = function() { return info };
 Abc.prototype.new_block = new_block;
-Abc.prototype.new_note = new_note;
 Abc.prototype.out_arp = out_arp;
 Abc.prototype.out_deco_str = out_deco_str;
 Abc.prototype.out_deco_val = out_deco_val;
 Abc.prototype.out_ltr = out_ltr;
-Abc.prototype.output_music = output_music;
 Abc.prototype.param_set_font = param_set_font;
 Abc.prototype.parse = parse;
-Abc.prototype.psdeco = psdeco;
-Abc.prototype.psxygl = psxygl;
-Abc.prototype.set_bar_num = set_bar_num;
+Abc.prototype.psdeco = empty_function;
+Abc.prototype.psxygl = empty_function;
 Abc.prototype.set_cur_sy = function(sy) { cur_sy = sy };
 Abc.prototype.set_dscale = set_dscale;
 Abc.prototype.set_font = set_font;
-Abc.prototype.set_format = set_format;
-Abc.prototype.set_pitch = set_pitch;
 Abc.prototype.set_scale = set_scale;
-Abc.prototype.set_stem_dir = set_stem_dir;
-Abc.prototype.set_stems = set_stems;
-Abc.prototype.set_sym_glue = set_sym_glue;
 Abc.prototype.set_tsfirst = function(s) { tsfirst = s };
-Abc.prototype.set_vp = set_vp;
 Abc.prototype.set_v_param = set_v_param;
-Abc.prototype.set_width = set_width;
-Abc.prototype.sort_pitch = sort_pitch;
 Abc.prototype.strwh = strwh;
 Abc.prototype.stv_g = function() { return stv_g };
 Abc.prototype.svg_flush = svg_flush;
 Abc.prototype.syntax = syntax;
+Abc.prototype.tunes = tunes
 Abc.prototype.unlksym = unlksym;
 Abc.prototype.use_font = use_font;
 Abc.prototype.xy_str = xy_str;
@@ -129,8 +108,6 @@ Abc.prototype.xygl = xygl;
 	}
     } // set_hooks()
 }	// end of Abc()
-
-} // end of abc2svg
 
 // compatibility
 var Abc = abc2svg.Abc

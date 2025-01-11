@@ -97,6 +97,16 @@ var strwh = typeof document != "undefined" ?
 
 		el.style.font = style_font(font).slice(5);
 
+		str = str.replace(/<|>|&[^&]*?;|&|  /g, function(c){
+			switch (c) {
+			case '<': return "&lt;"
+			case '>': return "&gt;"
+			case '&': return "&amp;"
+			case "  ": return '  '	// space + nbspace
+			}
+			return c		// &xxx;
+		})
+
 		while (1) {
 			i = str.indexOf('$', i)
 			if (i < 0)
@@ -182,14 +192,23 @@ function out_str(str) {
 		o_font = gene.curfont,
 		c_font = o_font;
 
-	output += str.replace(/\$./g, function(c) {
-				if (c[1] == '0') {
-					n_font = gene.deffont;
-					use_font(n_font)
-				} else if (c[1] >= '1' && c[1] <= '9')
+	output += str.replace(/<|>|&[^&]*?;|&|  |\$./g, function(c){
+			switch (c) {
+			case '<': return "&lt;"
+			case '>': return "&gt;"
+			case '&':
+				 return "&amp;"
+			case '  ':
+				return '  '		// space + nbspace
+			default:
+				if (c[0] != '$')
+					break
+				if (c[1] == '0')
+					n_font = gene.deffont
+				else if (c[1] >= '1' && c[1] <= '9')
 					n_font = get_font("u" + c[1])
 				else
-					return c
+					break
 				c = ''
 				if (n_font == c_font)
 					return c
@@ -200,6 +219,8 @@ function out_str(str) {
 					return c
 				return c + '<tspan\n\tclass="' +
 						font_class(n_font) + '">'
+			}
+			return c		// &xxx;
 		})
 	if (c_font != o_font) {
 		output += "</tspan>";
@@ -748,16 +769,17 @@ function write_headform(lwidth) {
 			y = ya[align] + sz
 
 			if (c == 'Q') {			/* special case for tempo */
-				set_width(glovar.tempo)
+				self.set_width(glovar.tempo)
 				if (!glovar.tempo.del) {
 					if (align != 'l') {
-						var w = tempo_width(glovar.tempo)
+						tempo_build(glovar.tempo)
+						w = glovar.tempo.tempo_wh[0]
 
 						if (align == 'c')
 							w *= .5;
 						x -= w
 					}
-					write_tempo(glovar.tempo, x, -y)
+					writempo(glovar.tempo, x, -y)
 				}
 			} else if (str) {
 				xy_str(x, -y, str, align)

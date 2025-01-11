@@ -54,13 +54,14 @@
 
 function Midi5(i_conf) {
     var	conf = i_conf,		// configuration
-	onend = conf.onend || function() {},
-	onnote = conf.onnote || function() {},
+	onend = function() {},
+	onnote = function() {},
 	rf,			// get_outputs result function
 
 // MIDI variables
 	op,			// output port
 	v_i = [],		// voice (channel) to instrument
+	bk = [],		// bank of the voice
 
 // -- play the memorized events --
 	evt_idx,		// event index while playing
@@ -80,9 +81,9 @@ function Midi5(i_conf) {
 	c = e[6] & 0x0f,	//fixme
 	a = (e[3] * 100) % 100	// detune in cents
 
-	if (i == 16384) {			// if bank 128
-		c = 9				// channel 10 (percussion)
-	} else if (i != v_i[c]) {		// if program change
+	if (bk[c] == 128)			// if bank 128 (percussion)
+		c = 9				// force the channel 10
+	if (i != v_i[c]) {			// if program change
 
 		// at channel start, reset all controllers
 //fixme: does not work with fluidsynth
@@ -90,11 +91,7 @@ function Midi5(i_conf) {
 			op.send(new Uint8Array([0xb0 + c, 121, 0]));
 
 		v_i[c] = i
-		op.send(new Uint8Array([
-				0xb0 + c, 0, (i >> 14) & 0x7f,	// MSB bank
-				0xb0 + c, 32, (i >> 7) & 0x7f,	// LSB bank
-				0xc0 + c, i & 0x7f		// program
-			]))
+		op.send(new Uint8Array([0xc0 + c, i & 0x7f]))	// program
 	}
 	if (a && Midi5.ma.sysexEnabled) {	// if microtone
 // fixme: should cache the current microtone values
@@ -118,7 +115,7 @@ function Midi5(i_conf) {
 
 // play the next time sequence
     function play_next(a_e) {
-    var	t, e, e2, maxt, st, d
+    var	t, e, e2, maxt, st, d, c
 
 	// play the next events
 	if (a_e)			// if not stop
@@ -151,8 +148,22 @@ function Midi5(i_conf) {
 			timouts.push(setTimeout(onnote, st, e[0], true));
 			setTimeout(onnote, st + d, e[0], false)
 		} else {				// MIDI control
-			op.send(new Uint8Array([0xb0 + (e[6] & 0x0f),
-						e[3], e[4]]), t + stime)
+			c = e[6] & 0x0f
+			op.send(new Uint8Array([0xb0 + c, e[3], e[4]]),
+				t + stime)
+			if (bk[c] == undefined)
+				bk[c] = 0
+			switch (e[3]) {
+			case 0:			// MSB bank
+				bk[c] = (bk[c] & 0x7f) | (e[4] << 7)
+				break
+			case 32:		// LSB bank
+				bk[c] = (bk[c] & 0x3f80) | e[4]
+				break
+			case 121:		// reset all controllers
+				bk = []
+				break
+			}
 		}
 
 		e = a_e[++evt_idx]
@@ -244,6 +255,13 @@ function Midi5(i_conf) {
 			onend()			// nothing to play
 			return
 		}
+
+		// get the callback functions
+		if (conf.onend)
+			onend = conf.onend
+		if (conf.onnote)
+			onnote = conf.onnote;
+
 		iend = i_iend;
 		evt_idx = istart;
 if (0) {

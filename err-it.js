@@ -10,8 +10,8 @@ user.textrans = {
 			"+: linea di simboli senza musica",
 	"+: without previous info field": "Nessun campo di informazioni prima di +:",
 	"'{' in grace note": "'{' in nota di abbellimento",
-	"'}', ')' or ']' missing in %%staves":
-				"'}', ')' o ']' mancanti in %%staves",
+	"'}', ')' or ']' missing in %%score":
+				"'}', ')' o ']' mancanti in %%score",
 	"',' lacking in annotation '@x,y'":
 				"Manca una ',' nell'annotazione '@x,y'",
 	"'$1' is not a note": "'$1' non è una nota",
@@ -35,11 +35,9 @@ user.textrans = {
 	"%%multicol end without start": "%%multicol end senza start",
 	"%%multicol new without start": "%%multicol new senza start",
 	"%%repeat cannot start a tune": "%%repeat non può stare all'inizio del brano",
-	"%%select ignored": "%%select ignorato",
 	"%%staffwidth too big": "%%staffwidth troppo grande",
 	"%%staffwidth too small": "%%staffwidth troppo piccolo",
 	"%%tune not treated yet": "%%tune non ancora gestito",
-	"%%voice ignored": "%%voice ignorato",
 	"%%vskip cannot be negative": "%%vskip non può essere negativo",
 	"Bad !xstem!": "!xstem! errato",
 	"Bad %%setbarnb value": "Valore errato in %%setbarnb",
@@ -50,6 +48,8 @@ user.textrans = {
 	"Bad %%staffscale value": "Valore errato in %%staffscale",
 	"Bad char '$1' in M:": "Carattere errato '$1' in M:",
 	"Bad character '$1'": "Carattere errato '$1'",
+	"Bad character in grace note sequence":
+				"Carattere errato nelle note di abbellimento",
 	"Bad controller number in %%MIDI": "Numero errato del controller in %%MIDI",
 	"Bad controller value in %%MIDI": "Valore errato del controller in %%MIDI",
 	"Bad duration '$1' in M:": "Durata '$1' errata in M:",
@@ -60,17 +60,17 @@ user.textrans = {
 	"Bad page width": "Larghezza di pagina errata",
 	"Bad program in %%MIDI": "Numero di programma non valido in %%MIDI",
 	"Bad scale value in %%font": "Valore di scala non valido in %%font",
+	"Bad tempo value": "Bad tempo value",
 	"Bad tie": "Legatura non valida",
 	"Bad transpose value": "Valore non valido per la trasposizione",
 	"Bad user character '$1'": "Carattere illegale '$1' in U:/%%user",
 	"Bad value '$1' in %%linebreak - ignored":
 				"Valore errato '$1' in %%linebreak - ignorato",
 	"Bad value in $1": "Valore errato in $1",
-	"Bad voice ID in %%staves": "ID di voce non valido in %%staves",
+	"Bad voice ID in %%score": "ID di voce non valido in %%score",
 	"Bar in repeat sequence": "Stanghetta in sequenza ripetuta",
 	"Cannot have !$1! on a head": "!$1! non è consentito su una nota",
-	"Cannot have %%fullsvg inside a tune":
-				"'%%fullsvg' non è consentito entro il brano",
+	"Cannot have '$1' inside a tune": "'$1' non è consentito entro il brano",
 	"Cannot have a bar in grace notes":
 			"Stanghette non consentite nelle note di abbellimento",
 	"Cannot have a broken rhythm in grace notes":
@@ -88,14 +88,13 @@ user.textrans = {
 	"Invalid decoration '$1'": "Decorazione '$1' non valida",
 	"Invalid note duration $1": "Durée de note $1 non valida",
 	"Lack of ']'": "']' mancante",
-	"Lack of ending $1 in U:/%%user": "Manca $1 alla fine di U:/%%user",
-	'Lack of starting ! or " in U: / %%user':
-				'U: / %%user non inizia con ! o "',
+	'Lack of starting [, ! or " in U: / %%user':
+				'U: / %%user non inizia con [, ! o "',
 	"Line split problem - adjust maxshrink and/or breaklimit":
 		"Problema di linea divisa - modificare maxshrink e/o breaklimit",
 	"Line too much shrunk $1 $2 $3": "Linea troppo compressa $1 $2 $3",
 	"Line underfull ($1pt of $2pt)": "Linea troppo vuota ($1pt di $2pt)",
-	"Misplaced '$1' in %%staves": "'$1' in posizione errata in %%staves",
+	"Misplaced '$1' in %%score": "'$1' in posizione errata in %%score",
 	"Misplaced dot": "Punto in posizione errata",
 	"Mix of old and new transposition syntaxes":
 			"Sintassi di trasposizione vecchia e nuova allo stesso tempo",
@@ -116,10 +115,9 @@ user.textrans = {
 	"No note before '-'": "Nota mancante davanti a '-'",
 	"No note before '<'": "Nota mancante davanti a '<'",
 	"No note in voice overlay": "Nota mancante in voce sovrapposta (overlay)",
+//	"Non standard note duration $1": "??",
 	"No read_file support": "La funzione read_file non è supportata",
 	"No start of !$1!": "Manca l'inizio di !$1!",
-	"Not a note in grace note sequence":
-				"Carattere errato nelle note di abbellimento",
 	"Not an ASCII character": "Non è un carattere ASCII",
 	"Not enough measure bars for lyric line":
 				"Battute insufficienti per le parole",

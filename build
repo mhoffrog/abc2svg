@@ -16,6 +16,7 @@ cat core/abc2svg.js core/deco.js core/draw.js\
 cp modules/ambitus.js ambitus-$MAJOR.js
 cp modules/break.js break-$MAJOR.js
 cp modules/capo.js capo-$MAJOR.js
+cat util/midi.js modules/clair.js >> clair-$MAJOR.js
 cp modules/clip.js clip-$MAJOR.js
 cp modules/combine.js combine-$MAJOR.js
 cp modules/diag.js diag-$MAJOR.js
@@ -23,7 +24,7 @@ cp modules/equalbars.js equalbars-$MAJOR.js
 cp modules/grid.js grid-$MAJOR.js
 cp modules/grid2.js grid2-$MAJOR.js
 cp modules/MIDI.js MIDI-$MAJOR.js
-cp modules/page.js page-$MAJOR.js
+cat modules/page.js modules/strftime.js > page-$MAJOR.js
 cp modules/perc.js perc-$MAJOR.js
 cat modules/wps.js modules/psvg.js > psvg-$MAJOR.js
 cp modules/soloffs.js soloffs-$MAJOR.js
@@ -34,13 +35,17 @@ cp editor/edit.css edit-$MAJOR.css
 
 cp util/abcdoc.js abcdoc-$MAJOR.js
 cp util/abcemb.js abcemb-$MAJOR.js
+cp util/abcemb1.js abcemb1-$MAJOR.js
 cp util/abcemb2.js abcemb2-$MAJOR.js
+cp util/abcweb2.js abcweb2-$MAJOR.js
 cp util/follow.js follow-$MAJOR.js
 cp util/json.js json-$MAJOR.js
 cp util/midi.js setmidi-$MAJOR.js
 cp util/toaudio.js toaudio-$MAJOR.js
-cat util/play.js util/toaudio.js util/toaudio5.js\
+cat util/play.js util/toaudio.js util/toaudio5.js util/midi.js\
  util/sf2-parser.js util/tomidi5.js > play-$MAJOR.js
+cat util/play.js util/sndgen.js util/sndaud.js util/midi.js\
+ util/sf2-parser.js util/sndmid.js > snd-$MAJOR.js
 
 sed "s+@MAJOR@+$MAJOR+" editor/edit.xhtml > edit-$MAJOR.xhtml
 sed "s+@MAJOR@+$MAJOR+" editor/abckbd.js > abckbd-$MAJOR.js

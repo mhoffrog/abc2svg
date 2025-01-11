@@ -547,7 +547,7 @@ Psvg.prototype.ps_flush = ps_flush
 // evaluate a PS user sequence (%beginps .. %%endps)
 Psvg.prototype.ps_eval = function(txt) {
 	wps.parse(txt);
-	ps_flush()
+	ps_flush(true)
 }
 
 // ------ output builtin decorations

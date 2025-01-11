@@ -19,6 +19,8 @@
 // You should have received a copy of the GNU General Public License
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
+// init
+function follow(abc, user, playconf) {
 var	ref = [],
 	ignore_types = {
 		beam:true,
@@ -38,26 +40,14 @@ user.anno_stop = function(type, start, stop, x, y, w, h) {
 		'" height="' + h.toFixed(2) + '"/>\n')
 }
 
-function notehlight(i, on) {
-	var elts = document.getElementsByClassName('_' + i + '_')
-	if (elts && elts[0])
-		elts[0].style.fillOpacity = on ? 0.4 : 0
-}
-
-// init
-function follow() {
-
-	// wait until the driver is loaded
-	if (!playconf) {
-		setTimeout(follow, 1000)
-		return
+	playconf.onnote = function(i, on) {
+		var elts = document.getElementsByClassName('_' + i + '_')
+		if (elts && elts[0])
+			elts[0].style.fillOpacity = on ? 0.4 : 0
 	}
-	playconf.onnote = notehlight
 
 	// create the style of the rectangles
 	var sty = document.createElement("style");
 	sty.innerHTML = ".abcr {fill: #d00000; fill-opacity: 0; z-index: 15}";
-	document.body.appendChild(sty)
-}
-
-setTimeout(follow, 1000)
+	document.head.appendChild(sty)
+} // follow()

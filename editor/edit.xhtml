@@ -18,7 +18,7 @@
     <ul id="nav">
 	<li class="dropbutton"><label id="f">File</label>
 		<ul class="droplinks">
-		    <li><input type="file" id="abcfile" accept="text/*"
+		    <li><input type="file" id="abcfile" accept="*"
 				style="display:none" onchange="loadtune()"/>
 			<label id="fl" for="abcfile">Load file</label>
 		    </li>
@@ -104,7 +104,8 @@
 <!-- context menu -->
 <div id="ctxMenu" title="Play">
 	<ul class="droplinks">
-	<li id="cmpa" onclick="play_tune(-1)">All</li>
+<!-- 'All' does not work anymore -->
+	<li id="cmpa" onclick="play_tune(-1)" style="display:none">All</li>
 	<li id="cmpt" onclick="play_tune(0)">Tune</li>
 	<li id="cmps" onclick="play_tune(1)">Selection</li>
 	<li id="cmpl" onclick="play_tune(2)">Loop</li>
@@ -142,16 +143,15 @@
 <div id="about" class="popup" style="width: 350px">
 <div class="close" onclick="popshow('about')">x</div>
 <p id="abc2svg">abc2svg</p>
-<p>Copyright &#x00A9; 2016-2018 Jean-François Moine</p>
+<p>Copyright &#x00A9; 2016-2019 Jean-François Moine</p>
 </div>
 
 <!-- javascript must be enabled -->
+<noscript>
 <div id="okjs" class="popup" style="width:50%;background:#ff8080;visibility:visible">
 Please enable Javascript.
 </div>
-<script>
-document.getElementById('okjs').style.visibility = 'hidden'
-</script>
+</noscript>
 
 </body>
 </html>

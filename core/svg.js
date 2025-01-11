@@ -18,13 +18,15 @@
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
 var	output = "",		// output buffer
-	style = '\n.fill{fill:currentColor}\
+	style = '\
+\ntext, tspan{fill:currentColor}\
 \n.stroke{stroke:currentColor;fill:none}\
-\n.bW{stroke-width:1}\
-\n.bthW{stroke-width:3}\
-\n.slW{stroke-width:.7}\
-\n.slthW{stroke-width:1.5}\
-\n.sW{stroke-width:.7}',
+\n.bW{stroke:currentColor;fill:none;stroke-width:1}\
+\n.bthW{stroke:currentColor;fill:none;stroke-width:3}\
+\n.slW{stroke:currentColor;fill:none;stroke-width:.7}\
+\n.slthW{stroke:currentColor;fill:none;stroke-width:1.5}\
+\n.sW{stroke:currentColor;fill:none;stroke-width:.7}\
+\n.mtx{font:130% music}',
 	font_style = '',
 	posx = cfmt.leftmargin / cfmt.scale,	// default x offset of the images
 	posy = 0,		// y offset in the block
@@ -41,7 +43,7 @@ var	output = "",		// output buffer
 		scale: 1,
 		dy: 0,
 		st: -1,
-		v: 0,
+		v: -1,
 		g: 0
 //		color: undefined
 	},
@@ -98,6 +100,7 @@ var tgls = {
   x: {x:-3.7, y:0, c:"\ue0a9"},		// 'x' note head
   "circle-x": {x:-3.7, y:0, c:"\ue0b3"}, // 'circle-x' note head
   srep: {x:-5, y:0, c:"\ue101"},
+  "dot+": {x:-5, y:0, sc:.7, c:"\ue101"},
   diamond: {x:-4, y:0, c:"\ue1b9"},
   triangle: {x:-4, y:0, c:"\ue1bb"},
   dot: {x:-2, y:0, c:"\ue1e7"},
@@ -157,7 +160,7 @@ var tgls = {
   umrd: {x:-7, y:-2, c:"\ue56c"},
   lmrd: {x:-7, y:-2, c:"\ue56d"},
   dplus: {x:-4, y:10, c:"\ue582"},	// plus
-  sld: {x:-8, y:12, c:"\ue5d4"},	// slide
+  sld: {x:-8, y:12, c:"\ue5d0"},	// slide
   grm: {x:-2, y:0, c:"\ue5e2"},		// grace mark
   dnb: {x:-4, y:0, c:"\ue610"},		// down bow
   upb: {x:-3, y:0, c:"\ue612"},		// up bow
@@ -189,11 +192,13 @@ function m_gl(s) {
 	return s.replace(/[Cco]\||[co]\.|./g,
 		function(e) {
 		    var	m = tgls["mtr" + e]
-			if (!m.x && !m.y)
+//fixme: !! no m.x nor m.y yet !!
+//			if (!m.x && !m.y)
 				return m.c
-			return '<tspan dx="'+ m.x.toFixed(1) +
-				'" dy="' + m.y.toFixed(1) + '">' +
-				m.c + '</tspan>'
+//			return '<tspan dx="'+ m.x.toFixed(1) +
+//				'" dy="' + m.y.toFixed(1) +
+//				'">' +
+//				m.c + '</tspan>'
 		})
 }
 
@@ -280,15 +285,20 @@ function set_g() {
 	// open the new sequence
 	output += '<g '
 	if (stv_g.scale != 1) {
-		if (stv_g.st >= 0)
+		if (stv_g.st < 0)
+			output += voice_tb[stv_g.v].scale_str
+		else if (stv_g.v < 0)
 			output += staff_tb[stv_g.st].scale_str
 		else
-			output += voice_tb[stv_g.v].scale_str
+			output += 'transform="translate(0,' +
+					(posy - stv_g.dy).toFixed(1) +
+				') scale(' + stv_g.scale.toFixed(2) + ')"'
 	}
 	if (stv_g.color) {
 		if (stv_g.scale != 1)
 			output += ' ';
-		output += 'style="color:' + stv_g.color + '"'
+		output += 'color="' + stv_g.color +
+			'" fill="' + stv_g.color + '"'
 	}
 	output += ">\n";
 	stv_g.started = true
@@ -320,23 +330,29 @@ function set_sscale(st) {
 	stv_g.scale = new_scale;
 	stv_g.dy = dy;
 	stv_g.st = st;
+	stv_g.v = -1;
 	set_g()
 }
 
 /* -- set the voice or staff scale -- */
 function set_scale(s) {
-	var	new_scale = s.p_v.scale
+    var	new_dy,
+	new_scale = s.p_v.scale
 
 	if (new_scale == 1) {
 		set_sscale(s.st)
 		return
 	}
-/*fixme: KO when both staff and voice are scaled */
+	new_dy = posy
+	if (staff_tb[s.st].staffscale != 1) {
+		new_scale *= staff_tb[s.st].staffscale;
+		new_dy = staff_tb[s.st].y
+	}
 	if (new_scale == stv_g.scale && stv_g.dy == posy)
 		return
 	stv_g.scale = new_scale;
-	stv_g.dy = posy;
-	stv_g.st = -1;
+	stv_g.dy = new_dy;
+	stv_g.st = staff_tb[s.st].staffscale == 1 ? -1 : s.st;
 	stv_g.v = s.v;
 	set_g()
 }
@@ -367,13 +383,8 @@ function delayed_update() {
 
 	for (st = 0; st <= nstaff; st++) {
 		if (staff_tb[st].sc_out) {
-			output += '<g transform="translate(0,' +
-					(posy - staff_tb[st].y).toFixed(1) +
-					') scale(' +
-					 staff_tb[st].staffscale.toFixed(2) +
-					')">\n' +
-				staff_tb[st].sc_out +
-				'</g>\n';
+			output += '<g ' + staff_tb[st].scale_str + '>\n' +
+				staff_tb[st].sc_out + '</g>\n';
 			staff_tb[st].sc_out = ""
 		}
 		if (!staff_tb[st].output)
@@ -477,9 +488,9 @@ function sy(y) {
 		return -y
 	if (stv_g.scale == 1)
 		return posy - y
-	if (stv_g.st < 0)
-		return (posy - y) / stv_g.scale	// voice scale
-	return stv_g.dy - y			// staff scale
+	if (stv_g.v >= 0)
+		return (stv_g.dy - y) / voice_tb[stv_g.v].scale
+	return stv_g.dy - y	// staff scale only
 }
 Abc.prototype.sy = sy;
 Abc.prototype.sh = function(h) {
@@ -509,7 +520,10 @@ Abc.prototype.out_sxsy = out_sxsy
 
 // define the start of a path
 function xypath(x, y, fill) {
-	out_XYAB('<path class="A" d="mX Y\n', x, y, fill ? "fill" : "stroke")
+	if (fill)
+		out_XYAB('<path d="mX Y', x, y)
+	else
+		out_XYAB('<path class="stroke" d="mX Y', x, y)
 }
 Abc.prototype.xypath = xypath
 
@@ -518,23 +532,23 @@ function xygl(x, y, gl) {
 // (avoid ps<->js loop)
 //	if (psxygl(x, y, gl))
 //		return
-	var 	tgl = tgls[gl]
-	if (tgl && !glyphs[gl]) {
-		x += tgl.x * stv_g.scale;
-		y -= tgl.y
-		if (tgl.sc)
-			out_XYAB('<text transform="translate(X,Y) scale(A)">B</text>\n',
-				x, y, tgl.sc, tgl.c);
-		else
-			out_XYAB('<text x="X" y="Y">A</text>\n', x, y, tgl.c)
-		return
+	if (glyphs[gl]) {
+		def_use(gl)
+		out_XYAB('<use x="X" y="Y" xlink:href="#A"/>\n', x, y, gl)
+	} else {
+	    var	tgl = tgls[gl]
+		if (tgl) {
+			x += tgl.x * stv_g.scale;
+			y -= tgl.y
+			if (tgl.sc)
+				out_XYAB('<text transform="translate(X,Y) scale(A)">B</text>\n',
+					x, y, tgl.sc, tgl.c);
+			else
+				out_XYAB('<text x="X" y="Y">A</text>\n', x, y, tgl.c)
+		} else {
+			error(1, null, 'no definition of $1', gl)
+		}
 	}
-	if (!glyphs[gl]) {
-		error(1, null, 'no definition of $1', gl)
-		return
-	}
-	def_use(gl);
-	out_XYAB('<use x="X" y="Y" xlink:href="#A"/>\n', x, y, gl)
 }
 // - specific functions -
 // gua gda (acciaccatura)
@@ -572,8 +586,7 @@ function out_bracket(x, y, h) {
 	x += posx - 5;
 	y = posy - y - 3;
 	h += 2;
-	output += '<path class="fill"\n\
-	d="m' + x.toFixed(1) + ' ' + y.toFixed(1) + '\n\
+	output += '<path d="m' + x.toFixed(1) + ' ' + y.toFixed(1) + '\n\
 	c10.5 1 12 -4.5 12 -3.5c0 1 -3.5 5.5 -8.5 5.5\n\
 	v' + h.toFixed(1) + '\n\
 	c5 0 8.5 4.5 8.5 5.5c0 1 -1.5 -4.5 -12 -3.5"/>\n'
@@ -595,7 +608,6 @@ function out_hyph(x, y, w) {
 		Math.round((d - 5) / stv_g.scale), d * n + 5)
 }
 // stem [and flags]
-// fixme: h is already scaled - change that?
 function out_stem(x, y, h, grace,
 		  nflags, straight) {	// optional
 //fixme: dx KO with half note or longa
@@ -605,9 +617,9 @@ function out_stem(x, y, h, grace,
 	if (h < 0)
 		dx = -dx;		// down
 	x += dx * stv_g.scale
-	if (stv_g.st < 0)
-		slen /= stv_g.scale;
-	out_XYAB('<path class="stroke sW" d="mX YvF"/>\n',	// stem
+	if (stv_g.v >= 0)
+		slen /= voice_tb[stv_g.v].scale;
+	out_XYAB('<path class="sW" d="mX YvF"/>\n',	// stem
 		x, y, slen)
 	if (!nflags)
 		return
@@ -619,7 +631,7 @@ function out_stem(x, y, h, grace,
 				xygl(x, y, "flu" + nflags)
 				return
 			} else {		// grace
-				output += '<path class="fill" d="'
+				output += '<path d="'
 				if (nflags == 1) {
 					out_XYAB('MX Yc0.6 3.4 5.6 3.8 3 10\n\
 	1.2 -4.4 -1.4 -7 -3 -7\n', x, y)
@@ -632,7 +644,7 @@ function out_stem(x, y, h, grace,
 				}
 			}
 		} else {			// straight
-			output += '<path class="fill" d="'
+			output += '<path d="'
 //fixme: to do
 			if (!grace) {
 //fixme: check endpoints
@@ -656,7 +668,7 @@ function out_stem(x, y, h, grace,
 				xygl(x, y, "fld" + nflags)
 				return
 			} else {		// grace
-				output += '<path class="fill" d="'
+				output += '<path d="'
 				if (nflags == 1) {
 					out_XYAB('MX Yc0.6 -3.4 5.6 -3.8 3 -10\n\
 	1.2 4.4 -1.4 7 -3 7\n', x, y)
@@ -669,7 +681,7 @@ function out_stem(x, y, h, grace,
 				}
 			}
 		} else {			// straight
-			output += '<path class="fill" d="'
+			output += '<path d="'
 			if (!grace) {
 //fixme: check endpoints
 				y += 1
@@ -687,7 +699,7 @@ function out_stem(x, y, h, grace,
 }
 // tremolo
 function out_trem(x, y, ntrem) {
-	out_XYAB('<path class="fill" d="mX Y\n\t', x - 4.5, y)
+	out_XYAB('<path d="mX Y\n\t', x - 4.5, y)
 	while (1) {
 		output += 'l9 -3v3l-9 3z'
 		if (--ntrem <= 0)
@@ -831,7 +843,7 @@ function out_lped(x, y, val, defl) {
 	if (!defl.nost)
 		xygl(x, y, "ped");
 	if (!defl.noen)
-		xygl(x + val, y, "pedoff")
+		xygl(x + val + 6, y, "pedoff")
 }
 function out_8va(x, y, val, defl) {
 	if (!defl.nost) {
@@ -970,6 +982,127 @@ function out_deco_long(x, y, de) {
 		error(1, null, "No function for decoration '$1'", name)
 }
 
+// return a tempo note
+function tempo_note(s, dur) {
+    var	p,
+	elts = identify_note(s, dur)
+
+	switch (elts[0]) {		// head
+	case C.OVAL:
+		p = "\ueca2"
+		break
+	case C.EMPTY:
+		p = "\ueca3"
+		break
+	default:
+		switch (elts[2]) {	// flags
+		case 2:
+			p = "\ueca9"
+			break
+		case 1:
+			p = "\ueca7"
+			break
+		default:
+			p = "\ueca5"
+			break
+		}
+		break
+	}
+	if (elts[1])
+		p += '<tspan dx=".1em">\uecb7</tspan>'
+	return p
+} // tempo_note()
+
+// build the tempo string
+function tempo_build(s) {
+    var	i, j, bx, p, wh, dy,
+	w = 0,
+	str = []
+
+	if (s.tempo_str)	// already done
+		return
+	set_font("tempo")
+	if (s.tempo_str1) {
+		str.push(s.tempo_str1)
+		w += strwh(s.tempo_str1)[0]
+	}
+	if (s.tempo_notes) {
+		dy = ' dy="-.05em"'			// notes a bit higher
+		for (i = 0; i < s.tempo_notes.length; i++) {
+			p = tempo_note(s, s.tempo_notes[i])
+			str.push('<tspan\n\tclass="mtx"' + dy + '>' +
+				p + '</tspan>')
+			j = p.length > 1 ? 2 : 1	// (note and optional dot)
+			w += j * gene.curfont.swfac
+			dy = ''
+		}
+		str.push('<tspan dy=".065em">=</tspan>')
+		w += cwidf('=')
+		if (s.tempo_ca) {
+			str.push(s.tempo_ca)
+			w += strwh(s.tempo_ca)[0]
+			j = s.tempo_ca.length + 1
+		}
+		if (s.tempo) {			// with a number of beats per minute
+			str.push(s.tempo)
+			w += strwh(s.tempo.toString())[0]
+		} else {			// with a beat as a note
+			p = tempo_note(s, s.new_beat)
+			str.push('<tspan\n\tclass="mtx" dy="-.05em">' +
+				p + '</tspan>')
+			j = p.length > 1 ? 2 : 1
+			w += j * gene.curfont.swfac
+			dy = 'y'
+		}
+	}
+	if (s.tempo_str2) {
+		if (dy)
+			str.push('<tspan\n\tdy=".065em">' +
+					s.tempo_str2 + '</tspan>')
+		else
+			str.push(s.tempo_str2)
+		w += strwh(s.tempo_str2)[0]
+	}
+
+	// build the string
+	s.tempo_str = str.join(' ')
+	w += cwidf(' ') * (str.length - 1)
+	s.tempo_wh = [w, 13.0]		// (the height is not used)
+	if (dy)
+		s.tempo_dy = dy
+} // tempo_build()
+
+// output a tempo
+function writempo(s, x, y) {
+    var	bx
+
+	set_font("tempo")
+	if (gene.curfont.box) {
+		gene.curfont.box = false
+		bx = x
+	}
+
+//fixme: xy_str() cannot be used because <tspan> in s.tempo_str
+//fixme: then there cannot be font changes by "$n" in the Q: texts
+	output += '<text class="' + font_class(gene.curfont) +
+		'" x="'
+	out_sxsy(x, '" y="', y + gene.curfont.size * .2)
+	output += '">' + s.tempo_str + '</text>\n'
+
+	if (bx) {
+		gene.curfont.box = true
+		bh = gene.curfont.size + 4;
+		output += '<rect class="stroke" x="'
+		out_sxsy(bx - 2, '" y="', y + bh - 1)
+		output += '" width="' + (s.tempo_wh[0] + 2).toFixed(1) +
+			'" height="' + bh.toFixed(1) +
+			'"/>\n'
+	}
+
+	// don't display anymore
+	s.del = true
+} // writempo()
+
 // update the vertical offset
 function vskip(h) {
 	posy += h
@@ -982,8 +1115,14 @@ function svg_flush() {
 
     var	head = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
 	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
-	color="black" class="music" stroke-width=".7"',
+	color="',
 	g = ''
+
+	if (cfmt.fgcolor)
+		head += cfmt.fgcolor + '" fill="' + cfmt.fgcolor + '"'
+	else
+		head += 'black"';
+	head += ' stroke-width=".7"'
 
 	if (cfmt.bgcolor)
 		head += ' style="background-color: ' + cfmt.bgcolor + '"';
@@ -1004,14 +1143,12 @@ function svg_flush() {
 		head += '<style type="text/css">' + style + font_style
 		if (musicfont) {
 			if (musicfont.indexOf('(') > 0) {
-				head += '\n\
-.music {font:24px music;fill:currentColor}\n\
+				head += '\nsvg{font:24px music}\n\
 @font-face {\n\
   font-family:"music";\n\
   src:' + musicfont + '}';
 			} else {
-				head += '\n\
-.music {font:24px '+ musicfont +';fill:currentColor}'
+				head += '\nsvg{font:24px '+ musicfont +'}'
 			}
 		}
 		head += '\n</style>\n'

@@ -31,7 +31,6 @@ window.onerror = function(msg, url, line) {
 }
 
 var	errtxt = '',
-	abc,				// (must be global for follow.js)
 	elts,				// ABC HTML elements
 	tunes = '',			// source of the ABC sequences
 	indx = [],			// indexes of the tunes in tunes
@@ -47,12 +46,16 @@ var	errtxt = '',
 	jsdir = document.currentScript ?
 		document.currentScript.src.match(/.*\//) :
 		(function() {
-			var scrs = document.getElementsByTagName('script');
-			return scrs[scrs.length - 1].src.match(/.*\//) || ''
-		})()
+		     var s_a = document.getElementsByTagName('script')
+			for (var k = 0; k < s_a.length; k++) {
+				if (s_a[k].src.indexOf('abcemb2-') >= 0)
+					return s_a[k].src.match(/.*\//) || ''
+			}
+			return ""	// ??
+		})(),
 
 // -- abc2svg init argument
-var user = {
+    user = {
 	errmsg: function(msg, l, c) {	// get the errors
 		errtxt += clean_txt(msg) + '\n'
 	},
@@ -60,7 +63,7 @@ var user = {
 		new_page += str
 	},
 	page_format: true		// define the non-page-breakable blocks
-}
+    }
 
 // replace <>& by XML character references
 function clean_txt(txt) {
@@ -119,13 +122,6 @@ function playseq(i) {
 // function called when the page is loaded
 function dom_loaded() {
 
-	// loop until abc2svg is fully loaded
-	if (typeof abc2svg != "object"
-	 || !abc2svg.modules) {
-		setTimeout(dom_loaded, 500)
-		return
-	}
-
 	// convert HTML to ABC
 	function toabc(s) {
 		return s.replace(/&gt;/g, '>')
@@ -163,7 +159,7 @@ function dom_loaded() {
 }
 
 function ready() {
-    var	i, j
+    var	i, j, abc
 
 	// load the required modules
 	if (!abc2svg.modules.load(tunes, ready))
@@ -176,10 +172,19 @@ function ready() {
 	if (sel)
 		select = '%%select ' + decodeURIComponent(sel);
 
+	// aweful hack: user.anno_stop must be defined before Abc creation
+	// for being set later by follow() !
+	if (typeof follow == "function")
+		user.anno_stop = function(){};
+
 	abc = new abc2svg.Abc(user)
 
+	// initialize the play follow function
+	if (typeof follow == "function")
+		follow(abc, user, playconf)
+
 	// generate and replace
-	for (var i = 0; i < elts.length; i++) {
+	for (i = 0; i < elts.length; i++) {
 		new_page = ""
 
 		// set the playing callback
@@ -201,8 +206,8 @@ function ready() {
 				"\nStack:\n" + e.stack)
 		}
 		if (errtxt) {
-			new_page += '<p style="background:#ff8080">' +
-					errtxt + "</p>\n";
+			new_page += '<pre style="background:#ff8080">' +
+					errtxt + "</pre>\n";
 			errtxt = ""
 		}
 		try {
@@ -228,4 +233,4 @@ function ready() {
 } // dom_loaded()
 
 // wait for the page to be loaded
-document.addEventListener("DOMContentLoaded", dom_loaded, false)
+window.addEventListener("load", function() {setTimeout(dom_loaded, 500)})

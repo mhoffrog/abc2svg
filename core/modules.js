@@ -17,9 +17,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
-abc2svg.loadjs = function(fn, onsuccess, onerror) {
+// empty function
+if (!abc2svg.loadjs) {
+    abc2svg.loadjs = function(fn, onsuccess, onerror) {
 	if (onerror)
 		onerror()
+    }
 }
 
 abc2svg.modules = {
@@ -28,6 +31,7 @@ abc2svg.modules = {
 		break: { fn: 'break-1.js' },
 		capo: { fn: 'capo-1.js' },
 		clip: { fn: 'clip-1.js' },
+	clairnote: { fn: 'clair-1.js' },
 		voicecombine: { fn: 'combine-1.js' },
 		diagram: { fn: 'diag-1.js' },
 	equalbars: { fn: 'equalbars-1.js' },

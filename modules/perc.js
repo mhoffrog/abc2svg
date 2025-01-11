@@ -10,12 +10,14 @@
 // a ABC note or a possibly abbreviated percussion name.
 // See https://wim.vree.org/js2/tabDrumDoc.html for more information.
 
+// Using this command creates a voicemap named "MIDIdrum".
+
 abc2svg.perc = {
 
     // parse %%percmap
     do_perc: function(parm) {
     var	pits = new Int8Array([0, 0, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6]),
-	accs = new Int8Array([0, 1, 0, -1, 0, 0, 1, 0, -1, 0, -1, 0])
+	accs = new Int8Array([3, 1, 3, -1, 3, 3, 1, 3, -1, 3, -1, 3])
 
 // GM drum
 // 35 B,,,	Acoustic Bass Drum	a-b-d
@@ -117,34 +119,67 @@ var prn = {
 	"v":     58
 }
 
-    // convert a drum instrument to a note
-    function tonote(p) {
+    // convert a ABC note to b40
+    function abc_b40(p) {
+    var	pit,
+	acc = 0,
+	i = 0
+
+	switch (p[0]) {
+	case '^':
+		if (p[++i] == '^') {
+			acc = 2
+			i++
+		} else {
+			acc = 1
+		}
+		break
+	case '=':
+		i++
+		break
+	case '_':
+		if (p[++i] == '_') {
+			acc = -2
+			i++
+		} else {
+			acc = -1
+		}
+		break
+	}
+	pit = 'CDEFGABcdefgab'.indexOf(p[i++]) + 16
+	if (pit < 16)
+		return
+	while (p[i] == "'") {
+		pit += 7
+		i++
+	}
+	while (p[i] == ",") {
+		pit -= 7
+		i++
+	}
+	if (p[i])			// if some extra character
+		return
+	return abc2svg.pab40(pit, acc)
+    } // abc_b40()
+
+    // convert a MIDI pitch to b40
+    function mid_b40(pit) {
+    var	o = (pit / 12) | 0		// octave
+	pit = pit % 12;			// in octave
+	return o * 40 + abc2svg.isb40[pit] + 2
+    } // mid_b40()
+
+    // convert a drum instrument to b40
+    function tob40(p) {
     var	i, j, s,
 	pit = Number(p)
 
-	if (isNaN(pit)) {
-		s = p.match(/^([_^=]*)([A-Ga-g])([,']*)$/)	// '
-		if (s) {				// note name
-			i = "CDEFGABcdefgab".indexOf(s[2]) + 16
-			switch(s[3]) {
-			case "'":
-				i += 7 * s[3].length
-				break
-			case ',':
-				i -= 7 * s[3].length
-				break
-			}
-			note = {
-				pit: i
-			}
-			switch (s[1]) {
-			case '^': note.acc = 1; break
-			case '_': note.acc = -1; break
-			}
-			return note
-		}
+	if (isNaN(pit)) {		// not a MIDI pitch
+		s = abc_b40(p)		// try a ABC note
+		if (s)
+			return s
 
-		// drum instrument name
+		// try a drum instrument name
 		p = p.toLowerCase(p);
 		s = p[0];		// get the 1st letters after '-'
 		i = 0
@@ -180,68 +215,49 @@ var prn = {
 				}
 				break
 			}
+			if (!pit)
+				return
 		}
 	}
-	if (!pit)
-		return
+	return mid_b40(pit)
+    } // tob40()
 
-	p = ((pit / 12) | 0) * 7 - 19;	// octave
-	pit = pit % 12;			// in octave
-	p += pits[pit];
-	note = {
-		pit: p
-	}
-	if (accs[pit])
-		note.acc = accs[pit]
-	return note
-    } // tonote()
-
-    // normalize a note for mapping
-    function norm(p) {
-    var	a = p.match(/^([_^]*)([A-Ga-g])([,']*)$/)	// '
-	if (!a)
-		return
-	if (p.match(/[A-Z]/)) {
-		p = p.toLowerCase();
-		if (p.indexOf("'") > 0)
-			p = p.replace("'", '')
-		else
-			p += ','
-	}
-	return p
-    } // norm()
-
-    var	n, v,
+    // do_perc()
+    var	vpr, vpl,
 	maps = this.get_maps(),
-	a = parm.split(/\s+/);
+	a = parm.split(/\s+/),
+	n = abc_b40(a[1])			// note as b40
 
-	n = norm(a[1])
 	if (!n) {
 		this.syntax(1, this.errs.bad_val, "%%percmap")
 		return
 	}
-	if (this.cfmt().sound != "play") {		// !play
-		if (!a[3])
-			return
-		if (!maps.MIDIdrum)
-			maps.MIDIdrum = {}
-		v = tonote(n)
-		if (!v) {
-			this.syntax(1, this.errs.bad_val, "%%percmap")
-			return
-		}
-		delete v.acc
-		maps.MIDIdrum[n] = [[a[3]], v]
-	} else {					// play
-		v = tonote(a[2])
-		if (!v) {
-			this.syntax(1, this.errs.bad_val, "%%percmap")
-			return
-		}
-		if (!maps.MIDIdrum)
-			maps.MIDIdrum = {}
-		maps.MIDIdrum[n] = [null, v]
+
+	vpr = {					// print
+		pit: abc2svg.b40p(n),
+		acc: 0
 	}
+
+	vpl = tob40(a[2])			// play
+	if (!vpl) {
+		this.syntax(1, this.errs.bad_val, "%%percmap")
+		return
+	}
+	a = a[3] ? [a[3]] : null		// head
+	if (!maps.MIDIdrum)
+		maps.MIDIdrum = {}
+	n = n.toString()
+	if (!maps.MIDIdrum[n]) {
+		maps.MIDIdrum[n] =
+			[a, vpr, null, vpl]	// [heads, print, color, play]
+	} else {
+		if (a)
+			maps.MIDIdrum[n][0] = a
+		if (!maps.MIDIdrum[n][1])
+			maps.MIDIdrum[n][1] = vpr
+		maps.MIDIdrum[n][3] = vpl
+	}
+
 	this.set_v_param("perc", "MIDIdrum")
     }, // do_perc()
 
@@ -257,7 +273,7 @@ var prn = {
 				curvoice.map = {}
 			curvoice.map = a[i + 1];
 			if (!curvoice.midictl)
-				curvoice.midictl = {}
+				curvoice.midictl = []
 			curvoice.midictl[0] = 1		// bank 128
 			break
 		}

@@ -1,7 +1,7 @@
 //#javascript
 // Set the MIDI pitches in the notes
 //
-// Copyright (C) 2015-2017 Jean-Francois Moine
+// Copyright (C) 2015-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -19,6 +19,9 @@
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
 // Usage:
+//	// Create a AbcMIDI object
+//	var abcmidi = AbcMIDI()
+//
 //	// Define a get_abcmodel() callback function
 //	// This one is called by abc2svg after ABC parsing 
 //	user.get_abcmodel = my_midi_callback
@@ -26,10 +29,7 @@
 //	// In this function
 //	function my_midi_callback(tsfirst, voice_tb, music_types, info) {
 //
-//		// Create a AbcMIDI instance
-//		var abcmidi = new AbcMIDI();
-//
-//		// and set the MIDI pitches
+//		// set the MIDI pitches
 //		abcmidi.add(tsfirst, voice_tb);
 //
 //		// The MIDI pitches are stored in the notes
@@ -40,152 +40,78 @@
 function AbcMIDI() {
     var	C = abc2svg.C
 
-	// add MIDI pitches
-	AbcMIDI.prototype.add = function(s,		// starting symbol
-					voice_tb) {	// voice table
-
-		var	scale = new Int8Array(		// note to pitch
-					[0, 2, 4, 5, 7, 9, 11]),
-			bmap = new Int8Array(7),	// measure base map
-			map = new Int8Array(70),	// current map - 10 octaves
-			tie_map,			// index = MIDI pitch
-			tie_time,
-			v,
-			transp				// clef transpose
-
-		// re-initialize the map on bar
-		function bar_map() {
-			for (var j = 0; j < 10; j++)
-				for (var i = 0; i < 7; i++)
-					map[j * 7 + i] = bmap[i]
-		} // bar_map()
-
-		// define the note map
-		function key_map(s) {
-			for (var i = 0; i < 7; i++)
-				bmap[i] = 0
-			switch (s.k_sf) {
-			case 7: bmap[6] = 1
-			case 6: bmap[2] = 1
-			case 5: bmap[5] = 1
-			case 4: bmap[1] = 1
-			case 3: bmap[4] = 1
-			case 2: bmap[0] = 1
-			case 1: bmap[3] = 1; break
-			case -7: bmap[3] = -1
-			case -6: bmap[0] = -1
-			case -5: bmap[4] = -1
-			case -4: bmap[1] = -1
-			case -3: bmap[5] = -1
-			case -2: bmap[2] = -1
-			case -1: bmap[6] = -1; break
-			}
-			bar_map()
-		} // key_map()
-
-		// convert ABC pitch to MIDI
-		function pit2midi(p, a) {
-			if (a)
-				map[p] = a == 3 ? 0 : a; // (3 = natural)
-			return ((p / 7) | 0) * 12 + scale[p % 7] +
-					(tie_time[p] ? tie_map[p] :  map[p])
-		} // pit2midi()
+	return {					// returned object
+	  // add MIDI pitches
+	  add: function(s,				// starting symbol
+			voice_tb) {			// voice table
+	    var p_v, s,
+		temper = voice_tb[0].temper,		// (set by the module temper.js)
+		v = voice_tb.length
 
 		// initialize the clefs and keys
-		for (v = 0; v < voice_tb.length; v++) {
-			if (!voice_tb[v].sym)
+		while (--v >= 0) {
+			p_v = voice_tb[v]
+			if (!p_v.sym)
 				continue
-			s = voice_tb[v].clef
-			if (!s.clef_octave
-			 || s.clef_oct_transp)
-				transp = 0
-			else
-				transp = s.clef_octave
+			if (p_v.key.k_bagpipe)
+	// detune in cents for just intonation in A
+	//  C    ^C     D    _E     E     F    ^F     G    _A     A    _B     B
+	// 15.3 -14.0  -2.0 -10.0   1.9  13.3 -16.0 -31.8 -12.0   0.0  11.4   3.8
+	// (C is ^C,			F is ^F and G is =G)
+	// 86				 84
+	// temp = [100-14, -14, -2, -10, 2, 100-16, -16, -32, -12, 0, 11, 4]
+	// but 'A' bagpipe = 480Hz => raise Math.log2(480/440)*1200 = 151
+				temper = new Float32Array([
+	2.37, 1.37, 1.49, 1.41, 1.53, 2.35, 1.35, 1.19, 1.39, 1.51, 1.62, 1.55
+				])
 
-			key_map(voice_tb[v].key);	// init acc. map from key sig.
-
-			// and loop on the symbols of the voice
-			vloop(v)
+			s = p_v.clef
+			vloop(p_v.sym,
+				p_v.key.k_sndtran || 0,
+				s.clef_octave && !s.clef_oct_transp ?
+					(s.clef_octave / 7 * 40) : 0)
 		}
-	    function vloop(v) {
-		var	i, g, p, note,
-			s = voice_tb[v].sym,
-			vtime = s.time,		// next time
-			rep_tie_map = []
 
-		tie_map = []
-		tie_time = []
+	    function vloop(s, sndtran, ctrans) {
+		var	i, g, note,
+			transp = sndtran + ctrans
+
+		function midi_set(note) {
+		    var m = abc2svg.b40m(note.b40 + transp)
+			if (temper		// if not equal temperament
+			 && (!note.acc
+			  || note.acc | 0 == note.acc)) // and not micro-tone
+				m += temper[m % 12]
+			note.midi = m
+		}
+
 		while (s) {
-			if (s.time > vtime) {	// if time skip
-				bar_map()	// force a measure bar
-				vtime = s.time
-			}
-			if (s.dur)
-				vtime = s.time + s.dur
 			switch (s.type) {
-			case C.BAR:
-//fixme: pb when lack of measure bar (voice overlay, new voice)
-				// x times repeat
-				if (s.text) {
-					if (s.text[0] == '1') {	// 1st time
-						rep_tie_map = [];
-						rep_tie_time = []
-						for (i = 0; i < tie_map.length; i++)
-							rep_tie_map[i] = tie_map[i]
-					} else if (rep_tie_map.length != 0) {
-						tie_map = []
-						tie_time = []
-						for (i = 0; i < rep_tie_map.length; i++) {
-							tie_map[i] = rep_tie_map[i];
-							tie_time[i] = s.time
-						}
-					}
-				}
-				if (!s.invis)
-					bar_map()
-				break
 			case C.CLEF:
-				if (!s.clef_octave
-				 || s.clef_oct_transp)
-					transp = 0
-				else
-					transp = s.clef_octave
+				ctrans = (s.clef_octave && !s.clef_oct_transp) ?
+						(s.clef_octave / 7 * 40) : 0
+				transp = ctrans + sndtran
+				break
+			case C.KEY:
+				if (s.k_sndtran != undefined) {
+					sndtran = s.k_sndtran
+					transp = ctrans + sndtran
+				}
 				break
 			case C.GRACE:
 				for (g = s.extra; g; g = g.next) {
-					if (!g.type != C.NOTE)
-						continue
-					for (i = 0; i <= g.nhd; i++) {
-						note = g.notes[i];
-						p = note.pit + 19 + transp;
-						note.midi = pit2midi(p, note.acc)
-					}
+					for (i = 0; i <= g.nhd; i++)
+						midi_set(g.notes[i])
 				}
-				break
-			case C.KEY:
-				key_map(s)
 				break
 			case C.NOTE:
-				for (i = 0; i <= s.nhd; i++) {
-					note = s.notes[i];
-					p = note.pit + 19 +	// pitch from C-1
-							transp
-					if (tie_time[p]) {
-						if (s.time > tie_time[p]) {
-							delete tie_map[p]
-							delete tie_time[p]
-						}
-					}
-					note.midi = pit2midi(p, note.acc)
-					if (note.ti1) {
-						tie_map[p] = map[p];
-						tie_time[p] = s.time + s.dur
-					}
-				}
+				for (i = 0; i <= s.nhd; i++)
+					midi_set(s.notes[i])
 				break
 			}
 			s = s.next
 		}
 	    } // vloop()
-	} // add()
+	  } // add()
+	} // returned object
 } // end AbcMidi

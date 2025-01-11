@@ -78,13 +78,16 @@ function header_footer(str) {
 		}
 		c = str[++i]
 		switch (c) {
-		case 'd':	// cannot know the modification date of the file
+		case 'd':
+			if (!abc2svg.get_mtime)
+				break // cannot know the modification date of the file
+			r[j] += abc2svg.get_mtime(abc.parse.fname)
 			break
 		case 'D':
 			r[j] += get_date()
 			break
 		case 'F':
-			r[j] += abc.get_fname()
+			r[j] += abc.parse.fname
 			break
 		case 'I':
 			c = str[++i]
@@ -152,7 +155,7 @@ abc2svg.abc_init = function() {
 		var	a, i, page,
 			lcr = ["left", "center", "right"];
 
-		a = header_footer(str)
+		a = header_footer(clean_txt(str))
 		for (i = 0; i < 3; i++) {
 			str = a[i]
 			if (!str)
@@ -229,9 +232,16 @@ svg {display:block}\n\
 body {width:' + cfmt.pagewidth.toFixed(0) +'px}\n\
 p {' + set_pstyle() + 'margin-top:0}\n\
 p span {line-height:' + ((cfmt.lineskipfac * 100) | 0).toString() + '%}\n' +
-			((header || footer) ? media_f : media_s) + '\n\
-@page{margin:' + topmargin + ' 0 ' + botmargin + ' 0}\n\
-</style>\n\
+			((header || footer) ? media_f : media_s))
+// works with chrome and --headless
+		if (abc.page)
+			abc2svg.print('@page{size:' +
+				(cfmt.pagewidth / 96).toFixed(2) + 'in ' +
+				(cfmt.pageheight / 96).toFixed(2) + 'in;margin:0}')
+		else
+			abc2svg.print('@page{margin:0' + topmargin + ' 0 ' +
+							 botmargin + ' 0}')
+		abc2svg.print('</style>\n\
 <title>abc2svg document</title>\n\
 </head>\n\
 <body>')

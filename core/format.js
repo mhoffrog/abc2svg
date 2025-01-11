@@ -18,6 +18,7 @@
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
 var	font_tb = [],
+	font_st = {},	// font style => font_tb index for incomplete user fonts
 	font_scale_tb = {
 		serif: 1,
 		serifBold: 1,
@@ -29,13 +30,14 @@ var	font_tb = [],
 	fmt_lock = {}
 
 var cfmt = {
-	annotationfont: { name: "sans-serif", size: 12 },
+	annotationfont: {name: "sans-serif", size: 12 },
 	aligncomposer: 1,
+	beamslope: .4,			// max slope of a beam
 //	botmargin: .7 * IN,		// != 1.8 * CM,
 	breaklimit: .7,
 	breakoneoln: true,
 	cancelkey: true,
-	composerfont: { name: "serifItalic", size: 14 },
+	composerfont: { name: "serif", style: "italic", size: 14 },
 	composerspace: 6,
 //	contbarnb: false,
 	dblrepbar: ':][:',
@@ -50,7 +52,7 @@ var cfmt = {
 	historyfont: { name: "serif", size: 16 },
 	hyphencont: true,
 	indent: 0,
-	infofont: {name: "serifItalic", size: 14 },
+	infofont: {name: "serif", style: "italic", size: 14 },
 	infoname: 'R "Rhythm: "\n\
 B "Book: "\n\
 S "Source: "\n\
@@ -63,28 +65,18 @@ H "History: "',
 	leftmargin: 1.4 * CM,
 	lineskipfac: 1.1,
 	linewarn: true,
-	maxshrink: .65,
+	maxshrink: .65,		// nice scores
 	maxstaffsep: 2000,
 	maxsysstaffsep: 2000,
-	measurefirst: 1,
-	measurefont: {name: "serifItalic", size: 10},
+	measurefont: {name: "serif", style: "italic", size: 10},
 	measurenb: -1,
 	musicspace: 6,
-//	notespacingfactor: 1.414,
+//	notespacingfactor: 1.33
 	partsfont: {name: "serif", size: 15},
 	parskipfac: .4,
 	partsspace: 8,
 //	pageheight: 29.7 * CM,
 	pagewidth: 21 * CM,
-//	pos: {
-//		dyn: 0,
-//		gch: 0,
-//		gst: 0,
-//		orn: 0,
-//		stm: 0,
-//		voc: 0,
-//		vol: 0
-//	},
 	printmargin: 0,
 	rightmargin: 1.4 * CM,
 	rbdbstop: true,
@@ -100,7 +92,7 @@ H "History: "',
 	subtitlefont: {name: "serif", size: 16},
 	subtitlespace: 3,
 	sysstaffsep: 34,
-	tempofont: {name: "serifBold", size: 15},
+	tempofont: {name: "serif", weight: "bold", size: 12},
 	textfont: {name: "serif", size: 16},
 //	textoption: undefined,
 	textspace: 14,
@@ -112,9 +104,9 @@ H "History: "',
 //	topmargin: .7 * IN,
 	topspace: 22,
 	tuplets: [0, 0, 0, 0],
-	vocalfont: {name: "serifBold", size: 13},
+	vocalfont: {name: "serif", weight: "bold", size: 13},
 	vocalspace: 10,
-	voicefont: {name: "serifBold", size: 13},
+	voicefont: {name: "serif", weight: "bold", size: 13},
 //	voicescale: 1,
 	writefields: "CMOPQsTWw",
 	wordsfont: {name: "serif", size: 16},
@@ -151,8 +143,8 @@ function set_font_fac(font) {
 }
 
 // %%xxxfont fontname|* [encoding] [size|*]
-function param_set_font(xxxfont, param) {
-    var	font, old_fn, n, a, new_name, new_fn, new_size, scale
+function param_set_font(xxxfont, p) {
+    var	font, n, a
 
 	// "setfont-<n>" goes to "u<n>font"
 	if (xxxfont[xxxfont.length - 2] == '-') {
@@ -165,31 +157,32 @@ function param_set_font(xxxfont, param) {
 	// create a new font
 	font = cfmt[xxxfont];
 	if (!font) {			// set-font-<n> or new element
+		font = {}
+	} else {
 		font = {
-			name: "sans-serif",
-			size: 12
+			name: font.name,
+			size: font.size,
+			box: font.box
 		}
 	}
-	font = Object.create(font);
-	font.fid = font.used = undefined;
 	cfmt[xxxfont] = font;
 
 	// fill the values
-	a = param.match(/\s+(no)?box(\s|$)/)
+	a = p.match(/\s+(no)?box(\s|$)/)
 	if (a) {				// if box
 		if (a[1])
 			font.box = false	// nobox
 		else
 			font.box = true;
-		param = param.replace(a[0], a[2])
+		p = p.replace(a[0], a[2])
 	}
 
-	a = param.match(/\s+class=(.*?)(\s|$)/)
+	a = p.match(/\s+class=(.*?)(\s|$)/)
 	if (a) {
 		font.class = a[1];
-		param = param.replace(a[0], a[2])
+		p = p.replace(a[0], a[2])
 	}
-	a = param.match(/\s+wadj=(.*?)(\s|$)/)
+	a = p.match(/\s+wadj=(.*?)(\s|$)/)
 	if (a) {
 	    if (typeof document == "undefined")	// useless if in browser
 		switch (a[1]) {
@@ -206,35 +199,50 @@ function param_set_font(xxxfont, param) {
 			syntax(1, errs.bad_val, "%%" + xxxfont)
 			break
 		}
-		param = param.replace(a[0], a[2])
+		p = p.replace(a[0], a[2])
 	}
 
-	a = info_split(param)
-	if (!a) {
-		syntax(1, errs.bad_val, "%%" + xxxfont)
-		return
-	}
-	new_name = a[0]
-	if (new_name != "*") {
-		new_name = new_name.replace('Times-Roman', 'serif');
-		new_name = new_name.replace('Times', 'serif');
-		new_name = new_name.replace('Helvetica', 'sans-serif');
-		new_name = new_name.replace('Courier', 'monospace');
-		font.name = new_name
-		font.swfac = 0
-	}
-	if (a.length > 1) {
-		new_size = a[a.length - 1]
-		if (new_size != '*') {
-			new_size = Number(new_size)
-			if (isNaN(new_size)) {
-				syntax(1, errs.bad_val, "%%" + xxxfont)
-			} else {
-				font.size = new_size;
-				font.swfac = 0
-			}
+	// the font size is the last item
+	a = p.match(/\s+([0-9.]+|\*)$/)
+	if (a) {
+		if (a[1] != "*") {
+			font.size = Number(a[1])
+			font.swfac = 0
 		}
+		p = p.replace(a[0], "")
 	}
+
+	a = p.match(/[- ]?[nN]ormal/)
+	if (a) {
+		font.normal = true
+		p = p.replace(a[0], '')
+	}
+
+	a = p.match(/[- ]?[bB]old/)
+	if (a) {
+		font.weight = "bold"
+		p = p.replace(a[0], '')
+	}
+	a = p.match(/[- ]?[iI]talic/)
+	if (a) {
+		font.style = "italic"
+		p = p.replace(a[0], '')
+	}
+	a = p.match(/[- ]?[oO]blique/)
+	if (a) {
+		font.style = "oblique"
+		p = p.replace(a[0], '')
+	}
+	switch (p) {
+	case "":
+	case "*": return
+	case "Times-Roman":
+	case "Times":	p = "serif"; break
+	case "Helvetica": p = "sans-serif"; break
+	case "Courier": p = "monospace"; break
+	}
+	font.swfac = 0
+	font.name = p
 }
 
 // get a length with a unit - return the number of pixels
@@ -310,7 +318,7 @@ function set_pos(k, v) {		// keyword, value
 	k = k.slice(0, 3)
 	if (k == "ste")
 		k = "stm"
-	self.set_v_param("pos", k + ' ' + v)
+	set_v_param("pos", k + ' ' + v)
 }
 
 // set/unset the fields to write
@@ -334,7 +342,6 @@ function set_writefields(parm) {
 }
 
 // set a voice specific parameter
-// (possible hook)
 function set_v_param(k, v) {
 	if (curvoice) {
 		self.set_vp([k + '=', v])
@@ -372,15 +379,10 @@ function set_page() {
 
 // set a format parameter
 // (possible hook)
-function set_format(cmd, param, lock) {
+Abc.prototype.set_format = function(cmd, param) {
 	var f, f2, v, i
 
 //fixme: should check the type and limits of the parameter values
-	if (lock) {
-		fmt_lock[cmd] = true
-	} else if (fmt_lock[cmd])
-		return
-
 	if (/.+font(-[\d])?$/.test(cmd)) {
 		param_set_font(cmd, param)
 		return
@@ -390,7 +392,6 @@ function set_format(cmd, param, lock) {
 	case "aligncomposer":
 	case "barsperstaff":
 	case "infoline":
-	case "measurefirst":
 	case "measurenb":
 	case "rbmax":
 	case "rbmin":
@@ -408,13 +409,15 @@ function set_format(cmd, param, lock) {
 			syntax(1, errs.bad_val, "%%" + cmd)
 			break
 		}
-		self.set_v_param("uscale", f)
+		set_v_param("uscale", f)
 		break
 	case "bgcolor":
+	case "fgcolor":
 	case "dblrepbar":
 	case "titleformat":
 		cfmt[cmd] = param
 		break
+	case "beamslope":
 	case "breaklimit":			// float values
 	case "lineskipfac":
 	case "maxshrink":
@@ -459,6 +462,7 @@ function set_format(cmd, param, lock) {
 	case "hyphencont":
 	case "keywarn":
 	case "linewarn":
+	case "quiet":
 	case "rbdbstop":
 	case "singleline":
 	case "squarebreve":
@@ -537,7 +541,7 @@ function set_format(cmd, param, lock) {
 		break
 	case "fullsvg":
 		if (parse.state != 0) {
-			syntax(1, "Cannot have %%fullsvg inside a tune")
+			syntax(1, errs.not_in_tune, "%%fullsvg")
 			break
 		}
 //fixme: should check only alpha, num and '_' characters
@@ -625,10 +629,10 @@ function set_format(cmd, param, lock) {
 		syntax(1, "%%combinevoices is deprecated - use %%voicecombine instead")
 		break
 	case "voicemap":
-		self.set_v_param("map", param)
+		set_v_param("map", param)
 		break
 	case "voicescale":
-		self.set_v_param("scale", param)
+		set_v_param("scale", param)
 		break
 	default:		// memorize all global commands
 		if (parse.state == 0)		// (needed for modules)
@@ -640,26 +644,20 @@ function set_format(cmd, param, lock) {
 // font stuff
 
 // build a font style
-function style_font(font) {
-    var	fn = font.name,
-	r = '',
-	a = fn.match(/-?[bB]old/)
+function st_font(font) {
+    var	n = font.name,
+	r = ""
 
-	if (a) {
-		r += "bold ";
-		fn = fn.replace(a[0], '')
-	}
-	a = fn.match(/-?[iI]talic/)
-	if (a) {
-		r += "italic ";
-		fn = fn.replace(a[0], '')
-	}
-	a = fn.match(/-?[oO]blique/)
-	if (a) {
-		r += "oblique ";
-		fn = fn.replace(a[0], '')
-	}
-	return 'font:' + r + font.size.toFixed(1) + 'px ' + fn
+	if (font.weight)
+		r += font.weight + " "
+	if (font.style)
+		r += font.style + " "
+	if (n.indexOf(' ') > 0)
+		n = '"' + n.replace(/"/g, "") + '"'	// '
+	return r + font.size.toFixed(1) + 'px ' + n
+}
+function style_font(font) {
+	return 'font:' + st_font(font)
 }
 Abc.prototype.style_font = style_font
 
@@ -686,10 +684,43 @@ function use_font(font) {
 }
 
 // get the font of the 'xxxfont' parameter
-function get_font(xxx) {
-    var	fn = xxx + "font",
-	font = cfmt[fn];
+function get_font(fn) {
+    var	font, font2, fid, st
 
+	fn += "font"
+	font = cfmt[fn]
+	if (!font) {
+		syntax(1, "Unknown font $1", '$' + fn[1]);
+		return gene.curfont
+	}
+
+	if (!font.name || !font.size) {		// if incomplete user font
+		font2 = Object.create(gene.curfont)
+		if (font.name)
+			font2.name = font.name
+		if (font.normal) {
+			if (font2.weight)	// !! don't use delete !!
+				font2.weight = null
+			if (font2.style)
+				font2.style = null
+		} else {
+			if (font.weight)
+				font2.weight = font.weight
+			if (font.style)
+				font2.style = font.style
+		}
+		if (font.class)
+			font2.class = font.class
+		if (font.size)
+			font2.size = font.size
+		st = st_font(font2)
+		fid = font_st[st]
+		if (fid != undefined)
+			return font_tb[fid]
+		font_st[st] = font_tb.length
+		font2.fid = font2.used = undefined
+		font = font2
+	}
 	use_font(font)
 	return font
 }

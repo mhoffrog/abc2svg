@@ -22,13 +22,12 @@ function ToAudio() {
 
   var	C = abc2svg.C,
 
-	scale = new Uint8Array([0, 2, 4, 5, 7, 9, 11]),	// note to pitch conversion
-
 	a_e,				// event array
 
 	p_time,				// last playing time
 	abc_time,			// last ABC time
-	play_factor;			// play time factor
+	play_factor,			// play time factor
+	abcmidi = AbcMIDI()
 
 // ToAudio
   return {
@@ -51,146 +50,68 @@ function ToAudio() {
 
 // add playing events from the ABC model
     add: function(start,		// starting symbol
-		 voice_tb) {		// voice table
-	var	kmaps = [],		// accidentals per voice from key signature
-		cmaps = [],		// current accidental table
-		map,			// map of the current voice - 10 octaves
-		temper,			// temperament
-		i, n, dt, d, v,
-		top_v,			// top voice
+		voice_tb) {		// voice table
+	var	i, n, dt, d, v,
 		rep_st_s,		// start of sequence to be repeated
 		rep_en_s,		// end ("|1")
 		rep_nx_s,		// restart at end of repeat
-		rep_st_transp,		// transposition at start of repeat sequence
-		rep_st_map,		// and map
 		rep_st_fac,		// and play factor
-		transp,			// clef transposition per voice
 		instr = [],		// instrument per voice
 		s = start
 
-	// set the accidentals, transpositions and instruments of the voices
+	// set the accidentals and instruments of the voices
 	function set_voices() {
 	    var v, p_v, s, mi
 
-		temper = voice_tb[0].temper;	// (set by the module temper.js)
-		transp = new Int8Array(voice_tb.length)
+		// reset the audio engine
+		a_e.push(new Float32Array([
+				0,
+				0,	// (time)
+				-1,	// MIDI control
+				121,	// reset all controllers
+				0,
+				1,
+				0]))
+
 		for (v = 0; v < voice_tb.length; v++) {
 			p_v = voice_tb[v];
 
 			mi = p_v.instr || 0
 			if (p_v.midictl) {
+				for (s = p_v.sym; s; s = s.next)
+					if (s.dur)	// search a note/rest
+						break
+				if (!s)
+					continue	// no note in this voice
 				p_v.midictl.forEach(function(val, i) {
-					switch(i) {
-					case 0:		// bank MSB
-						mi += val * 128 * 128
-						break
-					case 32:	// bank LSB
-						mi += val * 128
-						break
-					default:	// generate a MIDI control
-						a_e.push(new Float32Array([
-							p_v.sym.istart,
-							1,	// (time)
-							-1,	// MIDI control
-							i,
-							val,
-							1,
-							v]))
-					}
+					a_e.push(new Float32Array([
+						s.istart,
+						0,	// (time)
+						-1,	// MIDI control
+						i,
+						val,
+						1,
+						v]))
 				})
 			}
 			instr[v] = mi;			// MIDI instrument
-
-			s = p_v.clef;
-			transp[v] = (!s.clef_octave || s.clef_oct_transp) ?
-					0 : s.clef_octave
-
-			kmaps[v] = new Float32Array(70);
-			cmaps[v] = new Float32Array(70);
-			p_v.key.v = v;
-			key_map(p_v.key)
 		}
 	} // set_voices()
 
-	// define the accidentals of a voice
-	function key_map(s) {
-	    var i, bmap
-
-	    if (s.k_bagpipe) {
-		// detune for just intonation in A (C is C#, F is F# and G is Gnat)
-//		bmap = new Float32Array([100-13.7, -2, 2, 100-15.6, -31.2, 0, 3.9])
-//		for (i = 0; i < 7; i++)
-//			bmap[i] = (bmap[i] + 150.6) / 100 // 'A' bagpipe = 480Hz
-//				// 150.6 = (Math.log2(480/440) - 1)*1200
-		bmap = new Float32Array([2.37, 1.49, 1.53, 2.35, 1.19, 1.51, 1.55])
-	    } else {
-		bmap = new Float32Array(7)
-		switch (s.k_sf) {
-		case 7: bmap[6] = 1
-		case 6: bmap[2] = 1
-		case 5: bmap[5] = 1
-		case 4: bmap[1] = 1
-		case 3: bmap[4] = 1
-		case 2: bmap[0] = 1
-		case 1: bmap[3] = 1; break
-		case -7: bmap[3] = -1
-		case -6: bmap[0] = -1
-		case -5: bmap[4] = -1
-		case -4: bmap[1] = -1
-		case -3: bmap[5] = -1
-		case -2: bmap[2] = -1
-		case -1: bmap[6] = -1; break
-		}
-	    }
-	    for (i = 0; i < 10; i++)
-		kmaps[s.v].set(bmap, i * 7);
-	    cmaps[s.v].set(kmaps[s.v])
-	} // key_map()
-
-	// convert ABC pitch to MIDI index
-	function pit2mid(s, i) {
-		var	note = s.notes[i],
-			p = note.pit + 19,	// pitch from C-1
-			a = note.acc
-
-		if (transp[s.v])
-			p += transp[s.v]
-		if (a) {
-			if (a == 3)		// (3 = natural)
-				a = 0
-			else if (note.micro_n)
-				a = (a < 0 ? -note.micro_n : note.micro_n) /
-						note.micro_d * 2;
-			map[p] = a
-		} else {
-			a = map[p]
-		}
-		p = ((p / 7) | 0) * 12 + scale[p % 7] + a
-		if (!temper || a | 0 != a)	// if equal temperament or micro-tone
-			return p
-		return p + temper[p % 12]
-	} // pit2mid()
-
 	// handle the ties
-	function do_tie(s, note, d) {
-		var	n,
-			end_time = s.time + s.dur,
-			pit = note.pit,
-			p = pit + 19,
-			a = note.acc
-
-		if (transp[s.v])
-			p += transp[s.v]
+	function do_tie(s, b40, d) {
+	    var	i, note,
+		v = s.v,
+		end_time = s.time + s.dur
 
 		// search the end of the tie
-		for (s = s.next; ; s = s.next) {
+		for (s = s.ts_next; ; s = s.ts_next) {
 			if (!s)
 				return d
 
 			// skip if end of sequence to be repeated
 			if (s == rep_en_s) {
-				var v = s.v;
-				s = rep_nx_s.ts_next
+				s = rep_nx_s
 				while (s && s.v != v)
 					s = s.ts_next
 				if (!s)
@@ -199,16 +120,16 @@ function ToAudio() {
 			}
 			if (s.time != end_time)
 				return d
-			if (s.type == C.NOTE)
+			if (s.type == C.NOTE && s.v == v)
 				break
 		}
-		n = s.notes.length
-		for (i = 0; i < n; i++) {
+		i = s.notes.length
+		while (--i >= 0) {
 			note = s.notes[i]
-			if (note.pit == pit) {
+			if (note.b40 == b40) {
+				note.ti2 = true	// don't generate sound anymore
 				d += s.dur / play_factor;
-				note.ti2 = true
-				return note.ti1 ? do_tie(s, note, d) : d
+				return note.tie_ty ? do_tie(s, b40, d) : d
 			}
 		}
 		return d
@@ -274,14 +195,15 @@ function ToAudio() {
 	function gen_notes(s, t, d) {
 		for (var i = 0; i <= s.nhd; i++) {
 		    var	note = s.notes[i]
-			if (note.ti2)
+
+			if (note.ti2)		// tied note
 				continue
 			a_e.push(new Float32Array([
 				s.istart,
 				t,
 				instr[s.v],
-				pit2mid(s, i),
-				note.ti1 ? do_tie(s, note, d) : d,
+				note.midi,
+				note.tie_ty ? do_tie(s, note.b40, d) : d,
 				1,
 				s.v]))
 		}
@@ -289,15 +211,18 @@ function ToAudio() {
 
 	// add() main
 
-	set_voices();			// initialize the voice parameters
+	// set the MIDI pitches
+	abcmidi.add(start, voice_tb)
 
 	if (!a_e) {			// if first call
 		a_e = []
-		abc_time = rep_st_t = p_time = 0;
+		abc_time = p_time = 0;
 		play_factor = C.BLEN / 4 * 120 / 60	// default: Q:1/4=120
 	} else if (s.time < abc_time) {
-		abc_time = rep_st_t = s.time
+		abc_time = s.time
 	}
+
+	set_voices()			// initialize the voice parameters
 
 	// loop on the symbols
 	while (s) {
@@ -317,33 +242,25 @@ function ToAudio() {
 			abc_time = s.time
 		}
 
-		if (s == rep_en_s) {			// repeat end
-			s = rep_nx_s;
-			abc_time = s.time
-		}
-
-		map = cmaps[s.v]
 		switch (s.type) {
 		case C.BAR:
-//fixme: does not work if different measures per voice
-			if (s.v != top_v)
+			if (!s.seqst)
 				break
 
+			// end of repeat
+			if (s == rep_en_s) {
+				s = rep_nx_s
+				abc_time = s.time
+
 			// right repeat
-			if (s.bar_type[0] == ':') {
-				s.bar_type = '|' +
-					 s.bar_type.slice(1); // don't repeat again
+			} else if (s.bar_type[0] == ':') {
 				rep_nx_s = s		// repeat next
 				if (!rep_en_s)		// if no "|1"
 					rep_en_s = s	// repeat end
 				if (rep_st_s) {		// if left repeat
 					s = rep_st_s
-					for (v = 0; v < voice_tb.length; v++) {
-						cmaps[v].set(rep_st_map[v]);
-						transp[v] = rep_st_transp[v]
-					}
 					play_factor = rep_st_fac;
-				} else {			// back to start
+				} else {	// back to the beginning of the tune
 					s = start;
 					set_voices();
 				}
@@ -351,37 +268,16 @@ function ToAudio() {
 				break
 			}
 
-			if (!s.invis) {
-				for (v = 0; v < voice_tb.length; v++)
-					cmaps[v].set(kmaps[v])
-			}
-
 			// left repeat
 			if (s.bar_type[s.bar_type.length - 1] == ':') {
 				rep_st_s = s;
 				rep_en_s = null
-				for (v = 0; v < voice_tb.length; v++) {
-					if (!rep_st_map)
-						rep_st_map = []
-					if (!rep_st_map[v])
-						rep_st_map[v] =
-							new Float32Array(70)
-					rep_st_map[v].set(cmaps[v]);
-					if (!rep_st_transp)
-						rep_st_transp = []
-					rep_st_transp[v] = transp[v]
-				}
 				rep_st_fac = play_factor
-				break
 
 			// 1st time repeat
 			} else if (s.text && s.text[0] == '1') {
 				rep_en_s = s
 			}
-			break
-		case C.CLEF:
-			transp[s.v] = (!s.clef_octave || s.clef_oct_transp) ?
-					0 : s.clef_octave
 			break
 		case C.GRACE:
 			if (s.time == 0		// if before beat at start time
@@ -394,9 +290,6 @@ function ToAudio() {
 				abc_time -= dt
 			}
 			gen_grace(s)
-			break
-		case C.KEY:
-			key_map(s)
 			break
 		case C.REST:
 		case C.NOTE:
@@ -423,13 +316,10 @@ function ToAudio() {
 					0,
 					s.v]))
 			break
-		case C.STAVES:
-			top_v = s.sy.top_voice
-			break
 		case C.BLOCK:
-			if (s.subtype != "midictl")
-				break
-			a_e.push(new Float32Array([	// generate a MIDI control
+			switch (s.subtype) {
+			case "midictl":
+			    a_e.push(new Float32Array([	// generate a MIDI control
 				s.istart,
 				p_time,
 				-1,			// MIDI control
@@ -437,6 +327,11 @@ function ToAudio() {
 				s.val,
 				1,
 				s.v]))
+				break
+			case "midiprog":
+				instr[s.v] = s.instr	// %%MIDI program
+				break
+			}
 			break
 		}
 		s = s.ts_next

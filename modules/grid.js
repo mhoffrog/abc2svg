@@ -5,12 +5,13 @@
 // This module is loaded when "%%grid" appears in a ABC source.
 //
 // Parameters
-//	%%grid <n> [include=<list>] [nomusic] [norepeat]
+//	%%grid <n> [include=<list>] [nomusic] [norepeat] [repbrk]
 //		<n> = number of columns (1: auto)
 //			> 0: above the tune, < 0: under the tune
 //		<list> = comma separated list of (continuous) measure numbers
 //		'nomusic' displays only the grid
 //		'norepeat' omits the ':' indications
+//		'repbrk' starts a new grid line on start/stop repeat
 //	%%gridfont font_name size (default: 'serif 16')
 
 abc2svg.grid = {
@@ -38,11 +39,12 @@ function get_beat(s) {
 
 // generate the grid
 function build_grid(chords, bars, font, wmx) {
-    var	i, j, k, l, nr, line, bar, w, hr, x0, x, y, yl,
-	cell = '',
-	pcell = '',
+    var	i, k, l, nr, line, bar, w, hr, x0, x, y, yl,
+	lc = '',
 	cells = [],
-	nc = grid.n
+	nc = grid.n,
+	sf = '" style="font-size:' + (font.size * .72).toFixed(1)
+						// small font
 
 	// set some chord(s) in each cell
 	function set_chords() {
@@ -75,6 +77,66 @@ function build_grid(chords, bars, font, wmx) {
 		}
 	} // set_chords()
 
+	function build_cell(cell, x, y, yl, hr) {
+	    var	line = ''
+		if (cell.length > 1) {
+			line += '<path class="stroke" stroke-width="1" d="M' +
+				(x - wmx / 2).toFixed(1) + ' ' +
+				yl.toFixed(1) + 'l' +
+				wmx.toFixed(1) + ' -' + hr.toFixed(1) +
+				'"/>\n'
+			if (cell[1]) {
+			    line += '<path class="stroke" stroke-width="1" d="M' +
+				(x - wmx / 2).toFixed(1) + ' ' +
+				(yl - hr).toFixed(1) + 'l' +
+				(wmx / 2).toFixed(1) + ' ' + (hr / 2).toFixed(1) +
+				'"/>\n'
+			    line += '<text class="' + cls + sf + '" x="' +
+				(x - wmx / 3).toFixed(1) + '" y="' +
+				y.toFixed(1) + '">' +
+				cell[0] + '</text>\n'
+			    line += '<text class="' + cls + sf + '" x="' +
+				x.toFixed(1) + '" y="' +
+				(y - hr / 3).toFixed(1) + '">' +
+				cell[1] + '</text>\n'
+			} else {
+			    line += '<text class="' + cls + sf + '" x="' +
+				(x - wmx * .2).toFixed(1) + '" y="' +
+				(y - hr / 4).toFixed(1) + '">' +
+				cell[0] + '</text>\n'
+			}
+			if (cell.length >= 3) {
+			  if (cell[3]) {
+			    line += '<path class="stroke" stroke-width="1" d="M' +
+				x.toFixed(1) + ' ' +
+				(yl - hr / 2).toFixed(1) + 'l' +
+				(wmx / 2).toFixed(1) + ' ' + (hr / 2).toFixed(1) +
+				'"/>\n'
+			    line += '<text class="' + cls + sf + '" x="' +
+				x.toFixed(1) + '" y="' +
+				(y + hr / 3).toFixed(1) + '">' +
+				cell[2] + '</text>\n'
+			    line += '<text class="' + cls + sf + '" x="' +
+				(x + wmx / 3).toFixed(1) + '" y="' +
+				y.toFixed(1) + '">' +
+				cell[3] + '</text>\n'
+			  } else {
+			    line += '<text class="' + cls + sf + '" x="' +
+				(x + wmx * .2).toFixed(1) + '" y="' +
+				(y + hr / 4).toFixed(1) + '">' +
+				cell[2] + '</text>\n'
+			  }
+			}
+		} else {
+			line += '<text class="' + cls + '" x="' +
+				x.toFixed(1) + '" y="' + y.toFixed(1) + '">' +
+				cell[0] + '</text>\n'
+		}
+		return line
+	} // build_cell()
+
+	// build_grid()
+
 	// set some chords in each cell
 	set_chords()
 
@@ -99,14 +161,13 @@ function build_grid(chords, bars, font, wmx) {
 		}
 	}
 
-	// get the number of columns and rows
+	// get the number of columns
 	if (nc < 0)
 		nc = -nc
 	if (nc < 3)				// auto
 		nc = cells.length % 6 == 0 ? 6 : 8
 	if (nc > cells.length)
 		nc = cells.length;
-	nr = ((cells.length + nc - 1) / nc) |0;
 
 	hr = font.size * 2
 	if (wmx < hr * 1.4)
@@ -115,8 +176,28 @@ function build_grid(chords, bars, font, wmx) {
 	w = wmx * nc
 	if (w > img.width) {
 		nc /= 2;
-		nr *= 2;
 		w /= 2
+	}
+
+	// generate the cells
+	yl = 1
+	y = 1 - hr / 2 + font.size * .3
+	nr = 0
+	x0 = (img.width - w) / 2
+	for (i = 0; i < cells.length; i++) {
+		if (i == 0
+		 || (grid.repbrk
+		  && (bars[i].slice(-1) == ':' || bars[i][0] == ':'))
+		 || k >= nc) {
+			y += hr			// new row
+			yl += hr
+			x = x0 + wmx / 2
+			k = 0
+			nr++
+		}
+		k++
+		lc += build_cell(cells[i], x, y, yl, hr)
+		x += wmx
 	}
 
 	// build the SVG image
@@ -138,9 +219,8 @@ function build_grid(chords, bars, font, wmx) {
 
 	// draw the lines
 	line += '<path class="stroke" d="\n';
-	x0 = (img.width - w) / 2;
 	y = 1
-	for (j = 0; j <= nr; j++) {
+	for (i = 0; i <= nr; i++) {
 		line += 'M' + x0.toFixed(1) + ' ' + y.toFixed(1) +
 			'h' + w.toFixed(1)+ '\n';
 		y += hr
@@ -152,77 +232,8 @@ function build_grid(chords, bars, font, wmx) {
 	}
 	line += '"/>\n';
 
-	// insert the chords
-	y = 1 - hr / 2 + font.size * .3;
-	yl = 1
-	for (i = 0; i < cells.length; i++) {
-		cell = cells[i]
-		if (i % nc == 0) {
-			y += hr;			// new row
-			yl += hr;
-			x = x0 + wmx / 2
-		}
-		if (cell.length > 1) {
-			line += '<path class="stroke" stroke-width="1" d="M' +
-				(x - wmx / 2).toFixed(1) + ' ' +
-				yl.toFixed(1) + 'l' +
-				wmx.toFixed(1) + ' -' + hr.toFixed(1) +
-				'"/>\n';
-			if (cell[1]) {
-			    line += '<path class="stroke" stroke-width="1" d="M' +
-				(x - wmx / 2).toFixed(1) + ' ' +
-				(yl - hr).toFixed(1) + 'l' +
-				(wmx / 2).toFixed(1) + ' ' + (hr / 2).toFixed(1) +
-				'"/>\n';
-			    line += '<text class="' + cls + '" style="font-size:' +
-				(font.size * .72).toFixed(1) + '" x="' +
-				(x - wmx / 3).toFixed(1) + '" y="' +
-				y.toFixed(1) + '">' +
-				cell[0] + '</text>\n';
-			    line += '<text class="' + cls + '" style="font-size:' +
-				(font.size * .72).toFixed(1) + '" x="' +
-				x.toFixed(1) + '" y="' +
-				(y - hr / 3).toFixed(1) + '">' +
-				cell[1] + '</text>\n'
-			} else {
-			    line += '<text class="' + cls + '" style="font-size:' +
-				(font.size * .72).toFixed(1) + '" x="' +
-				(x - wmx * .2).toFixed(1) + '" y="' +
-				(y - hr / 4).toFixed(1) + '">' +
-				cell[0] + '</text>\n'
-			}
-			if (cell.length >= 3) {
-			  if (cell[3]) {
-			    line += '<path class="stroke" stroke-width="1" d="M' +
-				x.toFixed(1) + ' ' +
-				(yl - hr / 2).toFixed(1) + 'l' +
-				(wmx / 2).toFixed(1) + ' ' + (hr / 2).toFixed(1) +
-				'"/>\n';
-			    line += '<text class="' + cls + '" style="font-size:' +
-				(font.size * .72).toFixed(1) + '" x="' +
-				x.toFixed(1) + '" y="' +
-				(y + hr / 3).toFixed(1) + '">' +
-				cell[2] + '</text>\n';
-			    line += '<text class="' + cls + '" style="font-size:' +
-				(font.size * .72).toFixed(1) + '" x="' +
-				(x + wmx / 3).toFixed(1) + '" y="' +
-				y.toFixed(1) + '">' +
-				cell[3] + '</text>\n'
-			  } else {
-			    line += '<text class="' + cls + '" style="font-size:' +
-				(font.size * .72).toFixed(1) + '" x="' +
-				(x + wmx * .2).toFixed(1) + '" y="' +
-				(y + hr / 4).toFixed(1) + '">' +
-				cell[2] + '</text>\n'
-			  }
-			}
-		} else {
-			line += '<text class="' + cls + '" x="' +
-				x.toFixed(1) + '" y="' + y.toFixed(1) + '">' +
-				cell[0] + '</text>\n'
-		}
-		x += wmx
-	}
+	// insert the cells
+	line += lc
 
 	// show the repeat signs
 	y = 1 - hr / 2 + font.size * .3;
@@ -235,11 +246,16 @@ function build_grid(chords, bars, font, wmx) {
 				'" y="' + y.toFixed(1) +
 				'" style="font-weight:bold;font-size:' +
 			(font.size + 2).toFixed(1) + '">:</text>\n'
-		if (i % nc == 0) {
+		if (i == 0
+		 || (grid.repbrk
+		  && (bars[i].slice(-1) == ':' || bars[i][0] == ':'))
+		 || k >= nc) {
 			y += hr;			// new row
 			x = x0
+			k = 0
 		}
-		if (bar[bar.length - 1] == ':')
+		k++
+		if (bar.slice(-1) == ':')
 			line += '<text class="' + cls + '" x="' +
 				(x + 5).toFixed(1) +
 				'" y="' + y.toFixed(1) +
@@ -273,7 +289,7 @@ function build_grid(chords, bars, font, wmx) {
 	// scan the first voice of the tune
 	cur_beat = beat_i = n = wmx = 0;
 	bars.push('|')
-	for (s = voice_tb[0].sym; s; s = s.next) {
+	for (s = tsfirst; s; s = s.ts_next) {
 		while (s.time > cur_beat) {
 			if (beat_i < 3)		// only 2, 3 or 4 beats / measure...
 				beat_i++;
@@ -315,8 +331,10 @@ function build_grid(chords, bars, font, wmx) {
 			chord = [];
 			cur_beat = s.time;	// synchronize in case of error
 			beat_i = 0
-			if (bt.indexOf(':'))
+			if (bt.indexOf(':') >= 0)
 				rep = true	// some repeat
+			while (s.ts_next && s.ts_next.type == C.BAR)
+				s = s.ts_next
 			break
 		case C.METER:
 			beat = get_beat(s)
@@ -342,6 +360,7 @@ function build_grid(chords, bars, font, wmx) {
 		time: 0,
 		p_v: p_voice,
 		v: p_voice.v,
+		st: p_voice.st,
 		text: build_grid.call(this, chords, bars, font, wmx)
 	}
 
@@ -376,7 +395,7 @@ function build_grid(chords, bars, font, wmx) {
 	of()
     },
 
-    set_fmt: function(of, cmd, parm, lock) {
+    set_fmt: function(of, cmd, parm) {
 	if (cmd == "grid") {
 		if (!parm)
 			parm = "1";
@@ -395,13 +414,15 @@ function build_grid(chords, bars, font, wmx) {
 				grid.norep = true
 			else if (item == "nomusic")
 				grid.nomusic = true
+			else if (item == "repbrk")
+				grid.repbrk = true
 			else if (item.slice(0, 8) == "include=")
 				grid.ls = item.slice(8).split(',')
 		}
 		this.cfmt().grid = grid
 		return
 	}
-	of(cmd, parm, lock)
+	of(cmd, parm)
     },
 
     set_hooks: function(abc) {

@@ -165,19 +165,16 @@ function parse_gchord(type) {
 var	note_names = "CDEFGAB",
 	acc_name = ["bb", "b", "", "#", "##"]
 
-	function gch_tr1(p, i2) {
-	    var	new_txt,
-			n, i1, i3, i4, ix, a, ip, ip2
+	function gch_tr1(p, transp) {
+	    var	i, o, n, a, ip, b40,
+		csa = p.split('/')
 
-		/* main chord */
-		n = note_names.indexOf(p[0])
-		if (n < 0) {
-			if (p[0] != '/')
-				return p
-		}
-
-		ip = 1
-		if (n >= 0) {		// if some chord
+		for (i = 0; i < csa.length; i++) {	// main and optional bass
+			p = csa[i];
+			o = p.search(/[ABCDEFG]/);
+			if (o < 0)
+				continue		// strange chord symbol!
+			ip = o + 1
 			a = 0
 			while (p[ip] == '#') {
 				a++;
@@ -187,59 +184,31 @@ var	note_names = "CDEFGAB",
 				a--;
 				ip++
 			}
-//			if (p[ip] == '=')
-//				ip++
-			i3 = cde2fcg[n] + i2 + a * 7;
-			i4 = cgd2cde[(i3 + 16 * 7) % 7];	// note
-			i1 = ((((i3 + 22) / 7) | 0) + 159) % 5;	// accidental
-			new_txt = note_names[i4] + acc_name[i1]
+			n = note_names.indexOf(p[o]) + 16
+			b40 = (abc2svg.pab40(n, a) + transp + 200) % 40
+			b40 = abc2svg.b40k[b40]
+			csa[i] = p.slice(0, o) +
+					note_names[abc2svg.b40_p[b40]] +
+					acc_name[abc2svg.b40_a[b40] + 2] +
+					p.slice(ip)
 		}
-
-		ip2 = p.indexOf('/', ip)	// skip 'm'/'dim'..
-		if (ip2 < 0)
-			return new_txt + p.slice(ip);
-
-		/* bass */
-		n = note_names.indexOf(p[++ip2])
-		if (n < 0)
-			return new_txt + p.slice(ip);
-
-		new_txt += p.slice(ip, ip2);
-		a = 0
-		if (p[++ip2] == '#') {
-			a++
-			if (p[++ip2] == '#') {
-				a++;
-				ip2++
-			}
-		} else if (p[ip2] == 'b') {
-			a--
-			if (p[++ip2] == 'b') {
-				a--;
-				ip2++
-			}
-		}
-		i3 = cde2fcg[n] + i2 + a * 7;
-		i4 = cgd2cde[(i3 + 16 * 7) % 7];	// note
-		i1 = ((((i3 + 22) / 7) | 0) + 159) % 5;	// accidental
-		return new_txt + note_names[i4] + acc_name[i1] + p.slice(ip2)
-	} // get_tr1
+		return csa.join('/')
+	} // gch_tr1
 
 function gch_transp(s) {
     var	gch,
-		i = 0,
-		i2 = curvoice.ckey.k_sf - curvoice.okey.k_sf
+	i = s.a_gch.length
 
-	for (i = 0; i < s.a_gch.length; i++) {
+	while (--i >= 0) {
 		gch = s.a_gch[i]
 		if (gch.type == 'g')
-			gch.text = gch_tr1(gch.text, i2)
+			gch.text = gch_tr1(gch.text, curvoice.vtransp)
 	}
 }
 
 // -- build the chord indications / annotations --
 // (possible hook)
-function gch_build(s) {
+Abc.prototype.gch_build = function(s) {
 
 	/* split the chord indications / annotations
 	 * and initialize their vertical offsets */
@@ -270,22 +239,18 @@ function gch_build(s) {
 				if (cfmt.chordnames.B == 'H')
 					gch.text = gch.text.replace(/Hb/g, 'Bb')
 			}
-			gch.text = gch.text.replace(/##|#|=|bb|b/g,
+			gch.text = gch.text.replace(/##|#|=|bb|b|  /g,
 				function(x) {
 					switch (x) {
 					case '##': return "&#x1d12a;"
 					case '#': return "\u266f"
 					case '=': return "\u266e"
 					case 'b': return "\u266d"
+					case '  ': return '  '
 					}
 					return "&#x1d12b;"
 				});
-			if (gch.font.box)
-				gch.box = true
 		} else {
-			gch.text = cnv_escape(gch.text);
-			if (gch.font.box)
-				gch.box = true
 			if (gch.type == '@'
 			 && !user.anno_start && !user.anno_stop) {
 				gch.wh = [0, 0]
@@ -297,7 +262,7 @@ function gch_build(s) {
 		set_font(gch.font);
 		wh = strwh(gch.text);
 		gch.wh = wh
-		if (gch.box)
+		if (gch.font.box)
 			wh[1] += 4
 		switch (gch.type) {
 		case '@':
@@ -371,7 +336,7 @@ function gch_build(s) {
 // (the staves are not yet defined)
 // (unscaled delayed output)
 // (possible hook)
-function draw_gchord(s, gchy_min, gchy_max) {
+Abc.prototype.draw_gchord = function(s, gchy_min, gchy_max) {
     var	gch, text, ix, x, y, y2, hbox, h, y_above, y_below,
 
 	// adjust the vertical offset according to the chord symbols
@@ -385,8 +350,8 @@ function draw_gchord(s, gchy_min, gchy_max) {
 		if (gch.wh[0] > w)
 			w = gch.wh[0]
 	}
-	y_above = y_get(s.st, 1, s.x - 2, w);
-	y_below = y_get(s.st, 0, s.x - 2, w)
+	y_above = y_get(s.st, 1, s.x - 3, w);
+	y_below = y_get(s.st, 0, s.x - 3, w)
 	if (y_above < gchy_max)
 		y_above = gchy_max
 	if (y_below > gchy_min)
@@ -398,7 +363,7 @@ function draw_gchord(s, gchy_min, gchy_max) {
 		use_font(gch.font);
 		set_font(gch.font);
 		h = gch.font.size;
-		hbox = gch.box ? 2 : 0;
+		hbox = gch.font.box ? 2 : 0;
 		w = gch.wh[0];
 		x = s.x + gch.x;
 		text = gch.text

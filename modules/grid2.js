@@ -12,7 +12,7 @@ abc2svg.grid2 = {
 
 // function called before tune generation
     do_grid: function() {
-    var s, v, p_v,
+    var s, v, p_v, ix, cs, c_a_cs, bt,
 	voice_tb = this.get_voice_tb()
 
 	for (v = 0; v < voice_tb.length; v++) {
@@ -23,13 +23,31 @@ abc2svg.grid2 = {
 		p_v.key.k_sf = p_v.key.k_a_acc = 0; // no key signature
 		p_v.staffnonote = 2		// draw the staff
 		for (s = p_v.sym; s; s = s.next) {
-			if (s.dur) {		// set all notes
+			delete s.a_dd		// no decoration
+			if (!s.dur) {
+				if (s.bar_type)
+					bt = s.time
+				continue
+			}
+
+			// set all notes
 				s.invis = true;	//  as invisible
 				delete s.sl1;	//  with no slur
-				s.ti1 = 0	//  and no tie
+				delete s.tie_s	//  and no tie
 				if (s.tf)	// don't show the tuplets
 					s.tf[0] = 1
-			}
+				if (!s.a_gch) {
+					if (s.time == bt)
+						s.a_gch = c_a_cs
+					continue
+				}
+				for (ix = 0; ix < s.a_gch.length; ix++) {
+					gch = s.a_gch[ix]
+					if (gch.type == 'g') {
+						c_a_cs = s.a_gch
+						break
+					}
+				}
 		}
 	}
     }, // do_grid()
@@ -61,7 +79,7 @@ abc2svg.grid2 = {
 	of()
     },
 
-    set_fmt: function(of, cmd, param, lock) {
+    set_fmt: function(of, cmd, param) {
 	if (cmd == "grid2") {
 	    var	curvoice = this.get_curvoice()
 		if (curvoice) {
@@ -70,7 +88,7 @@ abc2svg.grid2 = {
 		}
 		return
 	}
-	of(cmd, param, lock)
+	of(cmd, param)
     },
 
     set_hooks: function(abc) {

@@ -17,6 +17,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
+    var	sav = {},	// save global (between tunes) definitions
+	mac = {},	// macros (m:)
+	maci = {}	// first letters of macros
+
 // translation table from the ABC draft version 2.2
 var abc_utf = {
 	"=D": "Đ",
@@ -62,7 +66,7 @@ var oct_acc = {
 function cnv_escape(src) {
 	var	c, c2,
 		dst = "",
-		i, j = 0, codeUnits
+		i, j = 0
 
 	while (1) {
 		i = src.indexOf('\\', j)
@@ -87,21 +91,12 @@ function cnv_escape(src) {
 		case 'u':
 			j = Number("0x" + src.slice(i + 1, i + 5));
 			if (isNaN(j) || j < 0x20) {
-				dst += src[++i] + "\u0306"	// breve
+				dst += src[++i] + "\u0306"	// breve accent
 				j = i + 1
 				continue
 			}
-			codeUnits = [j]
-			if (j >= 0xd800 && j <= 0xdfff) {	// surrogates
-				j = Number("0x" + src.slice(i + 7, i + 11));
-				if (isNaN(j))
-					break		// bad surrogate
-				codeUnits.push(j);
-				j = i + 11
-			} else {
-				j = i + 5
-			}
-			dst += String.fromCharCode.apply(null, codeUnits)
+			dst += String.fromCharCode(j);
+			j = i + 5
 			continue
 		case 't':			// TAB
 			dst += ' ';
@@ -116,62 +111,65 @@ function cnv_escape(src) {
 			}
 
 			// try unicode combine characters
+			c2 = src[i + 1]
+			if (!/[A-Za-z]/.test(c2))
+				break
 			switch (c) {
 			case '`':
-				dst += src[++i] + "\u0300"	// grave
-				j = i + 1
+				dst += c2 + "\u0300"	// grave
+				j = i + 2
 				continue
 			case "'":
-				dst += src[++i] + "\u0301"	// acute
-				j = i + 1
+				dst += c2 + "\u0301"	// acute
+				j = i + 2
 				continue
 			case '^':
-				dst += src[++i] + "\u0302"	// circumflex
-				j = i + 1
+				dst += c2 + "\u0302"	// circumflex
+				j = i + 2
 				continue
 			case '~':
-				dst += src[++i] + "\u0303"	// tilde
-				j = i + 1
+				dst += c2 + "\u0303"	// tilde
+				j = i + 2
 				continue
 			case '=':
-				dst += src[++i] + "\u0304"	// macron
-				j = i + 1
+				dst += c2 + "\u0304"	// macron
+				j = i + 2
 				continue
 			case '_':
-				dst += src[++i] + "\u0305"	// overline
-				j = i + 1
+				dst += c2 + "\u0305"	// overline
+				j = i + 2
 				continue
 			case '.':
-				dst += src[++i] + "\u0307"	// dot
-				j = i + 1
+				dst += c2 + "\u0307"	// dot
+				j = i + 2
 				continue
 			case '"':
-				dst += src[++i] + "\u0308"	// dieresis
-				j = i + 1
+				dst += c2 + "\u0308"	// dieresis
+				j = i + 2
 				continue
 			case 'o':
-				dst += src[++i] + "\u030a"	// ring
-				j = i + 1
+				dst += c2 + "\u030a"	// ring
+				j = i + 2
 				continue
 			case 'H':
-				dst += src[++i] + "\u030b"	// hungarumlaut
-				j = i + 1
+				dst += c2 + "\u030b"	// hungarumlaut
+				j = i + 2
 				continue
 			case 'v':
-				dst += src[++i] + "\u030c"	// caron
-				j = i + 1
+				dst += c2 + "\u030c"	// caron
+				j = i + 2
 				continue
 //			case ',':
-//				dst += src[++i] + "\u0326"	// comma below
-//				j = i + 1
+//				dst += c2 + "\u0326"	// comma below
+//				j = i + 2
 //				continue
 			case 'c':
-				dst += src[++i] + "\u0327"	// cedilla
-				j = i + 1
+				dst += c2 + "\u0327"	// cedilla
+				j = i + 2
 				continue
 			case ';':
-				dst += src[++i] + "\u0328"	// ogonek
-				j = i + 1
+				dst += c2 + "\u0328"	// ogonek
+				j = i + 2
 				continue
 			}
 			break
@@ -179,19 +177,7 @@ function cnv_escape(src) {
 		dst += '\\' + c;
 		j = i + 1
 	}
-	// cleanup for XML treatment
-	return (dst + src.slice(j)).replace(/<|>|  |&.*?;|&/g, function(c) {
-			switch (c) {
-			case '<': return "&lt;"
-			case '>': return "&gt;"
-			case '&': return "&amp;"
-			case '  ': return '  '		// space + nbspace
-			case "&lt;":
-			case "&gt;":
-			case "&amp;": return c
-			}
-			return "&amp;" + c.slice(1)
-		})
+	return dst + src.slice(j)
 }
 
 // ABC include
@@ -208,14 +194,15 @@ function do_include(fn) {
 		syntax(1, "Too many include levels")
 		return
 	}
-	include++;
 	file = user.read_file(fn)
 	if (!file) {
 		syntax(1, "Cannot read file '$1'", fn)
 		return
 	}
+	include++;
 	parse_sav = clone(parse);
 	tosvg(fn, file);
+	parse_sav.state = parse.state;
 	parse = parse_sav;
 	include--
 }
@@ -224,12 +211,10 @@ function do_include(fn) {
 function tosvg(in_fname,		// file name
 		file,			// file content
 		bol, eof) {		// beginning/end of file
-	var	i, c, bol, eol, end,
+	var	i, c, eol, end,
 		select,
 		line0, line1,
 		last_info, opt, text, a, b, s,
-		cfmt_sav, info_sav, char_tb_sav, glovar_sav, maps_sav,
-		mac_sav, maci_sav,
 		pscom,
 		txt_add = '\n'		// for "+:"
 
@@ -257,7 +242,6 @@ function tosvg(in_fname,		// file name
 
 	// remove the comment at end of text
 	function uncomment(src, do_escape) {
-	    var i
 		if (!src)
 			return src
 		if (src.indexOf('%') >= 0)
@@ -276,17 +260,111 @@ function tosvg(in_fname,		// file name
 		put_history();
 		blk_flush();
 		parse.state = 0;		// file header
-		cfmt = cfmt_sav;
-		info = info_sav;
-		char_tb = char_tb_sav;
-		glovar = glovar_sav;
-		maps = maps_sav;
-		mac = mac_sav;
-		maci = maci_sav;
+		cfmt = sav.cfmt;
+		info = sav.info;
+		char_tb = sav.char_tb;
+		glovar = sav.glovar;
+		maps = sav.maps;
+		mac = sav.mac;
+		maci = sav.maci;
+		parse.tune_v_opts = null;
+		parse.scores = null;
 		init_tune()
 		img.chg = true;
 		set_page();
 	} // end_tune()
+
+	// get %%voice
+	function do_voice(select, in_tune) {
+	    var	opt, bol
+		if (select == "end")
+			return		// end of previous %%voice
+
+		// get the options
+		if (in_tune) {
+			if (!parse.tune_v_opts)
+				parse.tune_v_opts = {};
+			opt = parse.tune_v_opts
+		} else {
+			if (!parse.voice_opts)
+				parse.voice_opts = {};
+			opt = parse.voice_opts
+		}
+		opt[select] = []
+		while (1) {
+			bol = ++eol
+			if (file[bol] != '%')
+				break
+			eol = file.indexOf('\n', eol);
+			if (file[bol + 1] != line1)
+				continue
+			bol += 2
+			if (eol < 0)
+				text = file.slice(bol)
+			else
+				text = file.slice(bol, eol);
+			a = text.match(/\S+/)
+			switch (a[0]) {
+			default:
+				opt[select].push(uncomment(text, true))
+				continue
+			case "score":
+			case "staves":
+			case "tune":
+			case "voice":
+				bol -= 2
+				break
+			}
+			break
+		}
+		eol = parse.eol = bol - 1
+	} // do_voice()
+
+	// apply the options to the current tune
+	function tune_filter() {
+	    var	o, opts, j, pc, h,
+		i = file.indexOf('K:', bol)
+
+		i = file.indexOf('\n', i);
+		h = file.slice(parse.bol, i)	// tune header
+
+		for (i in parse.tune_opts) {
+			if (!parse.tune_opts.hasOwnProperty(i))
+				continue
+			if (!(new RegExp(i)).test(h))
+				continue
+			opts = parse.tune_opts[i]
+			for (j = 0; j < opts.t_opts.length; j++) {
+				pc = opts.t_opts[j]
+				switch (pc.match(/\S+/)[0]) {
+				case "score":
+				case "staves":
+					if (!parse.scores)
+						parse.scores = [];
+					parse.scores.push(pc)
+					break
+				default:
+					self.do_pscom(pc)
+					break
+				}
+			}
+			opts = opts.v_opts
+			if (!opts)
+				continue
+			for (j in opts) {
+				if (!opts.hasOwnProperty(j))
+					continue
+				if (!parse.tune_v_opts)
+					parse.tune_v_opts = {};
+				if (!parse.tune_v_opts[j])
+					parse.tune_v_opts[j] = opts[j]
+				else
+					parse.tune_v_opts[j] =
+						parse.tune_v_opts[j].
+								concat(opts[j])
+			}
+		}
+	} // tune_filter()
 
 	// export functions and/or set module hooks
 	if (abc2svg.modules
@@ -364,41 +442,32 @@ function tosvg(in_fname,		// file name
 		if (pscom) {
 			pscom = false;
 			bol += 2		// skip %%/I:
-			while (1) {
-				switch (file[bol]) {
-				case ' ':
-				case '\t':
-					bol++
-					continue
-				}
-				break
-			}
 			text = file.slice(bol, eol)
-			if (!text || text[0] == '%')
+			a = text.match(/([^\s]+)\s*(.*)/)
+			if (!a || a[1][0] == '%')
 				continue
-			a = text.split(/\s+/, 2)
-			switch (a[0]) {
+			switch (a[1]) {
 			case "abcm2ps":
 			case "ss-pref":
-				parse.prefix = a[1]	// may contain a '%'
+				parse.prefix = a[2]	// may contain a '%'
 				continue
 			case "abc-include":
-				do_include(uncomment(a[1]))
+				do_include(uncomment(a[2]))
 				continue
 			}
 
 			// beginxxx/endxxx
-			if (a[0].slice(0, 5) == 'begin') {
-				b = a[0].substr(5);
+			if (a[1].slice(0, 5) == 'begin') {
+				b = a[1].substr(5);
 				end = '\n' + line0 + line1 + "end" + b;
 				i = file.indexOf(end, eol)
 				if (i < 0) {
 					syntax(1, "No $1 after %%$2",
-							end.slice(1), a[0]);
+							end.slice(1), a[1]);
 					parse.eol = eof
 					continue
 				}
-				self.do_begin_end(b, uncomment(a[1]),
+				self.do_begin_end(b, uncomment(a[2]),
 					file.slice(eol + 1, i).replace(
 						new RegExp('^' + line0 + line1, 'gm'),
 										''));
@@ -407,10 +476,10 @@ function tosvg(in_fname,		// file name
 					parse.eol = eof
 				continue
 			}
-			switch (a[0]) {
+			switch (a[1]) {
 			case "select":
 				if (parse.state != 0) {
-					syntax(1, "%%select ignored")
+					syntax(1, errs.not_in_tune, "%%select")
 					continue
 				}
 				select = uncomment(text.slice(7))
@@ -426,38 +495,27 @@ function tosvg(in_fname,		// file name
 				parse.select = new RegExp(select, 'm')
 				continue
 			case "tune":
-				syntax(1, "%%tune not treated yet")
-				continue
-			case "voice":
 				if (parse.state != 0) {
-					syntax(1, "%%voice ignored")
+					syntax(1, errs.not_in_tune, "%%tune")
 					continue
 				}
-				select = uncomment(text.slice(6))
+				select = uncomment(a[2])
 
-				/* if void %%voice, free all voice options */
+				// if void %%tune, free all tune options
 				if (!select) {
-					if (parse.cur_tune_opts)
-						parse.cur_tune_opts.voice_opts = null
-					else
-						parse.voice_opts = null
+					parse.tune_opts = {}
 					continue
 				}
 				
 				if (select == "end")
-					continue	/* end of previous %%voice */
+					continue	// end of previous %%tune
 
-				/* get the voice options */
-				if (parse.cur_tune_opts) {
-					if (!parse.cur_tune_opts.voice_opts)
-						parse.cur_tune_opts.voice_opts = {}
-					opt = parse.cur_tune_opts.voice_opts
-				} else {
-					if (!parse.voice_opts)
-						parse.voice_opts = {}
-					opt = parse.voice_opts
-				}
-				opt[select] = []
+				if (!parse.tune_opts)
+					parse.tune_opts = {};
+				parse.tune_opts[select] = opt = {
+						t_opts: []
+//						v_opts: {}
+					};
 				while (1) {
 					bol = ++eol
 					if (file[bol] != '%')
@@ -470,22 +528,41 @@ function tosvg(in_fname,		// file name
 						text = file.slice(bol)
 					else
 						text = file.slice(bol, eol);
-					a = text.match(/\S+/)
-					switch (a[0]) {
+					a = text.match(/([^\s]+)\s*(.*)/)
+					switch (a[1]) {
+					case "tune":
+						break
+					case "voice":
+						do_voice(uncomment(a[2],
+								true), true)
+						continue
 					default:
-						opt[select].push(
+						opt.t_opts.push(
 							uncomment(text, true))
 						continue
-					case "score":
-					case "staves":
-					case "tune":
-					case "voice":
-						bol -= 2
-						break
 					}
 					break
 				}
+				if (parse.tune_v_opts) {
+					opt.v_opts = parse.tune_v_opts;
+					parse.tune_v_opts = null
+				}
 				parse.eol = bol - 1
+				continue
+			case "voice":
+				if (parse.state != 0) {
+					syntax(1, errs.not_in_tune, "%%voice")
+					continue
+				}
+				select = uncomment(a[2])
+
+				/* if void %%voice, free all voice options */
+				if (!select) {
+					parse.voice_opts = null
+					continue
+				}
+				
+				do_voice(select)
 				continue
 			}
 			self.do_pscom(uncomment(text, true))
@@ -538,22 +615,24 @@ function tosvg(in_fname,		// file name
 				continue
 			}
 
-			cfmt_sav = clone(cfmt);
-			cfmt.pos = clone(cfmt.pos);
-			info_sav = clone(info, 1);
-			char_tb_sav = clone(char_tb);
-			glovar_sav = clone(glovar);
-			maps_sav = clone(maps, 1);
-			mac_sav = clone(mac);
-			maci_sav = new Int8Array(maci);
+			sav.cfmt = clone(cfmt);
+			sav.info = clone(info, 2)	// (level 2 for info.V[])
+			sav.char_tb = clone(char_tb);
+			sav.glovar = clone(glovar);
+			sav.maps = clone(maps, 1);
+			sav.mac = clone(mac);
+			sav.maci = clone(maci);
 			info.X = text;
 			parse.state = 1			// tune header
+			if (parse.tune_opts)
+				tune_filter()
 			continue
 		case 'T':
 			switch (parse.state) {
 			case 0:
 				continue
 			case 1:
+			case 2:
 				if (info.T == undefined)	// (keep empty T:)
 					info.T = text
 				else
@@ -588,16 +667,13 @@ function tosvg(in_fname,		// file name
 				syntax(1, errs.ignored, line0)
 				continue
 			}
-			if ((!cfmt.sound || cfmt.sound != "play")
-			 && cfmt.writefields.indexOf(line0) < 0)
-				break
 			a = text.match(/(.*?)[= ]+(.*)/)
 			if (!a || !a[2]) {
 				syntax(1, errs.bad_val, "m:")
 				continue
 			}
 			mac[a[1]] = a[2];
-			maci[a[1].charCodeAt(0)] = 1	// first letter
+			maci[a[1][0]] = true	// first letter
 			break
 
 		// info fields in tune body only
@@ -621,7 +697,7 @@ function tosvg(in_fname,		// file name
 		case '|':			// "|:" starts a music line
 			if (parse.state < 2)
 				continue
-			parse.line.buffer = uncomment(file.slice(bol, eol), true);
+			parse.line.buffer = text
 			parse_music_line()
 			continue
 		default:

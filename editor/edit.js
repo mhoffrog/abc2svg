@@ -31,8 +31,10 @@ window.onerror = function(msg, url, line) {
 
 var	abc_images,			// image buffer
 	abc_fname = ["noname.abc", ""],	// file names
+	abc_mtime = [],			// associated last modification time
 	abc,				// Abc object
-	srcend,				// source symbol end index
+	syms,				// music symbol at source index
+	ctxMenu,			// context menu for play
 	elt_ref = {},			// pointers to page HTML elements
 	selx = [0, 0],			// selected source indexes
 	selx_sav = [],			// (saved while playing/printing)
@@ -42,8 +44,12 @@ var	abc_images,			// image buffer
 	jsdir = document.currentScript ?
 		document.currentScript.src.match(/.*\//) :
 		(function() {
-			var scrs = document.getElementsByTagName('script');
-			return scrs[scrs.length - 1].src.match(/.*\//) || ''
+		     var s_a = document.getElementsByTagName('script')
+			for (var k = 0; k < s_a.length; k++) {
+				if (s_a[k].src.indexOf('edit-') >= 0)
+					return s_a[k].src.match(/.*\//) || ''
+			}
+			return ""	// ??
 		})()
 
 // -- Abc create argument
@@ -55,26 +61,25 @@ var user = {
 		return elt_ref.src1.value
 	},
 	// insert the errors
-	errmsg: function(msg, l, c) {
-		msg = clean_txt(msg)
-		if (l)
-			elt_ref.diverr.innerHTML += '<b onclick="gotoabc(' +
-				l + ',' + c +
+	errbld: function(sev, txt, fn, idx) {
+	    var	msg = sev + ' ' + clean_txt(txt)
+		if (idx >= 0)
+			elt_ref.diverr.innerHTML += '<b onclick="gotoabc(-1,' + idx +
 				')" style="cursor: pointer; display: inline-block">' +
 				msg + "</b><br/>\n"
 		else
 			elt_ref.diverr.innerHTML += msg + "<br/>\n"
 	},
 	// image output
-	my_img_out: function(str) {
+	img_out: function(str) {
 		abc_images += str
 	},
 	// -- optional methods
 	// annotations
-	anno_stop: function(type, start, stop, x, y, w, h) {
+	anno_stop: function(type, start, stop, x, y, w, h, s) {
 		if (["beam", "slur", "tuplet"].indexOf(type) >= 0)
 			return
-		srcend[start] = stop;	// source index of the end of the element
+		syms[start] = s		// music symbol
 
 		// create a rectangle
 		abc.out_svg('<rect class="abcr _' + start +
@@ -159,10 +164,9 @@ function loadtune() {
 
 	// Closure to capture the file information
 	reader.onloadend = function(evt) {
-		var	i, j, sl,
-			content = evt.target.result,
-			s = srcidx == 0 ? "source" : "src1"
-		elt_ref[s].value = content;
+	    var	s = srcidx == 0 ? "source" : "src1";
+
+		elt_ref[s].value = evt.target.result;
 		elt_ref["s" + srcidx].value = abc_fname[srcidx];
 		src_change()
 	}
@@ -189,7 +193,6 @@ function render() {
     var	i, j,
 	content = elt_ref.source.value;
 
-	play.a_pe = null
 	if (!content)
 		return			// empty source
 
@@ -217,15 +220,22 @@ function render2() {
 	if (!abc2svg.modules.load(content + elt_ref.src1.value, render2))
 		return
 
-	user.img_out = user.my_img_out;
-	user.get_abcmodel = null;
+	// if page formatting, define a function to get the modification date
+	if (abc2svg.modules.pageheight.loaded) {
+		abc2svg.get_mtime = function(fn) {
+		    var	files = document.getElementById("abcfile").files
+			if (files && files[0].lastModified)
+				return new Date(files[0].lastModified)
+			return new Date()
+		}
+	}
 
 	abc = new abc2svg.Abc(user);
 	abc_images = '';
 	abc.tosvg('edit', '%%bgcolor white');
 
 //	document.body.style.cursor = "wait";
-	srcend = []
+	syms = []
 	try {
 		abc.tosvg(abc_fname[0], content)
 	} catch(e) {
@@ -264,15 +274,14 @@ function gotoabc(l, c) {
 	}
 	c = Number(c) + idx;
 	s.focus();
-	s.setSelectionRange(c, srcend[c] || c + 1)
+	s.setSelectionRange(c, syms[c].iend || c + 1)
 }
 
 // click in the target
 function selsvg(evt) {
     var	v,
 	elt = evt.target,
-	cl = elt.getAttribute('class'),
-	ctxMenu = document.getElementById("ctxMenu");
+	cl = elt.getAttribute('class')
 
 	play.loop = false;
 
@@ -296,7 +305,7 @@ function selsvg(evt) {
 	s = elt_ref.source;
 	if (cl && cl.substr(0, 4) == 'abcr') {
 		v = Number(cl.slice(6, -1));
-		s.setSelectionRange(v, srcend[v])
+		s.setSelectionRange(v, syms[v].iend)
 	} else {
 		s.setSelectionRange(0, 0)
 	}
@@ -364,12 +373,12 @@ function seltxt(evt) {
 		return
 	}
 
-	if (srcend) {
-		srcend.forEach(function(ie, is) {
+	if (syms) {
+		syms.forEach(function(sym, is) {
 			if (!s) {
 				if (is >= start)
 					s = is
-			} else if (ie <= end) {
+			} else if (sym.iend <= end) {
 				e = is
 			}
 		})
@@ -389,21 +398,20 @@ function seltxt(evt) {
 function saveas() {
 	var	s = srcidx == 0 ? "source" : "src1",
 		source = elt_ref[s].value,
-		uriContent = "data:text/plain;charset=utf-8," +
-				encodeURIComponent(source),
 
 	// create a link for our script to 'click'
 		link = document.createElement("a");
 
-	elt_ref["s" + srcidx].value =
-		link.download =
-			abc_fname[srcidx] =
-				prompt(texts.fn, abc_fname[srcidx]);
-	link.innerHTML = "Hidden Link";
-	link.href = uriContent;
+	if (abc_fname[srcidx] == "noname.abc")
+		elt_ref["s" + srcidx].value =
+			abc_fname[srcidx] = prompt(texts.fn, abc_fname[srcidx])
+	link.download = abc_fname[srcidx];
+//	link.innerHTML = "Hidden Link";
+	link.href = "data:text/plain;charset=utf-8," +
+			encodeURIComponent(source);
 
 	// open in a new tab
-	link.target = '_blank';
+//	link.target = '_blank';
 
 	// when link is clicked call a function to remove it from
 	// the DOM in case user wants to save a second file.
@@ -469,12 +477,13 @@ function notehlight(i, on) {
 		elts[0].style.fillOpacity = on ? 0.4 : 0
 	}
 }
-function endplay() {
+function endplay(repv) {
 	if (play.loop) {
-		play.abcplay.play(play.si, play.ei, play.a_pe)
+		play.abcplay.play(play.si, play.ei)
 		return
 	}
 	play.playing = false;
+	play.repv = repv		// repeat variant number for continue
 
 	// redisplay the selection
 	selx[0] = selx[1] = 0;
@@ -483,12 +492,17 @@ function endplay() {
 }
 
 // start playing
-//	-1: All
+//	-1: All (removed)
 //	0: Tune
 //	1: Selection
 //	2: Loop
 //	3: Continue
 function play_tune(what) {
+    var	i, si, ei, elt,
+	C = abc2svg.C,
+	tunes = abc.tunes,
+	s = elt_ref.source.value
+
 	if (play.playing) {
 		if (!play.stop) {
 			play.stop = -1;
@@ -497,143 +511,127 @@ function play_tune(what) {
 		return
 	}
 
-	// search a playing event from a source index
-	function get_se(si) {			// get highest starting event
-	    var	i, s, tim,
-		sih = 1000000,
-		pa = play.a_pe,
-		ci = 0
+	// search a symbol to play
 
-		if (si <= pa[0][0])
-			return 0
-		if (si >= pa[pa.length - 1][0])
-			return pa.length
-
-		si = go_note(si);
-
-		i = pa.length
-		while (--i > 0) {
-			s = pa[i][0]
-			if (s < si)
-				continue
-			if (s == si) {
-				ci = i
+	function gnrn(sym, loop) {	// go to the next real note (not tied)
+	    var	i
+		while (1) {
+			switch (sym.type) {
+			case C.NOTE:
+				i = sym.nhd + 1
+				while (--i >= 0) {
+					if (sym.notes[i].ti2)
+						break
+				}
+				if (i < 0)
+					return sym
+				break
+			case C.REST:
+			case C.GRACE:
+				return sym
+			case C.BLOCK:
+				switch (sym.subtype) {
+				case "midictl":
+				case "midiprog":
+					return sym
+				}
 				break
 			}
-			if (s < sih) {
-				ci = i;
-				sih = s
+			if (!sym.ts_next) {
+				if (!loop)
+					return gprn(sym, 1)
+				return sym
 			}
+			sym = sym.ts_next
 		}
+		// not reached
+	}
+	function gprn(sym, loop) {	// go to the previous real note (not tied)
+	    var	i
+		while (1) {
+			switch (sym.type) {
+//			case C.BAR:
+//fixme: there may be a right repeat!
+//			break
+			case C.NOTE:
+				i = sym.nhd + 1
+				while (--i >= 0) {
+					if (sym.notes[i].ti2)
+						break
+				}
+				if (i < 0)
+					return sym
+				break
+			case C.REST:
+			case C.GRACE:
+				return sym
+			case C.BLOCK:
+				switch (sym.subtype) {
+				case "midictl":
+				case "midiprog":
+					return sym
+				}
+				break
+			}
+			if (!sym.ts_prev) {
+				if (!loop)
+					return gnrn(sym, 1)
+				return sym
+			}
+			sym = sym.ts_prev
+		}
+		// not reached
+	}
 
-		// go to the first voice at this time
-		if (ci < pa.length) {
-			tim = pa[ci][1]
-			while (--ci >= 0) {
-				if (pa[ci][1] != tim)
-					break
-			}
-		}
-		return ci + 1
+	function gsot(si) {	// go to the first playable symbol of a tune
+		return gnrn(syms[si].p_v.sym)
+	}
+	function get_se(si) {			// get the starting symbol
+	    var	sym = syms[si]
+
+		while (!sym.seqst)
+			sym = sym.ts_prev
+		return sym
 	} // get_se()
 
-	function get_ee(si, i) {		// get lowest ending event
-	    var	s, tim,
-		sil = 0,
-		pa = play.a_pe,
-		ci = 0
+	function get_ee(si) {			// get the ending symbol
+	    var	sym = syms[si]
 
-		if (si <= pa[0][0])
-			return 0
-		if (si >= pa[pa.length - 1][0])
-			return pa.length
-
-		si = go_note(si)
-
-		for ( ; i < pa.length; i++) {
-			s = pa[i][0]
-			if (s > si)
-				continue
-			if (s == si) {
-				ci = i
-				break
-			}
-			if (s > sil) {
-				ci = i;
-				sil = s
-			}
-		}
-
-		// go to after the last voice at this time
-		if (ci > 0) {
-			tim = pa[ci++][1]
-			for ( ; ci < pa.length; ci++) {
-				if (pa[ci][1] != tim)
-					break
-			}
-		}
-		return ci
+		while (sym.ts_next && !sym.ts_next.seqst)
+			sym = sym.ts_next
+		return sym
 	} // get_ee()
 
 	// start playing
 	function play_start(si, ei) {
+		if (!si)
+			return
 		selx_sav[0] = selx[0];		// remove the colors
 		selx_sav[1] = selx[1];
 		setsel(0, 0);
 		setsel(1, 0);
 
 		play.stop = 0;
-		play.abcplay.play(si, ei, play.a_pe)	// start playing
+		play.abcplay.play(si, ei, play.repv)
 	}
 
 	// play tune()
-    var	abc, i, si, ei, elt, tim,
-	s = elt_ref.source.value,
-	ctxMenu = document.getElementById("ctxMenu");
-
-	// search a note/rest in the source from a selection
-	function go_note(si) {
-		for (var i = si; ; i++) {
-			if (!s[i])
-				return si
-			if ('ABCDEFGabcdefg[^_='.indexOf(s[i]) >= 0)
-				break
-		}
-		return i
-	}
-
 	ctxMenu.style.display = "none";	// remove the play menu
 
 	play.playing = true;
-	if (!play.a_pe) {		// if no playing event
-		user.img_out = null	// get the schema and stop SVG generation
-		user.get_abcmodel = play.abcplay.add // inject the model in the play engine
+	if (tunes.length) {		// if new display
 
-		abc = new abc2svg.Abc(user);
-
-		play.abcplay.clear();
-		abc.tosvg("play", "%%play")
-		try {
-			abc.tosvg(abc_fname[0], s)
-		} catch(e) {
-			alert(e.message + '\nabc2svg tosvg bug - stack:\n' + e.stack);
-			play.playing = false;
-			play.a_pe = null
-			return
+		// generate the play data of all tunes
+		while (1) {
+			elt = tunes.shift()
+			if (!elt)
+				break
+			play.abcplay.add(elt[0], elt[1])
 		}
-		play.a_pe = play.abcplay.clear(); // keep the playing events
 
-		play.si = play.ei = play.stop = 0;
+		play.si = play.ei = null
+		play.stop = 0
 		play.loop = false
-	}
-
-	// play all
-	if (what < 0) {
-		play.loop = false;
-		play.si = 0;
-		play.ei = play.a_pe.length;
-		play_start(play.si, play.ei)
-		return
 	}
 
 	// if loop again
@@ -643,63 +641,37 @@ function play_tune(what) {
 	}
 
 	// get the starting and ending play indexes, and start playing
+
 	if (what == 3 && play.stop > 0) {	// if stopped and continue
 		play_start(get_se(play.stop), play.ei)
 		return
 	}
 	if (what != 0 && selx[0] && selx[1]) {	// if full selection
 		si = get_se(selx[0]);
-		ei = get_ee(selx[1], si)
+		ei = get_ee(selx[1])
 	} else if (what != 0 && selx[0]) {	// if selection without end
 		si = get_se(selx[0]);
-		i = s.indexOf('\nX:', selx[0]);
-		ei = i < 0 ? play.a_pe.length : get_ee(i, si)
+		ei = null
 	} else if (what != 0 && selx[1]) {	// if selection without start
-		i = s.lastIndexOf('\nX:', selx[1]);
-		si = i < 0 ? 0 : get_se(i);
-		ei = get_ee(selx[1], si)
+		si = gsot(selx[1])
+		ei = get_ee(selx[1])
 	} else {				// no selection => tune
-		si = play.click.svg.getElementsByClassName('abcr');
 		elt = play.click.svg		// (dummy)
-		for (i = 0; ; i++) {
-			if (!si[i]) {
-				elt = null
-				break
-			}
-			if (si[i].parentNode == elt.parentNode)
-				continue		// same container
-			elt = si[i];
-			ei = elt.parentNode.getBoundingClientRect()
-			if (ei.y < play.click.Y
-			 && ei.y + ei.height > play.click.Y)
-				break
-		}
-		i = elt ? Number(elt.getAttribute('class').slice(6, -1)) : 0;
-		si = ei = 0
-		if (s[0] == 'X' && s[1] == ':')
-			si = 1
-		while (1) {		// search the start and end of the tune
-			ei = s.indexOf('\nX:', ei)
-			if (ei < 0 || ei > i)
-				break
-			si = s.indexOf('\nK:', ++ei)
-			if (si < 0)
-				break
-			ei = s.indexOf('\n', si + 1) + 1
-		}
-		if (si <= 0) {
+		si = elt.getElementsByClassName('abcr') // symbols in the SVG
+		if (!si.length) {
 			play.playing = false
-			return		// no tune!
+			return			// not in a tune!
 		}
-
-		si = get_se(si);
-		ei = ei < 0 ? play.a_pe.length : get_ee(ei, si)
+		i = Number(si[0].getAttribute('class').slice(6, -1))
+		si = gsot(i)
+		ei = null
 	}
 
 	if (what != 3) {		// if not continue
 		play.si = si;
 		play.ei = ei;
 		play.loop = what == 2
+		play.repv = 0
 	}
 
 	play_start(si, ei)
@@ -743,8 +715,24 @@ function edit_init() {
 			document.getElementById("fontsize").value =
 					Number(v)
 		}
+
+		// set the language
+		// if not defined, get the one of the navigator
 		v = storage(true, "lang");
-		loadlang(v || 'en', true)
+		if (!v) {
+			v = (navigator.languages ?
+				navigator.languages[0] :
+				navigator.language).split('-')[0]
+			switch (v) {
+			case "de":
+			case "en":
+			case "fr":
+			case "it": break
+			case "pt": v = "pt_BR"; break
+			default: v = "en"; break
+			}
+		}
+		loadlang(v, true)
 	}
 
 	document.getElementById("abc2svg").innerHTML =
@@ -779,7 +767,7 @@ function edit_init() {
 	// if playing is possible, load the playing script
 	if (window.AudioContext || window.webkitAudioContext
 	 || navigator.requestMIDIAccess) {
-		abc2svg.loadjs("play-@MAJOR@.js", function() {
+		abc2svg.loadjs("snd-@MAJOR@.js", function() {
 			play.abcplay = AbcPlay({
 					onend: endplay,
 					onnote:notehlight,
@@ -819,7 +807,7 @@ function edit_init() {
 				Y: evt.pageY
 			}
 
-			var ctxMenu = document.getElementById("ctxMenu");
+			ctxMenu = document.getElementById("ctxMenu");
 			ctxMenu.style.display = "block";
 			x = evt.pageX - elt_ref.target.parentNode.offsetLeft
 					+ elt_ref.target.parentNode.scrollLeft;

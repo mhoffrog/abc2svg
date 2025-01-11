@@ -38,28 +38,42 @@ var user = {
 	else
 		user.errmsg = function(msg, l, c) { user.errtxt += msg + '\n' }
 
-var	abc = new abc2svg.Abc(user)		// (global for 'toxxx.js')
+var	abc				// (global for 'toxxx.js')
 
 // treat a file
 function do_file(fn) {
-	var	file = user.read_file(fn)
+    var	ext, file
 
-	if (!file) {
-		j = fn.lastIndexOf("/")
-		if (j < 0)
-			j = 0;
-		i = fn.indexOf(".", j)
-		if (i < 0) {
-			fn += ".abc";
-			file = user.read_file(fn)
+	try {
+		file = user.read_file(fn)
+	} catch (e) {
+
+		// get the file extension
+		ext = fn.slice((fn.lastIndexOf('.') - 1 >>> 0) + 2)
+		if (!ext) {
+			fn += ".abc"
+			try {
+				file = user.read_file(fn)
+			} catch (e) {
+			}
 		}
 	}
-	if (!file)
-		abort(new Error("Cannot read file '" + fn + "'"))
+	if (!file && fn != "default.abc") {
+//		abc2svg.abort(new Error("Cannot read file '" + fn + "'"))
+		user.errmsg("Cannot read file '" + fn + "'")
+		return
+	}
 //	if (typeof(utf_convert) == "function")
 //		file = utf_convert(file)
 
-	// load the required modules
+	if (fn.slice(-4) == ".mei") {
+		if (!abc.mei2mus)
+			abc2svg.abort(new Error("No MEI support"));
+		abc.mei2mus(file)
+		return
+	}
+
+	// load the required modules (synchronous)
 	abc2svg.modules.load(file)
 
 	// generate
@@ -74,13 +88,14 @@ function abc_cmd(cmd, args) {
 	var	arg, parm, fn;
 
 	// initialize the backend
+	abc = new abc2svg.Abc(user)
+	if (typeof global == "object" && !global.abc)
+		global.abc = abc
 	abc2svg.abc_init(args)
 
 	// load 'default.abc'
 	try {
-		arg = user.read_file('default.abc');
-		abc2svg.modules.load(arg)
-		abc.tosvg(cmd, arg)
+		do_file("default.abc")
 	} catch (e) {
 	}
 
@@ -111,7 +126,6 @@ function abc_cmd(cmd, args) {
 
 // nodejs
 if (typeof module == 'object' && typeof exports == 'object') {
-	exports.abc = abc;
 	exports.user = user;
 	exports.abc_cmd = abc_cmd
 }

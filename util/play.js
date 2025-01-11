@@ -84,10 +84,11 @@ function AbcPlay(i_conf) {
 			out = []
 		o = audio5.get_outputs()	// get the HTML5 audio port
 		if (o)
-			out = out.concat(o)
+			Array.prototype.push.apply(out, o)
 		if (out.length == 0) {
 			if (conf.onend)		// no output port
 				conf.onend()
+			return
 		}
 		if (out.length == 1) {
 			o = 0			// only one port
@@ -147,3 +148,7 @@ function AbcPlay(i_conf) {
 
 	return abcplay
 } // AbcPlay
+
+// nodejs
+if (typeof module == 'object' && typeof exports == 'object')
+	exports.AbcPlay = AbcPlay

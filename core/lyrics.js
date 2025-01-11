@@ -499,7 +499,7 @@ function draw_lyrics(p_voice, nly, a_h, y,
 /* (the staves are not yet defined) */
 function draw_all_lyrics() {
 	var	p_voice, s, v, nly, i, x, y, w, a_ly, ly,
-		lyst_tb = new Array(nstaff),
+		lyst_tb = new Array(nstaff+ 1),
 		nv = voice_tb.length,
 		h_tb = new Array(nv),
 		nly_tb = new Array(nv),

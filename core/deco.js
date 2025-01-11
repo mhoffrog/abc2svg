@@ -27,7 +27,7 @@ var decos = {
 	slide: "1 sld 3 7 0",
 	arpeggio: "2 arp 12 10 0",
 	roll: "3 roll 7 6 6",
-	fermata: "3 hld 12 7 7",
+	fermata: "3 hld 10 7 7",
 	emphasis: "3 accent 7 4 4",
 	lowermordent: "3 lmrd 10 5 5",
 	coda: "3 coda 24 10 10",
@@ -37,13 +37,13 @@ var decos = {
 	upbow: "3 upb 10 5 5",
 	downbow: "3 dnb 9 5 5",
 	gmark: "3 grm 6 5 5",
-	wedge: "3 wedge 8 3 3",		// (staccatissimo or spiccato)
+	wedge: "0 wedge 7 3 3",		// (staccatissimo or spiccato)
 	turnx: "3 turnx 10 0 5",
 	breath: "3 brth 0 1 20",
 	longphrase: "3 lphr 0 1 1",
 	mediumphrase: "3 mphr 0 1 1",
 	shortphrase: "3 sphr 0 1 1",
-	invertedfermata: "3 hld 12 7 7",
+	invertedfermata: "3 hld 10 7 7",
 	invertedturn: "3 turn 10 0 5",
 	invertedturnx: "3 turnx 10 0 5",
 	"0": "3 fng 8 3 3 0",
@@ -86,8 +86,8 @@ var decos = {
 	pppp: "6 pppp 18 10 25",
 	pralltriller: "3 umrd 10 5 5",
 	sfz: "6 sfz 18 4 10",
-	ped: "4 ped 18 8 8",
-	"ped-up": "4 pedoff 18 8 8",
+	ped: "4 ped 18 6 10",
+	"ped-up": "4 pedoff 12 4 4",
 	"ped(": "4 lped 20 1 1",
 	"ped)": "4 lped 20 1 1",
 	"crescendo(": "6 cresc 18 0 0",
@@ -338,10 +338,14 @@ function d_near(de) {
 		up = s.multi > 0
 	else
 		up = s.stem < 0
-	if (up)
+	if (up) {
 		y = s.ymx | 0
-	else
-		y = (s.ymn - dd.h) | 0
+	} else if (dd.name[0] == 'w') {
+		de.inv = true
+		y = s.ymn
+	} else {
+		y = s.ymn - dd.h
+	}
 	if (y > -6 && y < 24) {
 		if (up)
 			y += 3;
@@ -349,10 +353,11 @@ function d_near(de) {
 	}
 	if (up)
 		s.ymx = y + dd.h
+	else if (dd.name[0] == 'w')
+		s.ymn = y - dd.h
 	else
-		s.ymn = y;
+		s.ymn = y
 	de.y = y
-//	de.x = s.x + s.notes[s.stem >= 0 ? 0 : s.nhd].shhd
 	if (s.type == C.NOTE)
 		de.x += s.notes[s.stem >= 0 ? 0 : s.nhd].shhd
 	if (dd.name[0] == 'd'			/* if dot decoration */
@@ -813,9 +818,9 @@ function deco_cnv(a_dcn, s, prev) {
 			}
 			s.trem2 = true;
 			s.beam_end = true;
-//			s.beam_st = false;
+			s.beam_st = false;
 			prev.beam_st = true;
-//			prev.beam_end = false;
+			prev.beam_end = false;
 			s.ntrem = prev.ntrem = Number(dd.name[4]);
 			for (j = 0; j <= s.nhd; j++)
 				s.notes[j].dur *= 2;
@@ -1043,8 +1048,7 @@ function draw_all_deco() {
 				out_deco_val(x, y, f, de.val, de.defl)
 			if (de.defl.noen)
 				new_de.push(de.start)	// to be continued next line
-		} else if (dd.str != undefined
-			&& dd.str != 'sfz') {
+		} else if (dd.str != undefined) {
 			str = dd.str
 			if (str[0] == '@') {
 				a = str.match(/^@([0-9.-]+),([0-9.-]+);?/);
@@ -1208,7 +1212,7 @@ function draw_deco_near() {
 		}
 	} // create_dh()
 
-	// create all decoration of a note (chord and heads)
+	// create all decorations of a note (chord and heads)
 	function create_all(s) {
 		var m
 
@@ -1361,7 +1365,7 @@ function draw_deco_note() {
 function draw_deco_staff() {
 	var	s, first_gchord, p_voice, x, y, w, i, v, de, dd,
 		gch, gch2, ix, top, bot,
-		minmax = new Array(nstaff),
+		minmax = new Array(nstaff + 1),
 		nd = a_de.length
 
 	/* draw the repeat brackets */
@@ -1550,7 +1554,7 @@ function draw_deco_staff() {
 				break
 		}
 		if (gch2) {
-			w = gch2.w
+			w = gch2.wh[0]
 			if (gch2.y >= 0) {
 				y = y_get(s.st, true, s.x, w)
 				if (y > minmax[s.st].ymax)
@@ -1626,18 +1630,22 @@ function draw_measnb() {
 			y_set(st, true, 0, 20, y + gene.curfont.size + 2)
 		} else if (bar_num % cfmt.measurenb == 0) {
 			for ( ; ; s = s.ts_next) {
-				if (!s.dur)
+				switch (s.type) {
+				case C.TIMESIG:
+				case C.CLEF:
+				case C.KEYSIG:
+				case C.FMTCHG:
+				case C.STBRK:
 					continue
+				}
 				break
 			}
-			while (s.st != st)
-				s = s.ts_next
 
 			// don't display the number twice
 		     if (s.type != C.BAR || !s.bar_num) {
-//			if (s.prev && s.prev.type != C.CLEF)
-//				s = s.prev;
-			x = s.x - s.wl;
+			if (s.prev)
+				s = s.prev;
+			x = s.x + s.wr;
 			any_nb = true;
 			w = w0
 			if (bar_num >= 10)
@@ -1673,7 +1681,7 @@ function draw_measnb() {
 		default:
 			continue
 		case C.BAR:
-			if (!s.bar_num)
+			if (!s.bar_num || s.bar_num <= 1)
 				continue
 			break
 		}
@@ -1720,128 +1728,6 @@ function draw_measnb() {
 		param_set_font("measurefont", "* " + font_size.toString());
 }
 
-/* -- draw the note of the tempo -- */
-function draw_notempo(s, x, y, dur, sc) {
-	var	dx, p, dotx,
-		elts = identify_note(s, dur),
-		head = elts[0],
-		dots = elts[1],
-		nflags = elts[2]
-
-//useless
-//	// protection against end of container
-//	if (stv_g.started) {
-//		output += "</g>\n";
-//		stv_g.started = false
-//	}
-
-	out_XYAB('<g transform="translate(X,Y) scale(F)">\n',
-		x + 4, y + 4, sc)
-	switch (head) {
-	case C.OVAL:
-		p = "HD"
-		break
-	case C.EMPTY:
-		p = "Hd"
-		break
-	default:
-		p = "hd"
-		break
-	}
-	xygl(-posx, posy, p);
-	dx = 4
-	if (dots) {
-		dotx = 9
-		if (nflags > 0)
-			dotx += 4
-		switch (head) {
-		case C.SQUARE:
-			dotx += 3
-			break
-		case C.OVALBARS:
-		case C.OVAL:
-			dotx += 2
-			break
-		case C.EMPTY:
-			dotx += 1
-			break
-		}
-		dx = dotx * dots;
-		dotx -= posx
-		while (--dots >= 0) {
-			xygl(dotx, posy, "dot");
-			dotx += 3.5
-		}
-	}
-	if (dur < C.BLEN) {
-		if (nflags <= 0) {
-			out_stem(-posx, posy, 21)		// stem height
-		} else {
-			out_stem(-posx, posy, 21, false, nflags)
-			if (dx < 6)
-				dx = 6
-		}
-	}
-	output += '</g>\n'
-	return (dx + 15) * sc
-}
-
-/* -- estimate the tempo width -- */
-function tempo_width(s) {
-	var	w = 0;
-
-	if (s.tempo_wh1)
-		w = s.tempo_wh1[0]
-	if (s.tempo_wh0)
-		w += s.tempo_wh0[0]
-	if (s.tempo_wh2)
-		w += s.tempo_wh2[0]
-	return w
-}
-
-/* - output a tempo --*/
-function write_tempo(s, x, y) {
-	var	j, dx, bx, bh,
-		sc = .6 * gene.curfont.size / 15.0; //fixme: 15.0 = initial tempofont
-
-	set_font("tempo")
-	if (gene.curfont.box) {
-		gene.curfont.box = false
-		bx = x
-	}
-	if (s.tempo_str1) {
-		xy_str(x, y, s.tempo_str1, null, null, s.tempo_wh1);
-		x += s.tempo_wh1[0] + 3
-	}
-	if (s.tempo_notes) {
-		for (j = 0; j < s.tempo_notes.length; j++)
-			x += draw_notempo(s, x, y, s.tempo_notes[j], sc);
-		xy_str(x, y, s.tempo_str0, null, null, s.tempo_wh0);
-		x += s.tempo_wh0[0]
-		if (s.tempo)
-			x += 5
-		else
-			x += draw_notempo(s, x, y, s.new_beat, sc)
-	}
-	if (s.tempo_str2)
-		xy_str(x, y, s.tempo_str2, null, null, s.tempo_wh2)
-
-	if (bx) {
-		gene.curfont.box = true
-		if (s.tempo_str2)
-			x += s.tempo_wh2[0] + 3;
-		bh = gene.curfont.size + 4;
-		output += '<rect class="stroke" x="';
-		out_sxsy(bx - 2, '" y="', y + bh - 1);
-		output += '" width="' + (x - bx + 2).toFixed(1) +
-			'" height="' + bh.toFixed(1) +
-			'"/>\n'
-	}
-
-	// don't display anymore
-	s.del = true
-}
-
 /* -- draw the parts and the tempo information -- */
 /* (the staves are being defined) */
 function draw_partempo(st, top) {
@@ -1860,7 +1746,7 @@ function draw_partempo(st, top) {
 			continue
 		if (!some_tempo)
 			some_tempo = s;
-		w = tempo_width(s);
+		w = s.tempo_wh[0]
 		if (s.time == 0 && s.x > 40)	// at start of tune and no %%soloffs,
 			s.x = 40;	// shift the tempo over the key signature
 		y = y_get(st, true, s.x - 16, w)
@@ -1874,7 +1760,7 @@ function draw_partempo(st, top) {
 	if (some_tempo) {
 		set_sscale(-1);
 		set_font("tempo");
-		ht = gene.curfont.size + 2;
+		ht = gene.curfont.size + 8;
 		y = 2 - ht;
 		h = y - ht
 		if (dosh != 0)
@@ -1894,7 +1780,7 @@ function draw_partempo(st, top) {
 				s.ymx = s.ymn + 14;
 				anno_start(s)
 			}
-			write_tempo(s, s.x - 16, (dosh & 1) ? h : y);
+			writempo(s, s.x - 16, (dosh & 1) ? h : y);
 			anno_stop(s);
 			dosh >>= 1
 		}

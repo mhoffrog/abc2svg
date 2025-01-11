@@ -482,12 +482,12 @@ M-10.2 -31h20.4"/>';
 	of()
     },
 
-    set_fmt: function(of, cmd, param, lock) {
+    set_fmt: function(of, cmd, param) {
 	if (cmd == "diagram") {
 		this.cfmt().diag = param
 		return
 	}
-	of(cmd, param, lock)
+	of(cmd, param)
     },
 
     set_hooks: function(abc) {

@@ -64,6 +64,7 @@ abc2svg.ambitus = {
 				'" stroke-width=".6"/>\n');
 		}
 		s.x += 26;
+		s.nhd = 0
 		p_voice.clef.nhd = 0
 	}
 	of(p_voice)
@@ -75,12 +76,12 @@ abc2svg.ambitus = {
 		abc2svg.ambitus.do_ambitus.call(this)
     },
 
-    set_fmt: function(of, cmd, param, lock) {
+    set_fmt: function(of, cmd, param) {
 	if (cmd == "ambitus") {
 		this.cfmt().ambitus = param
 		return
 	}
-	of(cmd, param, lock)
+	of(cmd, param)
     },
 
     set_width: function(of, s) {

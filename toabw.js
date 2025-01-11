@@ -83,13 +83,16 @@ function header_footer(str) {
 		}
 		c = str[++i]
 		switch (c) {
-		case 'd':	// cannot know the modification date of the file
+		case 'd':
+			if (!abc2svg.get_mtime)
+				break // cannot know the modification date of the file
+			r[j] += abc2svg.get_mtime(abc.parse.fname)
 			break
 		case 'D':
 			r[j] += (new Date()).toUTCString()
 			break
 		case 'F':
-			r[j] += abc.get_fname()
+			r[j] += abc.parse.fname
 			break
 		case 'I':
 			c = str[++i]
@@ -134,7 +137,7 @@ function gen_hf(type, str) {
  props="list-tag:1; table-column-props:6.00cm/6.00cm/6.00cm/;\
 table-column-leftpos:' + (page_type[0] == 'L' ? '0.6in' : '1.5cm') + '">\n';
 
-	a = header_footer(str)
+	a = header_footer(clean_txt(str))
 	for (i = 0; i < 3; i++) {
 		res += '<cell xid="' + (++seq).toString() + '"\
  props="left-attach:' + i + '; right-attach:' + (i + 1).toString() +
@@ -226,9 +229,8 @@ function clean_txt(txt) {
 		switch (c) {
 		case '<': return "&lt;"
 		case '>': return "&gt;"
+		case '&': return "&amp;"
 		}
-		if (c == '&')
-			return "&amp;"
 		return c
 	})
 }

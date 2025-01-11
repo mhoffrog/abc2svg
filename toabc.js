@@ -47,6 +47,7 @@
 		downbow: 'v',
 		roll: '~'
 	},
+	old_font = [],
 	mode_tb = [			// key modes
 		[0, ""],
 		[2, "dor"],
@@ -84,8 +85,10 @@ function abc_dump(tsfirst, voice_tb, music_types, info) {
 				if (p_voice.clef
 				 && p_voice.clef.clef_type != 'a')
 					ln += ' ' + clef_dump(p_voice.clef)
-				if (p_voice.nm)
+				if (p_voice.nm) {
 					ln += ' nm="' + p_voice.nm + '"'
+					font_def("voice", p_voice.nm)
+				}
 				if (p_voice.snm)
 					ln += ' snm="' + p_voice.snm + '"';
 				if (p_voice.scale != 1)
@@ -96,7 +99,6 @@ function abc_dump(tsfirst, voice_tb, music_types, info) {
 			abc2svg.print(ln)
 		} // vi_out()
 
-		eoln = false
 		if (nv == 1) {
 			if (vo[0].length == 0)
 				return
@@ -104,6 +106,10 @@ function abc_dump(tsfirst, voice_tb, music_types, info) {
 			 && (voice_tb[0].nm || voice_tb[0].snm
 			  || voice_tb[0].scale != 1 || voice_tb[0].uscale))
 				vi_out(0);
+			if (eoln) {
+				eoln = false
+				vo[0][vo[0].length - 1] += "$"
+			}
 			abc2svg.print(vo[0].join(''));
 			vo[0] = []
 			return
@@ -112,6 +118,10 @@ function abc_dump(tsfirst, voice_tb, music_types, info) {
 			if (vo[v].length == 0)
 				continue
 			vi_out(v);
+			if (eoln) {
+				eoln = false
+				vo[v][vo[v].length - 1] += "$"
+			}
 			abc2svg.print(vo[v].join(''));
 			vo[v] = []
 		}
@@ -123,12 +133,7 @@ function abc_dump(tsfirst, voice_tb, music_types, info) {
 		case "ml":
 			ln += s.text
 			break
-		case "leftmargin":
-		case "rightmargin":
-		case "pagescale":
-		case "pagewidth":
-		case "scale":
-		case "staffwidth":
+		default:
 			ln += s.param
 			break
 		case "sep":
@@ -140,6 +145,7 @@ function abc_dump(tsfirst, voice_tb, music_types, info) {
 			ln += s.sk
 			break
 		case "text":
+			font_def("text", s.text)
 			if (s.text.indexOf('\n') <= 0
 			 && (!s.opt || s.opt == 'c')) {
 				if (s.opt == 'c')
@@ -162,9 +168,6 @@ function abc_dump(tsfirst, voice_tb, music_types, info) {
 		case "title":
 			abc2svg.print('T:' + s.text.replace(/\n/g, '\nT:'))
 			return
-		default:
-			ln += "(unknown)"
-			break
 		}
 		abc2svg.print(ln)
 	} // block_dump()
@@ -221,11 +224,57 @@ break
 			line += "//////".slice(0, d)
 	} // dur_dump()
 
+	function font_def(fn, p) {
+	    var	c, f,
+		i = p.indexOf('$')
+
+		abc.get_font(fn)		// used font
+// fixme: one '$' only
+		if (i >= 0) {
+			c = p[i + 1]
+			if (c >= '1' && c <= '9') {
+				c = "u" + c
+				f = abc.cfmt()[c + "font"]	// user font
+				f.fid = abc.get_font(c).fid	// dump it!
+			}
+		}
+		font_dump()		// dump the new fonts
+	} // font_def()
+
+	function font_dump() {
+	    var	k, f, def,
+		cfmt = abc.cfmt()
+//		fs = abc.get_font_style().split("\n").shift()
+
+		for (k in cfmt) {
+			if (k.slice(-4) != "font")
+				continue
+			f = cfmt[k]
+			if (f.fid == undefined)
+				continue	// not used
+			if (old_font[f.fid])
+				continue	// already out
+			old_font[f.fid] = true
+			def = f.name || ""
+			if (f.weight)
+				def += f.weight
+			if (f.style)
+				def += f.style
+			if (!def)
+				def = "*"
+			if (k[0] == "u")
+				k = "setfont-" + k[1]
+			abc2svg.print('%%' + k + ' ' +
+				def + ' ' + (f.size || "*"))
+		}
+	} // font_dump()
+
 	function gch_dump(a_gch) {
 	    var i, j, gch
 		for (i = 0; i < a_gch.length; i++) {
-			line += '"';
 			gch = a_gch[i]
+			font_def(gch.type == 'g' ? "gchord" : "annotation", gch.text)
+			line += '"';
 			switch (gch.type) {
 			case 'g':
 				for (j = 0; j < gch.text.length; j++) {
@@ -303,8 +352,9 @@ break
 	} // key_dump()
 
 	function lyric_dump() {
-	    var	v, s, i, ly, nly, t, w,
-		nb = 0
+	    var	v, s, i, ly, nly, t, w
+
+		font_def("vocal", "")
 
 		for (v = 0; v < nv; v++) {
 			nly = 0;
@@ -318,29 +368,8 @@ break
 			if (nly == 0)
 				continue
 			for (s = voice_tb[v].sym; s; s = s.next) {
-				switch (s.type) {
-				case C.BAR:
-					if (w.length == 0)
-						continue
-					if (++nb < 4)
-						continue
-					nb = 0
-					if (!s.next)
-						continue
-					for (i = 0; i < nly; i++)
-						w[i] += '\n'
-//					t =  "|"
-//					if (++nb >= 4) {
-//						nb = 0;
-//						t = "|\n"
-//					}
-//					for (i = 0; i < nly; i++)
-//						w[i] += t
-				default:
+				if (s.type != C.NOTE)
 					continue
-				case C.NOTE:
-					break
-				}
 				ly = s.a_ly
 				if (!ly) {
 					for (i = 0; i < nly; i++)
@@ -366,7 +395,9 @@ break
 						t = t.replace(/ /g, '~')
 						t = t.replace(/-/g, '\\-')
 						t = t.replace(/\n/g, '-');
-						w[i] += t + ' '
+						if (t.slice(-1) != "-")
+							t += ' '
+						w[i] += t
 						break
 					}
 				}
@@ -375,7 +406,7 @@ break
 				if (voice_tb.length > 1)
 					abc2svg.print("V:" + voice_tb[v].id)
 				for (i = 0; i < w.length; i++)
-					abc2svg.print("w:" + w[i].replace(/\n/g, '\n+:'))
+					abc2svg.print("w:" + w[i].replace(/\*+$/,""))
 			}
 		}
 	} // lyric_dump()
@@ -396,9 +427,18 @@ break
 	} // meter_dump()
 
 	function note_dump(s, note, tie_ch) {
-	    var	p, j
-		if (note.sl1)
-			slti_dump(note.sl1, '(')
+	    var	p, j, sl, s2
+		if (note.sls) {
+			for (j = 0; j < note.sls.length; j++) {
+				sl = note.sls[j];
+				slti_dump(sl.ty, '(');
+				s2 = sl.note.s
+				if (s2.sl2)
+					s2.sl2++
+				else
+					s2.sl2 = 1
+			}
+		}
 		if (note.a_dcn) {
 			for (j = 0; j < note.a_dcn.length; j++)
 				line += '!' + note.a_dcn[j] + '!'
@@ -440,10 +480,12 @@ break
 				}
 			}
 		}
-		if (!tie_ch && note.ti1)
-			slti_dump(note.ti1, '-')
-		if (note.sl2)
-			line += ')'
+		if (!tie_ch && note.tie_ty)
+			slti_dump(note.tie_ty, '-')
+		while (note.sl2) {
+			line += ')';
+			note.sl2--
+		}
 	} // note_dump()
 
 	function slti_dump(fl, ty) {
@@ -472,7 +514,7 @@ break
 		ln = "%%score "
 		for (v = 0; v < sy.voices.length; v++) {
 			p_v = sy.voices[v]
-			if (p_v.range >= 0)
+			if (p_v)
 				vn[p_v.range] = v
 		}
 		for (v = 0; v < sy.voices.length; v++) {
@@ -591,47 +633,25 @@ break
 	} // tempo_dump()
 
 	function tuplet_dump(s) {
-	    var	s2, r
-		if (s.tp0) {
-			line += '(' + s.tp0;
-			r = 1
-			for (s2 = s.next; s2; s2 = s2.next) {
-				if (!s2.dur)
-					continue
-				r++
-				if (s2.te0)
-					break
-			}
-			if (r == s.tp0
-			 && ((s.tp0 == 2 && s.tq0 == 3)
-			  || (s.tp0 == 3 && s.tq0 == 2)
-			  || (s.tp0 == 4 && s.tq0 == 3)))
+	    var	tp
+
+		while (1) {
+			tp = s.tp.shift()
+			if (!tp)
+				break
+			line += '(' + tp.p
+			if (tp.ro == tp.p
+			 && ((tp.p == 2 && tp.q == 3)
+			  || (tp.p == 3 && tp.q == 2)
+			  || (tp.p == 4 && tp.q == 3)))
 				;
 			else
-				line += ':' + s.tq0 + ':' + r
-		}
-		if (s.tp1) {
-			line += '(' + s.tp1;
-			r = 1
-			for (s2 = s.next; s2; s2 = s2.next) {
-				if (!s2.dur)
-					continue
-				r++
-				if (s2.te1)
-					break
-			}
-			if (r == s.tp1
-			 && ((s.tp1 == 2 && s.tq1 == 3)
-			  || (s.tp1 == 3 && s.tq1 == 2)
-			  || (s.tp1 == 4 && s.tq1 == 3)))
-				;
-			else
-				line += ':' + s.tq1 + ':' + r
+				line += ':' + tp.q + ':' + tp.ro
 		}
 	} // tuplet_dump()
 
 	function sym_dump(s) {
-	    var	tie_ch
+	    var	tie_ch, i, sl
 
 		if (s.repeat_n) {
 			if (s.repeat_n < 0)
@@ -641,12 +661,24 @@ break
 				line += "[I:repeat " + s.repeat_n +
 					' ' + s.repeat_k + ']'
 		}
-		if (s.tp0 || s.tp1)
+		if (s.tp)
 			tuplet_dump(s)
-		tmp = s.slur_start
-		while (tmp) {
-			slti_dump(tmp, '(');
-			tmp >>= 4
+		if (s.sls) {
+			for (i = 0; i < s.sls.length; i++) {
+				sl = s.sls[i];
+				slti_dump(sl.ty, '(');
+				if (sl.is_note) {
+					if (sl.note.sl2)
+						sl.note.sl2++
+					else
+						sl.note.sl2 = 1
+				} else {
+					if (sl.note.s.sl2)
+						sl.note.s.sl2++
+					else
+						sl.note.s.sl2 = 1
+				}
+			}
 		}
 		if (s.a_gch)
 			gch_dump(s.a_gch)
@@ -699,6 +731,19 @@ break
 				line += s.nmes
 			break
 		case C.NOTE:
+			if (s.stem) {			// if forced stem direction
+				if (s.stem > 0) {
+					if (s.p_v.pos.stm != C.SL_ABOVE) {
+						s.p_v.pos.stm = C.SL_ABOVE
+						line += "[I:pos stem up]"
+					}
+				} else {
+					if (s.p_v.pos.stm != C.SL_BELOW) {
+						s.p_v.pos.stm = C.SL_BELOW
+						line += "[I:pos stem down]"
+					}
+				}
+			}
 			if (s.beam_br1)
 				line += "!beambr1!"
 			if (s.beam_br2)
@@ -719,7 +764,7 @@ break
 				note_dump(s, s.notes[0], tie_ch)
 			} else {
 				for (i = 0; i < s.notes.length; i++) {
-					if (!s.notes[i].ti1) {
+					if (!s.notes[i].tie_n) {
 						tie_ch = false
 						break
 					}
@@ -744,15 +789,16 @@ break
 					tmp /= 2;
 				dur_dump(tmp)
 			}
-			if (s.ti1 && tie_ch)
-				slti_dump(s.notes[0].ti1, '-');
-			tmp = s.slur_end
+			if (s.tie_s && tie_ch)
+				slti_dump(s.notes[0].tie_ty, '-');
+			tmp = s.sl2
 			while (tmp) {
 				line += ')';
 				tmp--
 			}
 			break
 		case C.PART:
+			font_def("parts", s.text)
 			info_out('P:' + s.text)
 			break
 		case C.REST:
@@ -791,6 +837,8 @@ break
 		}
 	} // sym_dump()
 
+	font_dump()
+
 	abc2svg.print('\nX:' + info['X'])
 	header_dump("TC")
 
@@ -827,18 +875,20 @@ break
 		// (all voices are synchronized on %%score)
 		if (s.type != C.STAVES && s.time > vti[s.v]) {
 //fixme: put 'X' if more than one measure
-			line += 'x';
-			dur_dump(s.time - vti[s.v]);
+			if (s.time > vti[s.v] + 2) {
+				line += 'x';
+				dur_dump(s.time - vti[s.v]);
+			}
 			vti[s.v] = s.time
 		}
 		sym_dump(s)
 		if (s.dur)
 			vti[s.v] = s.time + s.dur
-		if (s.beam_end)
-			line += ' '
-		if (s.eoln && s.next) {
-			line += '$';
-			eoln = true
+		if (s.next) {
+			if (s.beam_end && !s.beam_st && !s.next.beam_end)
+				line += ' '
+			if (s.eoln)
+				eoln = true
 		}
 		if (line)
 			vo[s.v].push(line)
@@ -850,9 +900,10 @@ break
 user.get_abcmodel = abc_dump
 
 // -- local functions
-abc2svg.abc_init = function() {
+abc2svg.abc_init = function(args) {
 	abc2svg.print('%abc-2.2\n\
-% generated by abc2svg toabc\n\
+% generated by abc2svg toabc from\n\
+%\t' + args.join(' ') + '\n\
 %%linebreak $')
 }
 

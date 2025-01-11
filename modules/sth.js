@@ -100,7 +100,7 @@ abc2svg.sth = {
 	return s
     },
 
-    set_format: function(of, cmd, param, lock) {
+    set_fmt: function(of, cmd, param) {
 	if (cmd == "sth") {
 	    var	curvoice = this.get_curvoice()
 		if (this.parse.state == 2)
@@ -109,7 +109,7 @@ abc2svg.sth = {
 			curvoice.sth = param.split(/[ \t;-]+/)
 		return
 	}
-	of(cmd, param, lock)
+	of(cmd, param)
     },
 
     set_stems: function(of) {
@@ -120,7 +120,7 @@ abc2svg.sth = {
     set_hooks: function(abc) {
 	abc.calculate_beam = abc2svg.sth.calculate_beam.bind(abc, abc.calculate_beam);
 	abc.new_note = abc2svg.sth.new_note.bind(abc, abc.new_note);
-	abc.set_format = abc2svg.sth.set_format.bind(abc, abc.set_format);
+	abc.set_format = abc2svg.sth.set_fmt.bind(abc, abc.set_format);
 	abc.set_stems = abc2svg.sth.set_stems.bind(abc, abc.set_stems)
     }
 } // sth

@@ -68,6 +68,18 @@ function set_unit(p) {
 	return (p / 37.8).toFixed(1) + 'cm'
 }
 
+// replace <>& by XML character references
+function clean_txt(txt) {
+	return txt.replace(/<|>|&.*?;|&/g, function(c) {
+		switch (c) {
+		case '<': return "&lt;"
+		case '>': return "&gt;"
+		case '&': return "&amp;"
+		}
+		return c
+	})
+}
+
 // output a header or a footer
 function gen_hf(type, stype, str) {
     var	c, i, res_left,
@@ -77,6 +89,7 @@ function gen_hf(type, stype, str) {
 
 	if (str[0] == '"')
 		str = str.slice(1, -1)
+	str = clean_txt(str)
 	if (str.indexOf('\t') < 0)		// if no TAB
 		str = '\t' + str		// center
 
@@ -104,14 +117,15 @@ function gen_hf(type, stype, str) {
 		c = str[++i]
 		switch (c) {
 		case 'd':
-			t = abc.get_fname();
-			res += fs.statSync(t).ctime.toLocaleString()
+			if (!abc2svg.get_mtime)
+				break // cannot know the modification date of the file
+			res += abc2svg.get_mtime(abc.parse.fname).toLocaleString()
 			break
 		case 'D':
 			res += (new Date()).toLocaleString()
 			break
 		case 'F':
-			res += abc.get_fname()
+			res += abc.parse.fname
 			break
 		case 'I':
 			c = str[++i]

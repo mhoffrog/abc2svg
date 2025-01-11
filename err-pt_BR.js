@@ -9,8 +9,8 @@ user.textrans = {
 	"+: symbol line without music": "+: linha de símbolos sem música",
 	"+: without previous info field": "+: continuação sem campo anterior",
 	"'{' in grace note": "'{' em notinha ornamental",
-	"'}', ')' or ']' missing in %%staves":
-				"Falta '}', ')' ou ']' em %%staves",
+	"'}', ')' or ']' missing in %%score":
+				"Falta '}', ')' ou ']' em %%score",
 	"',' lacking in annotation '@x,y'":
 				"Falta uma ',' na anotação '@x,y'",
 	"'$1' is not a note": "'$1' não é uma nota",
@@ -34,11 +34,9 @@ user.textrans = {
 	"%%multicol end without start": "%%multicol end sem 'start'",
 	"%%multicol new without start": "%%multicol new sem 'start'",
 	"%%repeat cannot start a tune": "%%repeat não pode estar no início de uma música",
-	"%%select ignored": "%%select ignorado",
 	"%%staffwidth too big": "%%staffwidth muito grande",
 	"%%staffwidth too small": "%%staffwidth muito pequeno",
 	"%%tune not treated yet": "%%tune ainda não é tratado",
-	"%%voice ignored": "%%voice ignorado",
 	"%%vskip cannot be negative": "%%vskip não pode ser negativo",
 	"Bad !xstem!": "!xstem! incorreto",
 	"Bad %%setbarnb value": "Valor incorreto para %%setbarnb",
@@ -47,8 +45,10 @@ user.textrans = {
 	"Bad %%staff value '$1'": "Valor incorreto '$1' em %%staff",
 	"Bad %%stafflines value": "Valor incorreto em %%stafflines",
 	"Bad %%staffscale value": "Valor incorreto em %%staffscale",
-	"Bad char '$1' in M:": "Caractere inválido '$1' em M:",
-	"Bad character '$1'": "Caractere inválido '$1'",
+	"Bad char '$1' in M:": "Caráter inválido '$1' em M:",
+	"Bad character '$1'": "Caráter inválido '$1'",
+	"Bad character in grace note sequence":
+				"Caráter inválido em grupo de notinhas ornamentais",
 	"Bad controller number in %%MIDI": "Número inválido do controlador em %%MIDI",
 	"Bad controller value in %%MIDI": "Valor incorreto para controlador em %%MIDI",
 	"Bad duration '$1' in M:": "Duração '$1' incorreta em M:",
@@ -59,17 +59,17 @@ user.textrans = {
 	"Bad page width": "Largura de página incorreta",
 	"Bad program in %%MIDI": "Valor incorreto de instrumento %%MIDI",
 	"Bad scale value in %%font": "Tamanho incorreto em %%font",
+	"Bad tempo value": "Bad tempo value",
 	"Bad tie": "Ligadura de prolongamento incorreta",
 	"Bad transpose value": "Valor incorreto de transposição",
-	"Bad user character '$1'": "Caractere ilegal '$1' em U:/%%user",
+	"Bad user character '$1'": "Caráter ilegal '$1' em U:/%%user",
 	"Bad value '$1' in %%linebreak - ignored":
 				"Valor incorreto '$1' em %%linebreak - ignorado",
 	"Bad value in $1": "Valor incorreto em $1",
-	"Bad voice ID in %%staves": "Identificador de voz incorreto em %%staves",
+	"Bad voice ID in %%score": "Identificador de voz incorreto em %%score",
 	"Bar in repeat sequence": "Barra de compasso em um fragmento %%repeat",
 	"Cannot have !$1! on a head": "!$1! não pode estar em cabeça de nota",
-	"Cannot have %%fullsvg inside a tune":
-				"'%%fullsvg' não pode estar dentro de uma música",
+	"Cannot have '$1' inside a tune": "'$1' não pode estar dentro de uma música",
 	"Cannot have a bar in grace notes":
 			"Não pode haver barra de compasso em grupo de notinhas ornamentais",
 	"Cannot have a broken rhythm in grace notes":
@@ -86,14 +86,13 @@ user.textrans = {
 	"Invalid decoration '$1'": "Decoração '$1' inválida",
 	"Invalid note duration $1": "Duração de nota $1 inválida",
 	"Lack of ']'": "']' faltando",
-	"Lack of ending $1 in U:/%%user": "Falta de $1 final em U:/%%user",
-	'Lack of starting ! or " in U: / %%user':
-				'U: / %%user não começou com ! ou "',
+	'Lack of starting [, ! or " in U: / %%user':
+				'U: / %%user não começou com [, ! ou "',
 	"Line split problem - adjust maxshrink and/or breaklimit":
 		"Problema de quebra de linha - ajuste maxshrink e/ou breaklimit",
 	"Line too much shrunk $1 $2 $3": "Linha muito encolhida $1 $2 $3",
 	"Line underfull ($1pt of $2pt)": "Linha muito espaçada ($1pt de $2pt)",
-	"Misplaced '$1' in %%staves": "'$1' deslocado em %%staves",
+	"Misplaced '$1' in %%score": "'$1' deslocado em %%score",
 	"Misplaced dot": "Ponto fora de lugar",
 	"Mix of old and new transposition syntaxes":
 				"Mistura de sintaxes de transposição antiga e nova",
@@ -116,11 +115,10 @@ user.textrans = {
 	"No note before '<'": "Falta nota antes de '<'",
 	"No note in voice overlay":
 				"Falta nota em superposição de vozes",
+	"Non standard note duration $1": "Duração não padronizada: $1",
 	"No read_file support": "A função read_file não existe",
 	"No start of !$1!": "Falta início de !$1!",
-	"Not a note in grace note sequence":
-				"Caractere inválido em grupo de notinhas ornamentais",
-	"Not an ASCII character": "Não é um caractere ASCII",
+	"Not an ASCII character": "Não é um caráter ASCII",
 	"Not enough measure bars for lyric line":
 				"Faltam barras de compasso na linha de palavras (letra)",
 	"Not enough measure bars for symbol line":

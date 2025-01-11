@@ -9,7 +9,7 @@
 
 abc2svg.soloffs = {
 
-    set_fmt: function(of, cmd, parm, lock) {
+    set_fmt: function(of, cmd, parm) {
 	if (cmd == "soloffs") {
 	    var	i, v,
 		C = abc2svg.C,
@@ -41,7 +41,7 @@ abc2svg.soloffs = {
 		}
 		return
 	}
-	of(cmd, parm, lock)
+	of(cmd, parm)
     },
 
     set_sym_glue: function(of, width) {

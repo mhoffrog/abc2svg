@@ -18,6 +18,8 @@
 // You should have received a copy of the GNU General Public License
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
+(function(){
+
 window.onerror = function(msg, url, line) {
 	if (typeof msg == 'string')
 		alert("window error: " + msg +
@@ -30,18 +32,23 @@ window.onerror = function(msg, url, line) {
 	return false
 }
 
-var	errtxt = '',
+// function called when abc2svg is fully loaded
+function abcdoc() {
+    var	errtxt = '',
 	new_page = '',
-	abc,
+	page,				// document source
 	jsdir = document.currentScript ?
-		document.currentScript.src.match(/.*\//) :
-		(function() {
-			var scrs = document.getElementsByTagName('script');
-			return scrs[scrs.length - 1].src.match(/.*\//) || ''
-		})()
+		    document.currentScript.src.match(/.*\//) :
+		    (function() {
+		     var s_a = document.getElementsByTagName('script')
+			for (var k = 0; k < s_a.length; k++) {
+				if (s_a[k].src.indexOf('abcdoc-') >= 0)
+					return s_a[k].src.match(/.*\//) || ''
+			}
+			return ""	// ??
 
-// -- abc2svg init argument
-var user = {
+	})(),
+    user = {	// -- abc2svg init argument
 	errmsg: function(msg, l, c) {	// get the errors
 		errtxt += clean_txt(msg) + '\n'
 	},
@@ -49,7 +56,7 @@ var user = {
 		new_page += str
 	},
 	page_format: true		// define the non-page-breakable blocks
-}
+    }
 
 // replace <>& by XML character references
 function clean_txt(txt) {
@@ -62,16 +69,6 @@ function clean_txt(txt) {
 		return c
 	})
 }
-
-// function called when the page is loaded
-function dom_loaded() {
-
-	// loop until abc2svg is fully loaded
-	if (typeof abc2svg != "object"
-	 || !abc2svg.modules) {
-		setTimeout(dom_loaded, 500)
-		return
-	}
 
 // function to load javascript files
 	abc2svg.loadjs = function(fn, relay, onerror) {
@@ -89,21 +86,13 @@ function dom_loaded() {
 		document.head.appendChild(s)
 	}
 
-	var page = document.body.innerHTML
-
-	// accept page formatting
-	abc2svg.abc_end = function() {}
-
-	// load the required modules
-	if (!abc2svg.modules.load(page, dom_loaded))
-		return
-
-	// search the ABC tunes and add their rendering as SVG images
+    // search the ABC tunes and add their rendering as SVG images
+    function render() {
 	var	i = 0, j, k, res,
 		re = /\n%abc|\nX:/g,		// start on "%abc" or "X:"
-		re_stop = /\n<|\n%.begin/g;	// stop on "<" and skip "%%begin"
-
+		re_stop = /\n<|\n%.begin/g,	// stop on "<" and skip "%%begin"
 	abc = new abc2svg.Abc(user);
+
 	abc.tosvg('abcdoc', '%%bgcolor white\n\
 %%rightmargin 0.8cm\n\
 %%leftmargin 0.8cm\n\
@@ -168,7 +157,31 @@ function dom_loaded() {
 		alert("abc2svg bad generated SVG: " + e.message +
 			"\nStack:\n" + e.stack)
 	}
+    } // render()
+
+	// --- abcdoc() main code ---
+
+	// get the page content
+	page = document.body.innerHTML;
+
+	// accept page formatting
+	abc2svg.abc_end = function() {}
+
+	// load the required modules, then render the music
+	if (abc2svg.modules.load(page, render))
+		render()
+} // abcdoc()
+
+// loop until abc2svg is fully loaded
+function dom_loaded() {
+	if (typeof abc2svg != "object"
+	 || !abc2svg.modules) {
+		setTimeout(dom_loaded, 500)
+		return
+	}
+	abcdoc()
 }
 
 // wait for the page to be loaded
 document.addEventListener("DOMContentLoaded", dom_loaded, false)
+})()
