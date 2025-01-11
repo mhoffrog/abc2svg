@@ -23,15 +23,12 @@ user.textrans = {
 	"!$1! must be on the last of a couple of notes":
 				"!$1! deve stare sulla seconda di due note",
 	"!beamon! must be on a bar": "!beamon! deve stare su una stanghetta",
-	"!xstem! must be on a note": "!xstem! deve stare su una nota",
 	"%%deco: abnormal h/wl/wr value '$1'":
 				"%%deco: valore '$1' illegale per h/wl/wr",
 	"%%deco: bad C function index '$1'":
 				"%%deco: indice errato per la funzione C '$1'",
 	"%%deco: bad C function value '$1'":
 				"%%deco: valore errato per la funzione C '$1'",
-	"%%deco: cannot have a negative value '$1'":
-				"%%deco: '$1' non può avere un valore negativo",
 	"%%multicol end without start": "%%multicol end senza start",
 	"%%multicol new without start": "%%multicol new senza start",
 	"%%repeat cannot start a tune": "%%repeat non può stare all'inizio del brano",
@@ -56,6 +53,7 @@ user.textrans = {
 	"Bad integer value": "Valore intero errato",
 	"Bad instr= value": "Valore errato di instr=",
 	"Bad L: value": "Valore errato per L:",
+	"Bad measure duration": "Bad measure duration",
 	"Bad note in %%map": "Nota errata in %%map",
 	"Bad page width": "Larghezza di pagina errata",
 	"Bad program in %%MIDI": "Numero di programma non valido in %%MIDI",
@@ -81,13 +79,18 @@ user.textrans = {
 	"Decoration ignored": "Decorazione ignorata",
 	"Empty line in tune header - ignored":
 				"Linea vuota nella testata - ignorata",
+	"End of slur without start": "End of slur without start",
 	"Erroneous end of voice overlap": "Fine di voice overlay errata",
+	"Error loading the module $1": "Error loading the module $1",
 	"Incorrect 1st value in %%repeat": "Primo valore in %%repeat errato",
 	"Incorrect 2nd value in %%repeat": "Secondo valore in %%repeat errato",
 	"Invalid 'r' in tuplet": "'r' non valido in gruppo irregolare",
 	"Invalid decoration '$1'": "Decorazione '$1' non valida",
 	"Invalid note duration $1": "Durée de note $1 non valida",
 	"Lack of ']'": "']' mancante",
+	"Lack of bar after multi-measure rest":
+				"Lack of bar after multi-measure rest",
+	"Lack of ending slur(s)": "Lack of ending slur(s)",
 	'Lack of starting [, ! or " in U: / %%user':
 				'U: / %%user non inizia con [, ! o "',
 	"Line split problem - adjust maxshrink and/or breaklimit":

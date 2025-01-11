@@ -1,6 +1,6 @@
 // abc2svg - cmdline.js - command line
 //
-// Copyright (C) 2014-2018 Jean-Francois Moine
+// Copyright (C) 2014-2020 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -19,15 +19,24 @@
 
 // user definitions
 var user = {
-	read_file: function(fn) {	// include a file (%%abc-include)
-	    var	file = abc2svg.readFile(fn),
-		i = file.indexOf('\r')
+	read_file: function(fn) {	// read a file (main or included)
+	    var	i,
+		file = abc2svg.readFile(fn)
 
-		if (i < 0)
-			return file	// standard
-		if (file[i + 1] == '\n')
-			return file.replace(/\r\n/g, '\n')	// M$
-		return file.replace(/\r/g, '\n')		// Mac
+		if (!file)
+			return file
+		i = file.indexOf('\r')
+		if (i >= 0) {
+			if (file[i + 1] == '\n')
+				file =  file.replace(/\r\n/g, '\n')	// M$
+			else
+				fike =  file.replace(/\r/g, '\n')	// Mac
+		}
+
+		// load the required modules (synchronous)
+		abc2svg.modules.load(file)
+
+		return file
 	},
 	errtxt: ''
 }
@@ -58,9 +67,9 @@ function do_file(fn) {
 			}
 		}
 	}
-	if (!file && fn != "default.abc") {
-//		abc2svg.abort(new Error("Cannot read file '" + fn + "'"))
-		user.errmsg("Cannot read file '" + fn + "'")
+	if (!file) {
+		if (fn != "default.abc")
+			user.errmsg("Cannot read file '" + fn + "'")
 		return
 	}
 //	if (typeof(utf_convert) == "function")
@@ -73,9 +82,6 @@ function do_file(fn) {
 		return
 	}
 
-	// load the required modules (synchronous)
-	abc2svg.modules.load(file)
-
 	// generate
 	try {
 		abc.tosvg(fn, file)
@@ -84,8 +90,49 @@ function do_file(fn) {
 	}
 } // do_file()
 
-function abc_cmd(cmd, args) {
+function abc_cmd(cmd, args, interp_name) {
 	var	arg, parm, fn;
+
+	abc2svg.abort = function(e) {
+		abc2svg.printErr('javascript error: ' + e.message +
+			'\nStack:\n'  + e.stack)
+		abc2svg.quit()
+	} // abort()
+
+	// put the last options before the last file
+	function arg_reorder(a) {
+	    var	f,
+		i = a.length - 2
+
+		while (i > 2 && a[i].slice(0, 2) == '--')
+			i -= 2
+		f = a[--i]
+		a.splice(i, 1)
+		a.push(f)
+	} // arg_reorder()
+
+	// if the first argument is a javascript file, load it
+	if (/\.js$/.test(args[0])) {
+		abc2svg.loadjs(args[0])
+		args.shift()
+	}
+
+	if (!args[0]) {
+		abc2svg.printErr('ABC translator with ' + interp_name +
+			' and abc2svg-' + abc2svg.version + ' ' +
+					abc2svg.vdate +
+			'\nUsage:\n  ' + cmd +
+		    ' [script.js] [options] ABC_file [[options] ABC_file]* [options]\n\
+Arguments:\n\
+  script.js  generation script to load - default: tohtml.js (HTML+SVG)\n\
+  options    ABC options (the last options are moved before the last file)\n\
+  ABC_file   ABC file')
+		abc2svg.quit()
+	}
+
+	// the default output is HTML+SVG
+	if (typeof abc2svg.abc_init != 'function')
+		abc2svg.loadjs("tohtml.js")
 
 	// initialize the backend
 	abc = new abc2svg.Abc(user)
@@ -99,28 +146,24 @@ function abc_cmd(cmd, args) {
 	} catch (e) {
 	}
 
+	// put the last options before the last ABC file
+	if (args.length > 2 && args[args.length - 2].slice(0, 2) == '--')
+		arg_reorder(args)
+
 	while (1) {
 		arg = args.shift()
 		if (!arg)
 			break
-		if (arg[0] == "-") {
-			if (arg[1] == "-") {
-				parm = args.shift();
-				parm = arg.replace('--', 'I:') + " " + parm + "\n"
-				abc2svg.modules.load(parm);
-				abc.tosvg(cmd, parm)
-			}
+		if (arg[0] == "-" && arg[1] == "-") {
+			parm = arg.replace('--', 'I:') + " " +
+				args.shift() + "\n"
+			abc2svg.modules.load(parm)
+			abc.tosvg(cmd, parm)
 		} else {
-			if (fn) {
-				do_file(fn);
-				abc.tosvg('cmd', '%%select\n')
-			}
-			fn = arg
+			do_file(arg)
+			abc.tosvg('cmd', '%%select\n')
 		}
 	}
-	if (fn)
-		do_file(fn);
-
 	abc2svg.abc_end()
 }
 

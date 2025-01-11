@@ -1,5 +1,6 @@
 // wps.js
 // (c) 2009 Tomas Hlavaty
+// reference: http://logand.com/sw/wps/log.html
 
 function isQuoted(V) {
   return V.q;

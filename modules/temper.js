@@ -1,6 +1,6 @@
 // temper.js - module to define the temperament
 //
-// Copyright (C) 2018-2019 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2020 Jean-Francois Moine - GPL3+
 //
 // This module is loaded when "%%temperament" appears in a ABC source.
 //
@@ -27,42 +27,41 @@
 
 abc2svg.temper = {
 
-    // move the temperament to the 1st voice
-    set_bar_num: function(of) {
-	of()
-	if (this.cfmt().temper) {
-	    var	v0 = this.get_voice_tb()[0];
-
-		v0.temper = new Float32Array(12)
-		for (var i = 0; i < 12; i++)
-			v0.temper[i] = this.cfmt().temper[i] / 100
-	}
-    },
-
     // get the temperament
     set_fmt: function(of, cmd, param) {
 	if (cmd == "temperament") {
-	    var	ls = new Float32Array(param.split(/ +/)),
-		i = ls.length
+	    var	i, tb,
+		tb40 = new Float32Array(40),
+		ls = new Float32Array(param.split(/ +/))
 
-		if (i == 12) {
-			while (--i >= 0) {
-				if (isNaN(parseInt(ls[i])))
-					break
-			}
-			if (i < 0) {
-				this.cfmt().temper = ls
-				return
-			}
+		for (i = 0; i < ls.length; i++) {
+			if (isNaN(ls[i]))
+				break
+			ls[i] = i + ls[i] / 100	// delta -> MIDI/octave
 		}
-		this.syntax(1, this.errs.bad_val, "%%temperament")
+		switch (i) {
+		case 12:
+			tb = [	10,11,0,1,2,0,	// C
+				0,1,2,3,4,0,	// D
+				2,3,4,5,6,	// E
+				3,4,5,6,7,0,	// F
+				5,6,7,8,9,0,	// G
+				7,8,9,10,11,0,	// A
+				9,10,11,0,1]	// B
+			break
+		default:
+			this.syntax(1, this.errs.bad_val, "%%temperament")
+			return
+		}
+		for (i = 0; i < 40; i++)
+			tb40[i] = ls[tb[i]]
+		this.cfmt().temper = tb40
 		return
 	}
 	of(cmd, param)
     },
 
     set_hooks: function(abc) {
-	abc.set_bar_num = abc2svg.temper.set_bar_num.bind(abc, abc.set_bar_num);
 	abc.set_format = abc2svg.temper.set_fmt.bind(abc, abc.set_format)
     }
 } // temper

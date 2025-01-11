@@ -1,5 +1,5 @@
 /*! JavaScript SoundFont 2 Parser. Copyright 2013-2015 imaya/GREE Inc and Colin Clark. Licensed under the MIT License. */
-
+// https://github.com/colinbdclark/sf2-parser
 /*
  * JavaScript SoundFont 2 Parser
  *
@@ -10,7 +10,7 @@
  *   https://github.com/gree/sf2synth.js
  *
  * Adapted to abc2svg
- * Copyright (C) 2018-2019 Jean-Francois Moine
+ * Copyright (C) 2018-2021 Jean-Francois Moine
  *
  * Licensed under the MIT License.
  */
@@ -33,10 +33,8 @@
         root.sf2 = {};
         factory(root.sf2);
     }
-}(this, function (exports) {
+}(this, function (sf2) {		// exports
     "use strict";
-
-    var sf2 = exports;
 
     sf2.Parser = function (input, options) {
       options = options || {};
@@ -636,11 +634,63 @@
       return output;
     };
 
-    sf2.Parser.prototype.getInstruments = function () {
+//    sf2.Parser.prototype.getInstruments = function () {
+//      /** @type {Array.<Object>} */
+//      var instrument = this.instrument,
+//      /** @type {Array.<Object>} */
+//	  zone = this.instrumentZone,
+//      /** @type {Array.<Object>} */
+//	  output = [],
+//      /** @type {number} */
+//	  bagIndex,
+//      /** @type {number} */
+//	  bagIndexEnd,
+//      /** @type {Array.<Object>} */
+//	  zoneInfo,
+//      /** @type {{generator: Object, generatorInfo: Array.<Object>}} */
+//	  instrumentGenerator,
+//      /** @type {{modulator: Object, modulatorInfo: Array.<Object>}} */
+//	  instrumentModulator,
+//      /** @type {number} */
+//	  i,
+//      /** @type {number} */
+//	  il,
+//      /** @type {number} */
+//	  j,
+//      /** @type {number} */
+//	  jl;
+//
+//      // instrument -> instrument bag -> generator / modulator
+//      for (i = 0, il = instrument.length; i < il; ++i) {
+//        bagIndex    = instrument[i].instrumentBagIndex;
+//        bagIndexEnd = instrument[i+1] ? instrument[i+1].instrumentBagIndex : zone.length;
+//        zoneInfo = [];
+//
+//        // instrument bag
+//        for (j = bagIndex, jl = bagIndexEnd; j < jl; ++j) {
+//          instrumentGenerator = this.createInstrumentGenerator_(zone, j);
+//          instrumentModulator = this.createInstrumentModulator_(zone, j);
+//
+//          zoneInfo.push({
+//            generator: instrumentGenerator.generator,
+//            modulator: instrumentModulator.modulator,
+//          });
+//        }
+//
+//        output.push({
+//          name: instrument[i].instrumentName,
+//          info: zoneInfo
+//        });
+//      }
+//
+//      return output;
+//    };
+
+    sf2.Parser.prototype.getPresets = function () {
       /** @type {Array.<Object>} */
-      var instrument = this.instrument,
+      var preset   = this.presetHeader,
       /** @type {Array.<Object>} */
-	  zone = this.instrumentZone,
+	  zone = this.presetZone,
       /** @type {Array.<Object>} */
 	  output = [],
       /** @type {number} */
@@ -649,10 +699,12 @@
 	  bagIndexEnd,
       /** @type {Array.<Object>} */
 	  zoneInfo,
+      /** @type {number} */
+//	  instrument,
       /** @type {{generator: Object, generatorInfo: Array.<Object>}} */
-	  instrumentGenerator,
+	  presetGenerator,
       /** @type {{modulator: Object, modulatorInfo: Array.<Object>}} */
-	  instrumentModulator,
+	  presetModulator,
       /** @type {number} */
 	  i,
       /** @type {number} */
@@ -660,28 +712,42 @@
       /** @type {number} */
 	  j,
       /** @type {number} */
-	  jl;
+	  jl
 
-      // instrument -> instrument bag -> generator / modulator
-      for (i = 0, il = instrument.length; i < il; ++i) {
-        bagIndex    = instrument[i].instrumentBagIndex;
-        bagIndexEnd = instrument[i+1] ? instrument[i+1].instrumentBagIndex : zone.length;
+      // preset -> preset bag -> generator / modulator
+      for (i = 0, il = preset.length; i < il; ++i) {
+//        bagIndex    = preset[i].presetBagIndex;
+	j = preset[i].presetBagIndex
+//        bagIndexEnd = preset[i+1] ? preset[i+1].presetBagIndex : zone.length;
+	jl = preset[i+1] ? preset[i+1].presetBagIndex : zone.length
         zoneInfo = [];
 
-        // instrument bag
-        for (j = bagIndex, jl = bagIndexEnd; j < jl; ++j) {
-          instrumentGenerator = this.createInstrumentGenerator_(zone, j);
-          instrumentModulator = this.createInstrumentModulator_(zone, j);
+        // preset bag
+//        for (j = bagIndex, jl = bagIndexEnd; j < jl; ++j) {
+        for ( ; j < jl; ++j) {
+          presetGenerator = this.createPresetGenerator_(zone, j);
+          presetModulator = this.createPresetModulator_(zone, j);
 
           zoneInfo.push({
-            generator: instrumentGenerator.generator,
-            modulator: instrumentModulator.modulator,
+            generator: presetGenerator.generator,
+//            generatorSequence: presetGenerator.generatorInfo,
+            modulator: presetModulator.modulator,
+//            modulatorSequence: presetModulator.modulatorInfo
           });
+
+//          instrument =
+//            presetGenerator.generator.instrument !== undefined ?
+//              presetGenerator.generator.instrument.amount :
+//            presetModulator.modulator.instrument !== undefined ?
+//              presetModulator.modulator.instrument.amount :
+//            null;
         }
 
         output.push({
-          name: instrument[i].instrumentName,
-          info: zoneInfo
+//          name: preset[i].presetName,
+          info: zoneInfo,
+          header: preset[i],
+//          instrument: instrument
         });
       }
 
@@ -723,6 +789,47 @@
 
       return {
         modulator: modgen.modgen
+      };
+    };
+
+    /**
+     * @param {Array.<Object>} zone
+     * @param {number} index
+     * @returns {{generator: Object, generatorInfo: Array.<Object>}}
+     * @private
+     */
+    sf2.Parser.prototype.createPresetGenerator_ = function (zone, index) {
+      var modgen = this.createBagModGen_(
+        zone,
+        zone[index].presetGeneratorIndex,
+        zone[index+1] ? zone[index+1].presetGeneratorIndex : this.presetZoneGenerator.length,
+        this.presetZoneGenerator
+      );
+
+      return {
+        generator: modgen.modgen,
+//        generatorInfo: modgen.modgenInfo
+      };
+    };
+
+      /**
+       * @param {Array.<Object>} zone
+       * @param {number} index
+       * @returns {{modulator: Object, modulatorInfo: Array.<Object>}}
+       * @private
+       */
+    sf2.Parser.prototype.createPresetModulator_ = function (zone, index) {
+      /** @type {{modgen: Object, modgenInfo: Array.<Object>}} */
+      var modgen = this.createBagModGen_(
+        zone,
+        zone[index].presetModulatorIndex,
+        zone[index+1] ? zone[index+1].presetModulatorIndex : this.presetZoneModulator.length,
+        this.presetZoneModulator
+      );
+
+      return {
+        modulator: modgen.modgen,
+//        modulatorInfo: modgen.modgenInfo
       };
     };
 
@@ -898,7 +1005,7 @@
       ip += size;
 
       // padding
-      if ((this.padding && (ip - this.offset) & 1) === 1)
+      if (this.padding && ((ip - this.offset) & 1) === 1)
         ip++;
 
       this.ip = ip;

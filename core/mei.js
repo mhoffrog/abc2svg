@@ -1,6 +1,6 @@
 // abc2svg - mei.js - MEI front-end
 //
-// Copyright (C) 2019 Jean-Francois Moine
+// Copyright (C) 2019-2020 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -800,7 +800,7 @@ return true
 	pb: function(tag) {
 	    var	s
 //fixme: tag.n (page number)
-		if (parse.state == 3) {
+		if (parse.state >= 2) {
 			s = new_block("newpage")
 			s.param = tag.n || ""
 		} else {
@@ -916,7 +916,7 @@ return true
 
 	// newline for music
 	sb: function(tag) {
-		curvoice.last_sym.eoln = true
+		voice_tb[0].eoln = true
 	}, // sb()
 
 //	score: function(tag) {
@@ -1359,19 +1359,19 @@ return true
 			}
 			break
 		}
-		a_gch = s.a_gch || []
 		t = curr.text.split('\n')
 		if (t[0][0] == ' ')
 			t[0] = t[0].slice(1)
+		if (!s.a_gch)
+			s.a_gch = []
 		for (i = 0; i < t.length; i++) {
 			gch = {
 				type: ty,
 				font: font,
 				text: t[i]
 			}
-			a_gch.push(gch)
+			s.a_gch.push(gch)
 		}
-		self.gch_build(s)
 		curr.text = undefined
 	}, // dir()
 
@@ -2278,4 +2278,6 @@ error(1, null, "Bad duration " + tag.dur + " tag:" + tag.name)
 	param_set_font("dynamfont", "serifItalicBold 16")
 
 	parse_mei(xml2tree(mei)) // convert to internal music representation
+
+	parse.state = 0		// end of tune
 } // mei2mus()

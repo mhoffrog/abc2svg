@@ -9,11 +9,10 @@ function usage() {
 	abc2svg.printErr('ABC to ODT translator with\
  abc2svg-' + abc2svg.version + ' ' + abc2svg.vdate + '\n\
 Usage:\n\
-  abc2odt [g_options] ABC_file [f_options] [ABC_file [f_options]]* [-o output_file]\n\
+  abc2odt [options] ABC_file [[options] ABC_file]* [options] [-o output_file]\n\
 Arguments:\n\
-  g_options   global ABC options\n\
+  options     ABC options (the last options are moved before the last file)\n\
   ABC_file    ABC file\n\
-  f_options   file options\n\
   output_file output file - default is "./abc.odt"')
 	abc2svg.quit()
 }

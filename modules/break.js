@@ -83,11 +83,11 @@ abc2svg.break = {
 					if (s.time >= t)
 						break
 				}
-				if (!s)
-					continue
-				s = s.prev
+			} else {
+				s = s.next
 			}
-			s.eoln = true
+			if (s)
+				s.soln = true
 		}
 	}, // do_break()
 

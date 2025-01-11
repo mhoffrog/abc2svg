@@ -1,4 +1,4 @@
-// abc2svg - toxhtml.js - SVG generation
+// abc2svg - tohtml.js - HTML+SVG generation
 //
 // Copyright (C) 2014-2020 Jean-Francois Moine
 //
@@ -34,12 +34,12 @@ function clean_txt(txt) {
 abc2svg.abort = function(e) {
 	if (!init_done)				// if empty document
 		user.img_out('')
-	abc.blk_flush();
+	abc.blk_flush()
 	if (typeof abc2svg.printErr == 'function')
 		abc2svg.printErr(e.message + "\n*** Abort ***\n" + e.stack)
 	else
-		abc2svg.print("<pre>" + e.message + "\n*** Abort ***\n" + e.stack + "</pre>");
-	abc2svg.abc_end();
+		abc2svg.print("<pre>" + e.message + "\n*** Abort ***\n" + e.stack + "</pre>")
+	abc2svg.abc_end()
 	abc2svg.quit()
 }
 
@@ -66,8 +66,8 @@ function header_footer(str) {
 			continue
 		case '\\':			// hope '\n'
 			for (j = 0; j < 3; j++)
-				r[j] += '<br/>';
-			j = 0;
+				r[j] += '<br/>'
+			j = 0
 			i++
 			continue
 		default:
@@ -111,36 +111,36 @@ function header_footer(str) {
 function set_pstyle() {
     var	nml, nmr, nlkf, npkf, npw,
 	cfmt = abc.cfmt(),
-	psty = '';
+	psty = ''
 
-	nml = cfmt.leftmargin;
+	nml = cfmt.leftmargin
 	if (nml != ml) {
 		if (ml == undefined)
-			ml = nml;
+			ml = nml
 		psty += 'margin-left:' + nml.toFixed(1) + 'px;'
 	}
-	nmr = cfmt.rightmargin;
+	nmr = cfmt.rightmargin
 	if (nmr != mr) {
 		if (mr == undefined)
-			mr = nmr;
+			mr = nmr
 		psty += 'margin-right:' + nmr.toFixed(1) + 'px;'
 	}
-	nlkf = cfmt.lineskipfac;
+	nlkf = cfmt.lineskipfac
 	if (nlkf != lkf) {
 		if (lkf == undefined)
-			lkf = nlkf;
+			lkf = nlkf
 		psty += 'line-height:' + ((nlkf * 100) | 0).toString() + '%;'
 	}
-	npkf = cfmt.parskipfac;
+	npkf = cfmt.parskipfac
 	if (npkf != pkf) {
 		if (pkf == undefined)
-			pkf = npkf;
+			pkf = npkf
 		psty += 'margin-bottom:' + npkf.toFixed(2) + 'em;'
 	}
 	npw = cfmt.pagewidth
 	if (npw != pw || nml != ml || nmr != mr) {
 		if (pw == undefined)
-			pw = npw;
+			pw = npw
 		psty += 'width:' + (npw - nml - nmr).toFixed(1) + 'px;'
 	}
 	return psty
@@ -152,8 +152,8 @@ abc2svg.abc_init = function() {
 
 	// output a header or footer
 	function gen_hf(type, str) {
-		var	a, i, page,
-			lcr = ["left", "center", "right"];
+	    var	a, i, page,
+		lcr = ["left", "center", "right"]
 
 		a = header_footer(clean_txt(str))
 		for (i = 0; i < 3; i++) {
@@ -161,7 +161,7 @@ abc2svg.abc_init = function() {
 			if (!str)
 				continue
 			if (str.indexOf('\x0c') >= 0) {
-				str = str.replace('\x0c', '');
+				str = str.replace('\x0c', '')
 				page = " page"
 			} else {
 				page = ''
@@ -172,7 +172,7 @@ abc2svg.abc_init = function() {
 		}
 	}
 
-	user.page_format = true;
+	user.page_format = true
 
 	// output the xhtml header
 	user.img_out = function(str) {
@@ -218,13 +218,12 @@ abc2svg.abc_init = function() {
 
 		// no margin / header / footer when SVG page formatting
 		if (abc.page)
-			topmargin = botmargin = header = footer = 0;
+			topmargin = botmargin = header = footer = 0
 
-		abc2svg.print('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"\n\
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1.dtd">\n\
-<html xmlns="http://www.w3.org/1999/xhtml">\n\
+		abc2svg.print('<!DOCTYPE html>\n\
+<html>\n\
 <head>\n\
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>\n\
+<meta charset="utf-8"/>\n\
 <meta name="generator" content="abc2svg-' + abc2svg.version + '"/>\n\
 <!-- CreationDate: ' + get_date() + '-->\n\
 <style>\n\
@@ -247,11 +246,11 @@ p span {line-height:' + ((cfmt.lineskipfac * 100) | 0).toString() + '%}\n' +
 		if (header)
 			gen_hf("header", header)
 		if (footer)
-			gen_hf("footer", footer);
+			gen_hf("footer", footer)
 
 		// output the first generated string
-		abc2svg.print(str);
-		init_done = true;
+		abc2svg.print(str)
+		init_done = true
 
 		// change the output function
 		user.img_out = abc2svg.print
@@ -266,6 +265,6 @@ abc2svg.abc_end = function() {
 	if (user.errtxt)
 		abc2svg.print("<pre>" + clean_txt(user.errtxt) + "</pre>")
 	if (font_style)				// if some %%text at the end
-		abc2svg.print('<style>' + font_style + '\n</style>');
+		abc2svg.print('<style>' + font_style + '\n</style>')
 	abc2svg.print("</body>\n</html>")
 }

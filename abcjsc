@@ -32,28 +32,27 @@ exec jsc -e "var progdir='${progdir}/'
 //							(b2 & 0x3f))
 //			}
 //		} else {
-//			fout += fin[i]
+//			fout += String.fromCharCode(b1)
 //		}
 //	}
 //	return fout
 //}
 
-load(progdir + 'abc2svg-1.js')
-
 // interpreter specific functions
-abc2svg.print = function(str) {
+var abc2svg = {
+    print: function(str) {
 	print(str)
-}
-abc2svg.printErr = function(str) {
+    },
+    printErr: function(str) {
 	printErr(str)
-}
-abc2svg.quit = function() {
+    },
+    quit: function() {
 	quit(1)
-}
-abc2svg.readFile = function(fname) {
+    },
+    readFile: function(fname) {
 	return read(fname)
-}
-abc2svg.loadjs = function(fn, relay, onerror) {
+    },
+    loadjs: function(fn, relay, onerror) {
 	try {
 		load(progdir + fn)
 		if (relay)
@@ -62,32 +61,16 @@ abc2svg.loadjs = function(fn, relay, onerror) {
 		if (onerror)
 			onerror()
 		else
-			print('Cannot read file ' + fn)
+			printErr('Cannot read file ' + fn)
 	}
-}
+    } // loadjs()
+} // abc2svg
 
+load(progdir + 'abc2svg-1.js')
 load(progdir + 'cmdline.js')
 
 function main(args) {
-	if (/\.js$/.test(args[0])) {
-		load(args[0])
-		args.shift()
-	}
-	if (!args[0]) {
-		print('ABC translator with jsc (webkit2gtk)\
- and abc2svg-' + abc2svg.version + ' ' + abc2svg.vdate + '\n\
-Usage:\n\
-  abcjsc [script.js] [g_options] ABC_file [f_options] [ABC_file [f_options]]*\n\
-Arguments:\n\
-  script.js  script to load - default: toxhtml.js (XHTML+SVG generation)\n\
-  g_options  global ABC options\n\
-  ABC_file   ABC file\n\
-  f_options  file options')
-		quit()
-	}
-	if (typeof(abc2svg.abc_init) != 'function')
-		load(progdir + 'toxhtml.js')
-	abc_cmd('abcjsc', args)
+	abc_cmd('abcjsc', args, 'jsc (webkit2gtk)')
 }
 
 if (typeof arguments == 'undefined')

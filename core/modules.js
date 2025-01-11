@@ -1,6 +1,6 @@
 // abc2svg - modules.js - module handling
 //
-// Copyright (C) 2018-2019 Jean-Francois Moine
+// Copyright (C) 2018-2020 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -26,23 +26,31 @@ if (!abc2svg.loadjs) {
 }
 
 abc2svg.modules = {
-		ambitus: { fn: 'ambitus-1.js' },
-		beginps: { fn: 'psvg-1.js' },
-		break: { fn: 'break-1.js' },
-		capo: { fn: 'capo-1.js' },
-		clip: { fn: 'clip-1.js' },
-	clairnote: { fn: 'clair-1.js' },
-		voicecombine: { fn: 'combine-1.js' },
-		diagram: { fn: 'diag-1.js' },
-	equalbars: { fn: 'equalbars-1.js' },
-		grid: { fn: 'grid-1.js' },
-		grid2: { fn: 'grid2-1.js' },
-		MIDI: { fn: 'MIDI-1.js' },
-	pageheight: { fn: 'page-1.js' },
-		percmap: { fn: 'perc-1.js' },
-	soloffs: { fn: 'soloffs-1.js' },
-	sth: { fn: 'sth-1.js' },
-	temperament: { fn: 'temper-1.js' },
+	ambitus: {},
+	begingrid: { fn: 'grid3' },
+	beginps: { fn: 'psvg' },
+	break: {},
+	capo: {},
+	chordnames: {},
+	clip: {},
+	clairnote: { fn: 'clair' },
+	voicecombine: { fn: 'combine' },
+	diagram: { fn: 'diag' },
+	equalbars: {},
+	gamelan: {},
+	grid: {},
+	grid2: {},
+	jazzchord: {},
+	jianpu: {},
+	mdnn: {},
+	MIDI: {},
+	pageheight: { fn: 'page' },
+	pedline: {},
+	percmap: { fn: 'perc' },
+	soloffs: {},
+	sth: {},
+	strtab: {},
+	temperament: { fn: 'temper' },
 
 	nreq: 0,
 	hooks: [],
@@ -59,17 +67,27 @@ abc2svg.modules = {
 		function get_errmsg() {
 			if (typeof user == 'object' && user.errmsg)
 				return user.errmsg
-			if (typeof printErr == 'function')
-				return printErr
+			if (typeof abc2svg.printErr == 'function')
+				return abc2svg.printErr
 			if (typeof alert == 'function')
 				return function(m) { alert(m) }
 			if (typeof console == 'object')
 				return console.log
 			return function(){}
+		} // get_errmsg()
+
+		// call back functions for loadjs()
+		function load_end() {
+			if (--abc2svg.modules.nreq == 0)
+				abc2svg.modules.cbf()
+		}
+		function load_ko(fn) {
+			abc2svg.modules.errmsg('Error loading the module ' + fn)
+			load_end()
 		}
 
 		// test if some keyword in the file
-	    var	m, r,
+	    var	m, i, fn,
 		nreq_i = this.nreq,
 		ls = file.match(/(^|\n)(%%|I:).+?\b/g)
 
@@ -79,25 +97,21 @@ abc2svg.modules = {
 			function(){}
 		this.errmsg = errmsg || get_errmsg()
 
-		for (var i = 0; i < ls.length; i++) {
-			m = abc2svg.modules[ls[i].replace(/\n?(%%|I:)/, '')]
+		for (i = 0; i < ls.length; i++) {
+			fn = ls[i].replace(/\n?(%%|I:)/, '')
+			m = abc2svg.modules[fn]
 			if (!m || m.loaded)
 				continue
 
 			m.loaded = true
 
 			// load the module
-				this.nreq++;
-				abc2svg.loadjs(m.fn,
-				    function() {	// if success
-					if (--abc2svg.modules.nreq == 0)
-						abc2svg.modules.cbf()
-				    },
-				    function() {	// if error
-					abc2svg.modules.errmsg('error loading ' + m.fn);
-					if (--abc2svg.modules.nreq == 0)
-						abc2svg.modules.cbf()
-				    })
+			if (m.fn)
+				fn = m.fn
+			this.nreq++
+			abc2svg.loadjs(fn + "-1.js",
+					load_end,
+					function() {load_ko(fn)})
 		}
 		return this.nreq == nreq_i
 	}

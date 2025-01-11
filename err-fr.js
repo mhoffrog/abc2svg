@@ -23,15 +23,12 @@ user.textrans = {
 	"!$1! must be on the last of a couple of notes":
 				"!$1! doit être sur la 2ème note d'un couple",
 	"!beamon! must be on a bar": "!beamon! doit être sur une barre",
-	"!xstem! must be on a note": "!xstem! doit être sur une note",
 	"%%deco: abnormal h/wl/wr value '$1'":
 				"%%deco: valeur '$1' anormale pour h/wl/wr",
 	"%%deco: bad C function index '$1'":
 				"%%deco: mauvais index de fonction '$1'",
 	"%%deco: bad C function value '$1'":
 				"%%deco: mauvaise valeur de fonction '$1'",
-	"%%deco: cannot have a negative value '$1'":
-				"%%deco: '$1' ne peut pas avoir de valeur négative",
 	"%%multicol end without start": "%%multicol end sans start",
 	"%%multicol new without start": "%%multicol new sans start",
 	"%%repeat cannot start a tune": "%%repeat ne peut pas être en début de morceau",
@@ -56,6 +53,7 @@ user.textrans = {
 	"Bad integer value": "Mauvaise valeur entière",
 	"Bad instr= value": "Mauvaise valeur de instr=",
 	"Bad L: value": "Mauvaise valeur pour L:",
+	"Bad measure duration": "Mauvaise durée de la mesure",
 	"Bad note in %%map": "Note incorrecte dans %%map",
 	"Bad page width": "Mauvaise largeur de page",
 	"Bad program in %%MIDI": "Mauvais 'program' dans %%MIDI",
@@ -81,13 +79,18 @@ user.textrans = {
 	"Decoration ignored": "Décoration ignorée",
 	"Empty line in tune header - ignored":
 				"Ligne vide dans en-tête de morceau - ignorée",
+	"End of slur without start": "Fin de liaison sans début",
 	"Erroneous end of voice overlay": "Fin de superposition de voix erronée",
+	"Error loading the module $1": "Erreur de chargement du module $1",
 	"Incorrect 1st value in %%repeat": "Première valeur incorrecte dans %%repeat",
 	"Incorrect 2nd value in %%repeat": "Deuxième valeur incorrecte dans %%repeat",
 	"Invalid 'r' in tuplet": "'r' invalide dans le tuplet",
 	"Invalid decoration '$1'": "Décoration '$1' invalide",
 	"Invalid note duration $1": "Durée de note $1 invalide",
 	"Lack of ']'": "']' manquant",
+	"Lack of bar after multi-measure rest":
+		"Manque de barre de mesure après silence multiple",
+	"Lack of ending slur(s)": "Pas de fin de liaison(s)",
 	'Lack of starting [, ! or " in U: / %%user':
 				'U: / %%user ne commence pas par [, ! ou "',
 	"Line split problem - adjust maxshrink and/or breaklimit":
@@ -116,7 +119,7 @@ user.textrans = {
 	"No note before '-'": "Pas de note devant '-'",
 	"No note before '<'": "Pas de note devant '<'",
 	"No note in voice overlay": "Pas de note dans voix superposée",
-	"Non standard note duration $1": "Durée de note $1 non standard"
+	"Non standard note duration $1": "Durée de note $1 non standard",
 	"No read_file support": "La fonction read_file n'existe pas",
 	"No start of !$1!": "Pas de début pour !$1!",
 	"Not an ASCII character": "Ce n'est pas un caractère ASCII",

@@ -1,8 +1,9 @@
-// follow-1.js - file to include in html pages after
-//	abc2svg-1.js, abcemb[2]-1.js and play-1.js.
-//	This script permits to follow the notes while playing.
+// follow-1.js - file included in snd-1.js
 //
-// Copyright (C) 2015-2019 Jean-Francois Moine
+// This script permits to follow the notes while playing.
+// Scrolling the music may be disabled setting 'no_scroll' in the window object.
+//
+// Copyright (C) 2015-2020 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -22,14 +23,13 @@
 // init
 function follow(abc, user, playconf) {
 var	ref = [],
-	ignore_types = {
-		beam:true,
-		slur:true,
-		tuplet:true
+	keep_types = {
+		note: true,
+		rest: true
 	}
 
 user.anno_stop = function(type, start, stop, x, y, w, h) {
-	if (ignore_types[type])
+	if (!keep_types[type])
 		return
 	ref[start] = stop;		// keep the source reference
 
@@ -37,17 +37,44 @@ user.anno_stop = function(type, start, stop, x, y, w, h) {
 	abc.out_svg('<rect class="abcr _' + start + '_" x="');
 	abc.out_sxsy(x, '" y="', y);
 	abc.out_svg('" width="' + w.toFixed(2) +
-		'" height="' + h.toFixed(2) + '"/>\n')
+		'" height="' + abc.sh(h).toFixed(2) + '"/>\n')
 }
 
 	playconf.onnote = function(i, on) {
-		var elts = document.getElementsByClassName('_' + i + '_')
-		if (elts && elts[0])
+	    var	b, x, y,
+		elts = document.getElementsByClassName('_' + i + '_')
+		if (elts && elts[0]) {
 			elts[0].style.fillOpacity = on ? 0.4 : 0
-	}
 
-	// create the style of the rectangles
-	var sty = document.createElement("style");
-	sty.innerHTML = ".abcr {fill: #d00000; fill-opacity: 0; z-index: 15}";
-	document.head.appendChild(sty)
+			// scroll for the element to be in the screen
+			if (on && !window.no_scroll) {	
+				b = elts[0].getBoundingClientRect()
+
+				// normal
+				if (b.top < 0)
+					y = window.scrollY + b.top -
+							window.innerHeight / 2
+				else if (b.bottom > window.innerHeight)
+					y = window.scrollY + b.bottom +
+							window.innerHeight / 2
+
+				// single line
+				if (b.left < 0)
+					x = window.scrollX + b.left -
+							window.innerWidth / 2
+				else if (b.right > window.innerWidth)
+					x = window.scrollX + b.right +
+							window.innerWidth / 2
+				if (x != undefined || y != undefined)
+					window.scrollTo(x || 0, y || 0)
+			}
+		}
+	}
 } // follow()
+
+// create the style of the rectangles
+(function () {
+    var	sty = document.createElement("style")
+	sty.innerHTML = ".abcr {fill: #d00000; fill-opacity: 0; z-index: 15}"
+	document.head.appendChild(sty)
+})()

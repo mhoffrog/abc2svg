@@ -1,16 +1,17 @@
 /* edit.css - file used in the abc2svg editor */
-@page {margin-top: 1cm; margin-left: 0cm; margin-right: 0cm}
+@page {margin:0}
 text tspan {white-space:pre; fill:currentColor}
-svg {display:block}
+svg {display:block;background-color:#ffffff}
 .abcr {fill: #d00000; fill-opacity: 0; z-index: 15}
 @media screen {
 	body, html {height: 90%}
 	text, path {pointer-events: none}
+	svg {margin-left:auto;margin-right:0}
 	#dleft {
 		width: auto;
 		position: absolute; top: 0; bottom:0; left: 0;
-		background-color:#faf0e6;
 		z-index: 2;
+		background-color:#faf0e6;
 		overflow: auto;
 	}
 	#nav {
@@ -41,13 +42,14 @@ svg {display:block}
 	.droplinks li { padding: 0 5px 0 5px; margin: 2px }
 	#dright {
 		width: 80%;
-		max-width: 800px;
+		max-width: 840px;
 		position: absolute; top: 0; bottom:0; right:0;
-		background-color: white;
+		background-color:#faf0e6;
 		overflow: auto
 	}
 	#dright:hover {z-index: 10 !important}
 	#dright:active {z-index: 10 !important}
+	textarea {background-color:#ffffff}
 	.popup {
 		position: absolute; top: 0; right: 20px;
 		padding: 10px;
@@ -101,4 +103,3 @@ svg {display:block}
 	.newpage { page-break-before: always }
 	.nobrk { page-break-inside: avoid }
 }
-@page{margin:0}

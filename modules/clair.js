@@ -1,6 +1,6 @@
 // clair.js - module to output Clairnote sheets (https:clairnote.org)
 //
-// Copyright (C) 2019 Jean-Francois Moine - GPL3+
+// Copyright (C) 2019-2020 Jean-Francois Moine - GPL3+
 //
 // This module is loaded when "%%clairnote" appears in a ABC source.
 //
@@ -11,77 +11,78 @@ abc2svg.clair = {
 
 // table for helper lines (from C, to c'')
 // index = (note pitch + 16)
-// value = array of staff offsets / null
+// value = array of line numbers / null
     hl_tb: [
-	new Int8Array([-20,-16,-12,-8,-4]), // _B,, -18
-	new Int8Array([-20,-18,-16,-12,-8,-4]), // B,, -17
-	new Int8Array([-16,-12,-8,-4]),	// C, -16
-	new Int8Array([-16,-12,-8,-4]),	// ^C, -15
-	new Int8Array([-16,-14,-12,-8,-4]), // D, -14
-	new Int8Array([-12,-8,-4]),	// ^D, -13
-	new Int8Array([-12,-8,-4]),	// E, -12
-	new Int8Array([-12,-8,-4]),	// F, -11
-	new Int8Array([-12,-10,-8,-4]),	// ^F, -10
-	new Int8Array([-8,-4]),		// G, -9
-	new Int8Array([-8,-4]),		// ^G, -8
-	new Int8Array([-8,-4]),		// A, -7
-	new Int8Array([-8,-6,-4]),	// _B, -6
-	new Int8Array([-4]),		// B, -5
-	new Int8Array([-4]),		// C -4
-	new Int8Array([-4]),		// ^C -3
-	new Int8Array([-4,-2]),		// D -2
+	new Int8Array([-10,-8,-6,-4,-2]), // _B,, -18
+	new Int8Array([-10,-9,-8,-6,-4,-2]), // B,, -17
+	new Int8Array([-8,-6,-4,-2]),	// C, -16
+	new Int8Array([-8,-6,-4,-2]),	// ^C, -15
+	new Int8Array([-8,-7,-6,-4,-2]), // D, -14
+	new Int8Array([-6,-4,-2]),	// ^D, -13
+	new Int8Array([-6,-4,-2]),	// E, -12
+	new Int8Array([-6,-4,-2]),	// F, -11
+	new Int8Array([-6,-5,-4,-2]),	// ^F, -10
+	new Int8Array([-4,-2]),		// G, -9
+	new Int8Array([-4,-2]),		// ^G, -8
+	new Int8Array([-4,-2]),		// A, -7
+	new Int8Array([-4,-3,-2]),	// _B, -6
+	new Int8Array([-2]),		// B, -5
+	new Int8Array([-2]),		// C -4
+	new Int8Array([-2]),		// ^C -3
+	new Int8Array([-2,-1]),		// D -2
 	null,				// ^D -1
 	null,				// E 0
 	null,				// F 1
-	new Int8Array([2]),		// ^F 2
+	new Int8Array([1]),		// ^F 2
 	null,				// G 3
 	null,				// ^G 4
 	null,				// A 5
-	new Int8Array([6,8]),		// _B 6
-	new Int8Array([8]),		// B 7
-	new Int8Array([8]),		// c 8
-	new Int8Array([8]),		// ^c 9
-	new Int8Array([8,10]),		// d 10
+	new Int8Array([3,4]),		// _B 6
+	new Int8Array([4]),		// B 7
+	new Int8Array([4]),		// c 8
+	new Int8Array([4]),		// ^c 9
+	new Int8Array([4,5]),		// d 10
 	null,				// _e 11
 	null,				// e 12
 	null,				// f 13
-	new Int8Array([14]),		// ^f 14
+	new Int8Array([7]),		// ^f 14
 	null,				// g 15
 	null,				// ^g 16
 	null,				// a 17
-	new Int8Array([18,20]),		// _b 18
-	new Int8Array([20]),		// b 19
-	new Int8Array([20]),		// c' 20
-	new Int8Array([20]),		// ^c' 21
-	new Int8Array([20,22]),		// d' 22
-	new Int8Array([20,22]),		// _e' 23
-	new Int8Array([20,24]),		// e' 24
-	new Int8Array([20,24]),		// f' 25
-	new Int8Array([20,24,26]),	// ^f' 26
-	new Int8Array([20,24,26]),	// g' 27
-	new Int8Array([20,24,28]),	// ^g' 28
-	new Int8Array([20,24,28]),	// a' 29
-	new Int8Array([20,24,28,30]),	// _b' 30
-	new Int8Array([20,24,28,30]),	// b' 31
-	new Int8Array([20,24,28,32])	// c'' 32
+	new Int8Array([9,10]),		// _b 18
+	new Int8Array([10]),		// b 19
+	new Int8Array([10]),		// c' 20
+	new Int8Array([10]),		// ^c' 21
+	new Int8Array([10,11]),		// d' 22
+	new Int8Array([10,11]),		// _e' 23
+	new Int8Array([10,12]),		// e' 24
+	new Int8Array([10,12]),		// f' 25
+	new Int8Array([10,12,13]),	// ^f' 26
+	new Int8Array([10,12,13]),	// g' 27
+	new Int8Array([10,12,14]),	// ^g' 28
+	new Int8Array([10,12,14]),	// a' 29
+	new Int8Array([10,12,14,15]),	// _b' 30
+	new Int8Array([10,12,14,15]),	// b' 31
+	new Int8Array([10,12,14,16])	// c'' 32
     ],
 
 // draw the helper lines
-    draw_hl: function(of, x, s, hltype) {
+    draw_hl: function(of, s) {
 	if (!s.p_v.clair) {
-		of(x, s, hltype)
+		of(s)
 		return
 	}
 
     var	i, m, hl,
-	staffb = this.get_staff_tb()[s.st].y
+	dx = s.grace ? 4 : [4.7, 5, 6, 7.2, 7.5][s.head] * 1.4,
+	p_st = this.get_staff_tb()[s.st]
 
 	for (m = 0; m <= s.nhd; m++) {
 		hl = abc2svg.clair.hl_tb[s.notes[m].pit]
 		if (!hl)
 			continue
 		for (i = 0; i < hl.length; i++)
-			this.xygl(x, staffb + hl[i] * 3, hltype)
+			this.set_hl(p_st, hl[i], s.x, -dx, dx)
 	}
     }, // draw_hl()
 
@@ -184,10 +185,7 @@ abc2svg.clair = {
     var	s, m, mp, p_v, v,
 	cfmt = this.cfmt(),
 	tsfirst = this.get_tsfirst(),
-	voice_tb = this.get_voice_tb(),
-	abcmidi = new AbcMIDI();
-
-	abcmidi.add(tsfirst, voice_tb);		// get the MIDI pitches
+	voice_tb = this.get_voice_tb()
 
 	// define the new clefs and key signatures
 	// (clefs converted from clairnote.ly)

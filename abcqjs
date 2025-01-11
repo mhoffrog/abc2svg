@@ -1,19 +1,61 @@
 :;# shell script to convert ABC or MEI music notation to other format
 # using abc2svg and quickjs (https://bellard.org/quickjs/)
 
-test -f /tmp/abcqjs.js && exec qjs --std /tmp/abcqjs.js $0 "$@"
-
-cat > /tmp/abcqjs.js << EOF
-//javascript
+exec qjs --std -e '
 
     var	i,
-	args = scriptArgs
-	args.shift()		// remove '/tmp/abcqjs.js'
-    var	core = "abc2svg-1.js",
+	args = scriptArgs,
+	core = "abc2svg-1.js",
 	path = args.shift().	// the 1st argument is the script name
-			match(/(.*\/).*/)
+			match(/.*\//)
 
-	path = path ? path[1] : ""
+// interpreter specific functions
+function load(fn) {
+	return std.loadScript(fn)
+}
+var abc2svg = {
+	print: function(str) {
+		print(str)
+	},
+	printErr: function(str) {
+		std.err.printf("%s\n", str)
+	},
+	quit: function() {
+		std.exit(1)
+	},
+	readFile: function(fname) {
+	    var	f, b
+
+		f = std.open(fname, "r")
+		if (!f)
+			return ""
+
+		b = f.readAsString()
+		f.close()
+		return b
+	}, // readfile()
+	get_mtime: function(fn) {
+		return new Date(os.stat(fn)[0].mtime)
+	},
+	loadjs: function(fn, relay, onerror) {
+		try {
+			load(fn[0] == "/" ? fn : (path + fn))
+		} catch(e) {
+			if (onerror)
+				onerror()
+			else
+				abc2svg.printErr("Cannot read file " + fn +
+					"\n  " + e.name + ": " + e.message)
+			return
+		}
+		if (relay)
+			relay()
+	} // loadjs()
+} // abc2svg
+
+// --- main ---
+
+	path = path ? path[0] : ""
 
 	i = args.length
 	while (--i >= 0) {
@@ -23,93 +65,11 @@ cat > /tmp/abcqjs.js << EOF
 		}
 	}
 
-std.loadScript(path + core)
+	load(path + core)
+	load(path + "cmdline.js")
 
-// interpreter specific functions
-function load(fn) {
-	return std.loadScript(fn)
-}
-abc2svg.print = function(str) {
-	print(str)
-}
-abc2svg.printErr = function(str) {
-	std.err.printf("%s\n", str)
-}
-
-abc2svg.quit = function() {
-	std.exit(1)
-}
-abc2svg.readFile = function(fname) {
-    var	l, f,
-	b = "",
-	bt = "",
-	cnt = 30
-
-	try {
-		f = std.open(fname, "r")
-	} catch(e) {
-		return ""
-	}
-
-	while (1) {
-		if (--cnt < 0) {
-			cnt = 30
-			bt += b
-			b = ""
-		}
-		l = f.getline()
-		if (l == null)
-			break
-		b += l + "\n"
-	}
-	f.close()
-	return bt + b
-} // readfile()
-
-abc2svg.get_mtime = function(fn) {
-	return new Date(os.stat(fn)[0].mtime)
-}
-
-abc2svg.loadjs = function(fn, relay, onerror) {
-	try {
-		std.loadScript(path + fn)
-		if (relay)
-			relay()
-	} catch(e) {
-		if (onerror)
-			onerror()
-		else
-			printErr('Cannot read file ' + fn)
-	}
-} // loadjs()
-
-std.loadScript(path + "cmdline.js")
-
-// main
-	if (/\.js$/.test(args[0])) {
-		if (args[0][0] == "/")
-			std.loadScript(args[0])
-		else
-			std.loadScript(path + args[0])
-		args.shift()
-	}
-	if (typeof abc2svg.abc_init != 'function')
-		std.loadScript(path + "toxhtml.js")
-	if (!args[0]) {
-		abc2svg.printErr('ABC translator with quickjs\
- and abc2svg-' + abc2svg.version + ' ' + abc2svg.vdate + '\n\
-Usage:\n\
-  abcqjs [script.js] [g_options] ABC_file [f_options] [ABC_file [f_options]]*\n\
-Arguments:\n\
-  script.js  generation script to load - default: toxhtml.js (XHTML+SVG)\n\
-  g_options  global ABC options\n\
-  ABC_file   ABC file\n\
-  f_options  file options')
-		abc2svg.quit()
-	}
-	abc_cmd("abcqjs", args)
-EOF
-exec qjs --std /tmp/abcqjs.js $0 "$@"
+	abc_cmd("abcqjs", args, "QuickJS")
+' $0 "$@"
 
 The previous solution with the shebang line as
 #!/usr/bin/env -S qjs --std

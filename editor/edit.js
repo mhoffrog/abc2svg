@@ -1,6 +1,6 @@
 // edit.js - file used in the abc2svg editor
 //
-// Copyright (C) 2014-2019 Jean-Francois Moine
+// Copyright (C) 2014-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -232,7 +232,6 @@ function render2() {
 
 	abc = new abc2svg.Abc(user);
 	abc_images = '';
-	abc.tosvg('edit', '%%bgcolor white');
 
 //	document.body.style.cursor = "wait";
 	syms = []
@@ -258,30 +257,35 @@ function render2() {
 				elt_ref.diverr.innerHTML ? 'inline' : 'none';
 }
 
+// get the source offset from the row and column numbers
+function soffs(r, c) {
+    var	m,
+	s = elt_ref.source,
+	o = 0
+	while (--r >= 0) {
+		o = s.value.indexOf('\n', o) + 1
+		if (o <= 0)
+			return s.value.length - 1
+	}
+	m = s.value.indexOf('\n', o)	// check if inside the line
+	o += c
+	if (o > m)
+		o = m
+	return o
+} // soffs()
+
 // select a source ABC element on error
 function gotoabc(l, c) {
-	var	s = elt_ref.source,
-		idx = 0;
 	selsrc(0)
-	while (--l >= 0) {
-		idx = s.value.indexOf('\n', idx) + 1
-		if (idx <= 0) {
-			alert(texts.bad_nb);
-			idx = s.value.length - 1;
-			c = 0
-			break
-		}
-	}
-	c = Number(c) + idx;
+	c = soffs(l, Number(c))
 	s.focus();
-	s.setSelectionRange(c, syms[c].iend || c + 1)
+	s.setSelectionRange(c, syms[c] ? syms[c].iend : c + 1)
 }
 
 // click in the target
 function selsvg(evt) {
     var	v,
-	elt = evt.target,
-	cl = elt.getAttribute('class')
+	cl = evt.target.getAttribute('class')
 
 	play.loop = false;
 
@@ -291,14 +295,14 @@ function selsvg(evt) {
 	// remove the context menu if active
 	if (ctxMenu && ctxMenu.style.display == "block") {
 		ctxMenu.style.display = "none"
-		return false
+		return
 	}
 
 	// stop playing
 	if (play.playing && !play.stop) {
 		play.stop = -1;
 		play.abcplay.stop()
-		return false
+		return
 	}
 
 	// highlight the clicked element or clear the selection start
@@ -500,8 +504,7 @@ function endplay(repv) {
 function play_tune(what) {
     var	i, si, ei, elt,
 	C = abc2svg.C,
-	tunes = abc.tunes,
-	s = elt_ref.source.value
+	tunes = abc.tunes
 
 	if (play.playing) {
 		if (!play.stop) {
@@ -626,7 +629,7 @@ function play_tune(what) {
 			elt = tunes.shift()
 			if (!elt)
 				break
-			play.abcplay.add(elt[0], elt[1])
+			play.abcplay.add(elt[0], elt[1], elt[3])
 		}
 
 		play.si = play.ei = null
@@ -821,34 +824,48 @@ function edit_init() {
 }
 
 // drag and drop
-function drag_over(evt) {
+function drag_enter(evt) {
 	evt.stopImmediatePropagation();
 	evt.preventDefault()	// allow drop
+//fixme: "move" does not work
+//	evt.dataTransfer.dropEffect = evt.ctrlKey ? "move" : "copy"
 }
-function dropped(evt) {
+function drop(evt) {
 	evt.stopImmediatePropagation();
 	evt.preventDefault()
 	// check if text
 	var data = evt.dataTransfer.getData("text")
-	if (data) {
-		evt.target.value = data;
+	if (data) {			// insert the text at the mouse location
+	    var	x = evt.layerX,
+		y = elt_ref.source.scrollTop + evt.layerY,
+		h = elt_ref.source.offsetHeight / elt_ref.source.rows,
+		w = elt_ref.source.offsetWidth / elt_ref.source.cols
+
+		w = (x / w) | 0		// column
+		h = (y / h) | 0		// row
+		h = soffs(h, w)
+
+	    var	e = evt.target
+		e.value = e.value.slice(0, h)
+			+ data
+			+ e.value.slice(h)
 		src_change()
 		return
 	}
 	// check if file
 	data = evt.dataTransfer.files	// FileList object.
-	if (data.length != 0) {
+	if (data.length) {
 		var reader = new FileReader();
 		reader.onload = function(evt) {
 			elt_ref.source.value = evt.target.result;
 			src_change()
 		}
 		reader.readAsText(data[0],"UTF-8")
-		return
+//		return
 	}
 }
 
-// render the music after 2 seconds on textarea change
+// render the music 2 seconds after source change
 var timer
 function src_change() {
 	clearTimeout(timer);
@@ -857,4 +874,4 @@ function src_change() {
 }
 
 // wait for scripts to be loaded
-setTimeout(edit_init, 500)
+window.addEventListener("load", edit_init)

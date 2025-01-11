@@ -1,6 +1,6 @@
 // abc2svg - abc2svg.js
 //
-// Copyright (C) 2014-2019 Jean-Francois Moine
+// Copyright (C) 2014-2020 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -57,6 +57,12 @@ abc2svg.C = {
 	SL_HIDDEN: 0x04,
 	SL_DOTTED: 0x08		// (modifier bit)
     };
+
+// !! tied to the symbol types in abc2svg.js !!
+abc2svg.sym_name = ['bar', 'clef', 'custos', '', 'grace',
+		'key', 'meter', 'Zrest', 'note', 'part',
+		'rest', 'yspace', 'staves', 'Break', 'tempo',
+		'', 'block', 'remark']
 
 	// key table - index = number of accidentals + 7
 abc2svg.keys = [
@@ -142,6 +148,56 @@ abc2svg.b40m = function(b) {
 	return ((b / 40) | 0) * 12 + abc2svg.b40_m[b % 40]
 } // b40m()
 
+// chord table
+// This table is used in various modules
+// to convert the types of chord symbols to a minimum set.
+// More chord types may be added by the command %%chordalias.
+abc2svg.ch_alias = {
+	"maj": "",
+	"min": "m",
+	"-": "m",
+	"°": "dim",
+	"+": "aug",
+	"+5": "aug",
+	"maj7": "M7",
+	"Δ7": "M7",
+	"Δ": "M7",
+	"min7": "m7",
+	"-7": "m7",
+	"ø7": "m7b5",
+	"°7": "dim7",
+	"min+7": "m+7",
+	"aug7": "+7",
+	"7+5": "+7",
+	"7#5": "+7",
+	"sus": "sus4",
+	"7sus": "7sus4"
+} // ch_alias
+
+// simplify a rational number n/d
+abc2svg.rat = function(n, d) {
+    var	a, t,
+	n0 = 0,
+	d1 = 0,
+	n1 = 1,
+	d0 = 1
+	while (1) {
+		if (d == 0)
+			break
+		t = d
+		a = (n / d) | 0
+		d = n % d
+		n = t
+		t = n0 + a * n1
+		n0 = n1
+		n1 = t
+		t = d0 + a * d1
+		d0 = d1
+		d1 = t
+	}
+	return [n1, d1]
+} // rat()
+
 // compare pitches
 // This function is used to sort the note pitches
 abc2svg.pitcmp = function(n1, n2) { return n1.pit - n2.pit }
@@ -184,6 +240,7 @@ var	OPEN_BRACE = 0x01,
 var errs = {
 	bad_char: "Bad character '$1'",
 	bad_grace: "Bad character in grace note sequence",
+	bad_transp: "Bad transpose value",
 	bad_val: "Bad value in $1",
 	bar_grace: "Cannot have a bar in grace notes",
 	ignored: "$1: inside tune - ignored",
@@ -195,7 +252,8 @@ var errs = {
 	not_enough_n: 'Not enough notes/rests for %%repeat',
 	not_enough_m: 'Not enough measures for %%repeat',
 	not_enough_p: "Not enough parameters in %%map",
-	not_in_tune: "Cannot have '$1' inside a tune"
+	not_in_tune: "Cannot have '$1' inside a tune",
+	notransp: "Cannot transpose with a temperament"
 }
 
     var	self = this,				// needed for modules
@@ -204,7 +262,7 @@ var errs = {
 			type: C.METER,		// meter in tune header
 			wmeasure: 1,		// no M:
 			a_meter: []		// default: none
-		}
+		},
 	},
 	info = {},			// information fields
 	parse = {
@@ -224,7 +282,7 @@ function clone(obj, lvl) {
 	var tmp = new obj.constructor
 	for (var k in obj)
 	    if (obj.hasOwnProperty(k)) {
-		if (lvl && typeof obj[k] == 'object')
+		if (lvl && typeof obj[k] != "number")
 			tmp[k] = clone(obj[k], lvl - 1)
 		else
 			tmp[k] = obj[k]
@@ -275,6 +333,11 @@ function error(sev, s, msg, a1, a2, a3, a4) {
 
 	if (!sev && cfmt.quiet)
 		return
+	if (s) {
+		if (s.err)		// only one error message per symbol
+			return
+		s.err = true
+	}
 	if (user.textrans) {
 		tmp = user.textrans[msg]
 		if (tmp)
@@ -329,7 +392,7 @@ function syntax(sev, msg, a1, a2, a3, a4) {
 // inject javascript code
 function js_inject(js) {
 	if (!/eval *\(|Function|setTimeout|setInterval/.test(js))
-		eval('"use strict"\n' + js)
+		eval('"use strict";\n' + js)
 	else
 		syntax(1, "Unsecure code")
 }

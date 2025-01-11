@@ -18,7 +18,7 @@
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
 function lead(tsfirst, voice_tb, music_types, info) {
-    var	C = abc2svg.C
+    var	C = abc2svg.C,
 	s, beat, cur_beat, i,
 	line = '';
 
@@ -51,6 +51,8 @@ function lead(tsfirst, voice_tb, music_types, info) {
 			line += '/ ';
 			cur_beat += beat
 		}
+		if (s.soln)
+			line += '\n'
 		switch (s.type) {
 		case C.NOTE:
 		case C.REST:
@@ -65,17 +67,17 @@ function lead(tsfirst, voice_tb, music_types, info) {
 			}
 			break
 		case C.BAR:
-			if (s.eoln) {
-				if (s.bar_type == '::')
-					line += ':|\n|: '
-				else
-					line += s.bar_type +'\n'
-			} else {
+//			if (s.eoln) {
+//				if (s.bar_type == '::')
+//					line += ':|\n|: '
+//				else
+//					line += s.bar_type +'\n'
+//			} else {
 				if (s.bar_type == '::')
 					line += ':|: '
 				else
 					line += s.bar_type + ' '
-			}
+//			}
 			cur_beat = s.time	// re-synchronize
 			break
 		case C.METER:

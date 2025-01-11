@@ -1,4 +1,4 @@
-# rules for ninja (ninja-build)
+# rules for ninja (ninja-build) or samurai
 
 # minifying with 'jsmin' or 'uglifyjs' may be disabled by running
 #	NOMIN=1 ninja -v
@@ -24,7 +24,7 @@ rule font
 
 rule jsc
   command = VERSION=`grep '"version"' package.json|cut -d'"' -f4`;$
-   if command -v fossil >/dev/null 2>&1; then $
+   if [ -e .fslckout ] && command -v fossil >/dev/null 2>&1; then $
 	c=`fossil info | grep checkout:`;$
 	t=`fossil info | grep tags: | awk '{print $$NF}'`;$
 	if [ "$${t#v}" != "$$VERSION" ]; then $
@@ -32,7 +32,7 @@ rule jsc
 	fi;$
 	DATE=`echo $$c | cut -d' ' -f3`;$
    else $
-	DATE=`date '+%Y-%m-%d' -r package.json`;$
+	DATE=`date -r package.json '+%Y-%m-%d'`;$
    fi;$
    cp core/license $out;$
    if [ "x$$NOMIN" = "x" ]; then $
@@ -98,19 +98,27 @@ build mei2svg-$MAJOR.js: jsc core/abc2svg.js core/deco.js core/draw.js $
 build ambitus-$MAJOR.js: jscu modules/ambitus.js
 build break-$MAJOR.js: jscu modules/break.js
 build capo-$MAJOR.js: jscu modules/capo.js
-build clair-$MAJOR.js: jscu util/midi.js modules/clair.js
+build chordnames-$MAJOR.js: jscu modules/chordnames.js
+build clair-$MAJOR.js: jscu modules/clair.js
 build clip-$MAJOR.js: jscu modules/clip.js
 build combine-$MAJOR.js: jscu modules/combine.js
 build diag-$MAJOR.js: jscu modules/diag.js
 build equalbars-$MAJOR.js: jscu modules/equalbars.js
+build gamelan-$MAJOR.js: jscu modules/gamelan.js
 build grid-$MAJOR.js: jscu modules/grid.js
 build grid2-$MAJOR.js: jscu modules/grid2.js
+build grid3-$MAJOR.js: jscu modules/grid3.js
+build jazzchord-$MAJOR.js: jscu modules/jazzchord.js
+build jianpu-$MAJOR.js: jscu modules/jianpu.js
+build mdnn-$MAJOR.js: jscu modules/mdnn.js
 build MIDI-$MAJOR.js: jscu modules/MIDI.js
 build page-$MAJOR.js: jscu modules/page.js modules/strftime.js
+build pedline-$MAJOR.js: jscu modules/pedline.js
 build perc-$MAJOR.js: jscu modules/perc.js
 build psvg-$MAJOR.js: jscu modules/wps.js modules/psvg.js
 build soloffs-$MAJOR.js: jscu modules/soloffs.js
 build sth-$MAJOR.js: jscu modules/sth.js
+build strtab-$MAJOR.js: jscu modules/strtab.js
 build temper-$MAJOR.js: jscu modules/temper.js
 
 build edit-$MAJOR.css: cp editor/edit.css
@@ -119,15 +127,16 @@ build abcdoc-$MAJOR.js: jscu util/abcdoc.js
 build abcemb-$MAJOR.js: jscu util/abcemb.js
 build abcemb1-$MAJOR.js: jscu util/abcemb1.js
 build abcemb2-$MAJOR.js: jscu util/abcemb2.js
-build abcweb2-$MAJOR.js: jscu util/abcweb2.js
-build follow-$MAJOR.js: jscu util/follow.js
+build abcweb-$MAJOR.js: jscu util/abcweb.js
+build abcweb1-$MAJOR.js: jscu util/abcweb1.js
+build abcweb2-$MAJOR.js: jscu util/abcweb.js
+build chord-$MAJOR.js: jscu util/chord.js
 build json-$MAJOR.js: jscu util/json.js
-build setmidi-$MAJOR.js: jscu util/midi.js
 build toaudio-$MAJOR.js: jscu util/toaudio.js
 build play-$MAJOR.js: jscu util/play.js util/toaudio.js $
- util/toaudio5.js util/midi.js util/sf2-parser.js util/tomidi5.js
+ util/toaudio5.js util/sf2-parser.js util/tomidi5.js util/follow.js
 build snd-$MAJOR.js: jscu util/play.js util/sndgen.js $
- util/sndaud.js util/midi.js util/sf2-parser.js util/sndmid.js
+ util/sndaud.js util/sf2-parser.js util/sndmid.js util/follow.js
 
 build edit-$MAJOR.xhtml: cpm editor/edit.xhtml
 build abckbd-$MAJOR.js: edit editor/abckbd.js
@@ -136,12 +145,15 @@ build edit-$MAJOR.js: edit editor/edit.js
 
 build all: phony abc2svg-$MAJOR.js abcdoc-$MAJOR.js $
  abcemb-$MAJOR.js abcemb1-$MAJOR.js abcemb2-$MAJOR.js $
- abcweb2-$MAJOR.js $
- json-$MAJOR.js $
- setmidi-$MAJOR.js toaudio-$MAJOR.js snd-$MAJOR.js play-$MAJOR.js psvg-$MAJOR.js $
- ambitus-$MAJOR.js break-$MAJOR.js capo-$MAJOR.js clair-$MAJOR.js clip-$MAJOR.js $
- combine-$MAJOR.js diag-$MAJOR.js equalbars-$MAJOR.js grid-$MAJOR.js grid2-$MAJOR.js $
- MIDI-$MAJOR.js page-$MAJOR.js perc-$MAJOR.js soloffs-$MAJOR.js sth-$MAJOR.js $
+ abcweb-$MAJOR.js abcweb1-$MAJOR.js abcweb2-$MAJOR.js chord-$MAJOR.js $
+ json-$MAJOR.js toaudio-$MAJOR.js snd-$MAJOR.js play-$MAJOR.js psvg-$MAJOR.js $
+ ambitus-$MAJOR.js break-$MAJOR.js capo-$MAJOR.js $
+ chordnames-$MAJOR.js clair-$MAJOR.js clip-$MAJOR.js $
+ combine-$MAJOR.js diag-$MAJOR.js equalbars-$MAJOR.js gamelan-$MAJOR.js $
+ grid-$MAJOR.js grid2-$MAJOR.js grid3-$MAJOR.js jianpu-$MAJOR.js $
+ jazzchord-$MAJOR.js  mdnn-$MAJOR.js $
+ MIDI-$MAJOR.js page-$MAJOR.js pedline-$MAJOR.js perc-$MAJOR.js $
+ soloffs-$MAJOR.js sth-$MAJOR.js strtab-$MAJOR.js $
  temper-$MAJOR.js edit-$MAJOR.css edit-$MAJOR.js edit-$MAJOR.xhtml $
  abckbd-$MAJOR.js abckbd2-$MAJOR.js follow-$MAJOR.js
 # not mei2svg-$MAJOR.js
@@ -151,9 +163,14 @@ default all
 # npm/fossil new release
 rule version
   command = npm version $out;$
-	tag=`ag '"version"' package.json|cut -d'"' -f4`;$
+	tag=`ag -Q '"version"' package.json|cut -d'"' -f4`;$
 	fossil commit -m "New release v$$tag" -tag v$$tag;$
 	$tool -v;$
 	npm publish
 build minor: version
 build patch: version
+
+# temporary
+rule nul
+  command = touch $out
+build follow-$MAJOR.js: nul

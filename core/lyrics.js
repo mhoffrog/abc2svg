@@ -109,10 +109,9 @@ function get_sym(p, cont) {
 			deco_cnv([d.slice(1, -1)], s, s.prev)
 			break
 		case '"':
-			a_gch = s.a_gch;
 			parse_gchord(d)
-			if (a_gch)
-				self.gch_build(s)
+			if (a_gch)			// if no error
+				csan_add(s)
 			break
 		}
 		s = s.next;
@@ -123,7 +122,7 @@ function get_sym(p, cont) {
 
 /* -- parse a lyric (vocal) line (w:) -- */
 function get_lyrics(text, cont) {
-	var s, word, p, i, j, ly
+    var s, word, p, i, j, ly, dfnt
 
 	if (curvoice.ignore)
 		return
@@ -156,6 +155,7 @@ function get_lyrics(text, cont) {
 	}
 
 	/* scan the lyric line */
+	dfnt = gene.curfont			// font at start of line
 	p = text;
 	i = 0
 	while (1) {
@@ -232,10 +232,9 @@ function get_lyrics(text, cont) {
 		if (word
 		 && s.pos.voc != C.SL_HIDDEN) {
 			if (word.match(/^\$\d/)) {
-				if (word[1] == '0')
-					set_font("vocal")
-				else
-					set_font("u" + word[1]);
+				gene.curfont = word[1] == '0' ?
+						dfnt :
+						get_font("u" + word[1])
 				word = word.slice(2)
 			}
 			ly = {

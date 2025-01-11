@@ -1,6 +1,6 @@
 // abc2svg - front.js - ABC parsing front-end
 //
-// Copyright (C) 2014-2019 Jean-Francois Moine
+// Copyright (C) 2014-2020 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -63,7 +63,7 @@ var oct_acc = {
 }
 
 // convert the escape sequences to utf-8
-function cnv_escape(src) {
+function cnv_escape(src, flag) {
 	var	c, c2,
 		dst = "",
 		i, j = 0
@@ -95,11 +95,20 @@ function cnv_escape(src) {
 				j = i + 1
 				continue
 			}
-			dst += String.fromCharCode(j);
+			c = String.fromCharCode(j)
+			if (c == '\\') {
+				i += 4
+				break
+			}
+			dst += c
 			j = i + 5
 			continue
 		case 't':			// TAB
 			dst += ' ';
+			j = i + 1
+			continue
+		case 'n':			// new line (voice name)
+			dst += '\n';
 			j = i + 1
 			continue
 		default:
@@ -174,7 +183,9 @@ function cnv_escape(src) {
 			}
 			break
 		}
-		dst += '\\' + c;
+		if (flag == 'w')
+			dst += '\\'
+		dst += c
 		j = i + 1
 	}
 	return dst + src.slice(j)
@@ -241,25 +252,31 @@ function tosvg(in_fname,		// file name
 	} // tune_selected()
 
 	// remove the comment at end of text
-	function uncomment(src, do_escape) {
+	// if flag, handle the escape sequences
+	// if flag is 'w' (lyrics), keep the '\'s
+	function uncomment(src, flag) {
 		if (!src)
 			return src
-		if (src.indexOf('%') >= 0)
+	    var	i = src.indexOf('%')
+		if (i == 0)
+			return ''
+		if (i > 0)
 			src = src.replace(/([^\\])%.*/, '$1')
 				 .replace(/\\%/g, '%');
 		src = src.replace(/\s+$/, '')
-		if (do_escape && src.indexOf('\\') >= 0)
-			return cnv_escape(src)
+		if (flag && src.indexOf('\\') >= 0)
+			return cnv_escape(src, flag)
 		return src
 	} // uncomment()
 
 	function end_tune() {
 		generate()
+		set_page()		// the page layout may have changed
 		if (info.W)
 			put_words(info.W);
 		put_history();
-		blk_flush();
-		parse.state = 0;		// file header
+		parse.state = 0		// file header
+		blk_flush()		// (force end of block)
 		cfmt = sav.cfmt;
 		info = sav.info;
 		char_tb = sav.char_tb;
@@ -574,8 +591,9 @@ function tosvg(in_fname,		// file name
 			last_info = undefined;
 			if (parse.state < 2)
 				continue
-			parse.line.buffer = uncomment(file.slice(bol, eol), true);
-			parse_music_line()
+			parse.line.buffer = uncomment(file.slice(bol, eol))
+			if (parse.line.buffer)
+				parse_music_line()
 			continue
 		}
 
@@ -590,7 +608,6 @@ function tosvg(in_fname,		// file name
 			}
 			break
 		}
-		text = uncomment(file.slice(bol, eol), true)
 		if (line0 == '+') {
 			if (!last_info) {
 				syntax(1, "+: without previous info field")
@@ -599,6 +616,7 @@ function tosvg(in_fname,		// file name
 			txt_add = ' ';		// concatenate
 			line0 = last_info
 		}
+		text = uncomment(file.slice(bol, eol), line0)
 
 		switch (line0) {
 		case 'X':			// start of tune
@@ -624,6 +642,9 @@ function tosvg(in_fname,		// file name
 			sav.maci = clone(maci);
 			info.X = text;
 			parse.state = 1			// tune header
+			if (user.page_format
+			 && blkdiv < 1)		// (if no newpage)
+				blkdiv = 1	// the tune starts by the next SVG
 			if (parse.tune_opts)
 				tune_filter()
 			continue

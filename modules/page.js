@@ -1,6 +1,6 @@
-// page.js - module to generate one SVG image per page
+// page.js - module to generate pages
 //
-// Copyright (C) 2018-2019 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2020 Jean-Francois Moine - GPL3+
 //
 // This module is loaded when "%%pageheight" appears in a ABC source.
 //
@@ -15,15 +15,10 @@ abc2svg.page = {
 
 	page.user_out(p)
 	
-	// user.img_out may have been changed ..
+	// if user.img_out has been changed
 	if (user.img_out != cur_img_out) {
-		page.user_out = user.img_out;
-		if (cur_img_out == page.img_out_sav) {	// .. by the backend
-			user.img_out = abc2svg.page.img_in.bind(page.abc);
-			page.img_out_sav = user.img_out	// keep our reference
-		} else {
-			user.img_out = cur_img_out	// .. by an other extension
-		}
+		page.user_out = user.img_out	// save the new function
+		user.img_out = cur_img_out	// and restore ours
 	}
     },
 
@@ -39,8 +34,10 @@ abc2svg.page = {
     }, // abc_end()
 
     // generate a header or a footer in page.hf and return its height
-    gen_hf: function(page, up, font, str) {
+    gen_hf: function(page, ty) {
     var	a, i, j, k, x, y, y0, s,
+	font = page.abc.get_font(ty),
+	str = page[ty],
 	cfmt = page.abc.cfmt(),
 	fh = font.size * 1.1,
 	pos = [ '">',
@@ -103,11 +100,14 @@ abc2svg.page = {
 			case 'd':
 				if (!abc2svg.get_mtime)
 					break // cannot know the change time of the file
-				r[j] += strftime(cfmt.dateformat,
-						abc2svg.get_mtime(page.abc.parse.fname))
-				break
+				t = abc2svg.get_mtime(page.abc.parse.fname)
+				// fall thru
 			case 'D':
-				r[j] += strftime(cfmt.dateformat)
+				if (c == 'D')
+					t = new Date()
+				if (cfmt.dateformat[0] == '"')
+					cfmt.dateformat = cfmt.dateformat.slice(1, -1)
+				r[j] += strftime(cfmt.dateformat, t)
 				break
 			case 'F':
 				r[j] += page.abc.parse.fname
@@ -115,7 +115,7 @@ abc2svg.page = {
 			case 'I':
 				c = str[++i]
 			case 'T':
-				t = abc.info()[c]
+				t = page.abc.info()[c]
 				if (t)
 					r[j] += t.split('\n', 1)[0]
 				break
@@ -222,11 +222,10 @@ abc2svg.page = {
     // start a new page
     open_page: function(page,
 			ht) {	// spacing under the header
-    var	h, o_font,
-//	font_style,
+    var	h, l,
 	abc = page.abc,
 	cfmt = abc.cfmt(),
-	sty = ""
+	sty = '<div style="line-height:0'
 
 	page.pn++
 	page.pna++
@@ -235,28 +234,34 @@ abc2svg.page = {
 	if (page.first)
 		page.first = false
 	else
-		sty = "page-break-before:always"
+		sty += ";page-break-before:always"
 	if (page.gutter)
-		sty += (sty ? ";" : "") + "margin-left:" +
+		sty += ";margin-left:" +
 			((page.pn & 1) ? page.gutter : -page.gutter).toFixed(1) + "px"
-	abc2svg.page.img_out(page, sty ?
-			'<div style="' + sty + '">' :
-			'<div>')
+	abc2svg.page.img_out(page, sty + '">')
 	page.in_page = true
 
-	page.hmax = cfmt.pageheight - page.topmargin - page.botmargin - ht
+	ht += page.topmargin
+	page.hmax = cfmt.pageheight - page.botmargin - ht
 
 	// define the header/footer
 	page.hf = ''
 	if (page.header) {
-		h = abc2svg.page.gen_hf(page, true,
-					abc.get_font("header"), page.header)
+		l = abc.get_font_style().length
+		h = abc2svg.page.gen_hf(page, "header")
+		sty = abc.get_font_style().slice(l)		// new style(s)
+		if (cfmt.fullsvg || sty != page.hsty) {
+			page.hsty = sty
+			sty = '<style>' + sty + '\n</style>\n'
+		} else {
+			sty = ''
+		}
 		abc2svg.page.img_out(page,
 			'<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
 	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
 	width="' + cfmt.pagewidth.toFixed(0) +
-			'px" height="' + (page.topmargin + ht + h).toFixed(0) +
-			'px">\n' +
+			'px" height="' + (ht + h).toFixed(0) +
+			'px">\n' + sty +
 			'<g transform="translate(0,' +
 				page.topmargin.toFixed(1) + ')">' +
 				page.hf + '</g>\n</svg>')
@@ -271,8 +276,15 @@ abc2svg.page = {
 			'px">\n</svg>')
 	}
 	if (page.footer) {
-		page.fh = abc2svg.page.gen_hf(page, false,
-					abc.get_font("footer"), page.footer)
+		l = abc.get_font_style().length
+		page.fh = abc2svg.page.gen_hf(page, "footer")
+		sty = abc.get_font_style().slice(l)		// new style(s)
+		if (cfmt.fullsvg || sty != page.fsty) {
+			page.fsty = sty
+			page.ffsty = '<style>' + sty + '\n</style>\n'
+		} else {
+			page.ffsty = ''
+		}
 		page.hmax -= page.fh
 	}
 
@@ -291,7 +303,8 @@ abc2svg.page = {
 	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
 	width="' + cfmt.pagewidth.toFixed(0) +
 			'px" height="' + h.toFixed(0) +
-			'px">\n<g transform="translate(0,' +
+			'px">\n' + page.ffsty +
+			'<g transform="translate(0,' +
 				(h - page.fh).toFixed(1) + ')">' +
 			page.hf + '</g>\n</svg>')
 	}
@@ -301,52 +314,58 @@ abc2svg.page = {
 
     // handle the output flow of the abc2svg generator
     img_in: function(p) {
-    var h, ht,
+    var h, ht, nh,
 	page = this.page
 
 	// copy a block
 	function blkcpy(page) {
-	    var b
-
-		if (!page.blk.length) {
-			page.blk = null
-			return
-		}
-		page.h = page.hb
-		while (page.blk.length) {
-			b = page.blk.shift()
-			abc2svg.page.img_out(page, b.p)
-			page.h += b.h
-		}
+		while (page.blk.length)
+			abc2svg.page.img_out(page, page.blk.shift())
 		page.blk = null			// direct output
 	} // blkcpy()
 
 	// img_in()
 	switch (p.slice(0, 4)) {
-	case "<div":				// new block (tune / paragraph)
+	case "<div":				// block of new tune
 		if (p.indexOf('newpage') > 0
 		 || (page.oneperpage && this.info().X)
-		 || !page.h)			// empty page
+		 || !page.h) {			// empty page
+			if (page.in_page)
+				abc2svg.page.close_page(page)
 			abc2svg.page.open_page(page, 0)
+		}
 		page.blk = []			// in block
 		page.hb = page.h		// keep the offset of the start of tune
 		break
 	case "<svg":				// SVG image
 		h = Number(p.match(/height="(\d+)px"/)[1])
-		if (h + page.h >= page.hmax) {	// if page overflow
-			if (page.blk)		// if inside a block
-				blkcpy(page)	// output the beginning of the tune
-
+		while (h + page.h >= page.hmax) { // if (still) page overflow
 			ht = page.blk ? 0 :
 				this.cfmt().topspace // tune continuation
-//			if (page.in_page)
-				abc2svg.page.close_page(page)
+
+			if (page.blk) {
+				if (!page.hb) {	// overflow on the first page
+					blkcpy(page)
+					nh = 0
+				} else {
+					nh = page.h - page.hb
+					page.h = page.hb
+				}
+			}
+			abc2svg.page.close_page(page)
 			abc2svg.page.open_page(page, ht)
+
+			if (page.blk) {		// if inside a block
+				blkcpy(page)	// output the beginning of the tune
+				page.h = nh
+			}
+			if (h > page.hmax)
+				break		// error
 		}
 
 		// if no overflow yet, keep the block
 		if (page.blk)
-			page.blk.push({p: p, h: h})
+			page.blk.push(p)
 		else
 			abc2svg.page.img_out(page, p)
 		page.h += h
@@ -370,7 +389,7 @@ abc2svg.page = {
 	if (cmd == "pageheight") {
 		v = this.get_unit(parm)
 		if (isNaN(v)) {
-			this.syntax(1, errs.bad_val, '%%' + cmd)
+			this.syntax(1, this.errs.bad_val, '%%' + cmd)
 			return
 		}
 		cfmt.pageheight = v
@@ -400,17 +419,17 @@ abc2svg.page = {
 			}
 
 			// get the previously defined page parameters
-			if (cfmt.botmargin) {
+			if (cfmt.botmargin != undefined) {
 				v = this.get_unit(cfmt.botmargin)
 				if (!isNaN(v))
 					page.botmargin = v
 			}
-			if (cfmt.topmargin) {
+			if (cfmt.topmargin != undefined) {
 				v = this.get_unit(cfmt.topmargin)
 				if (!isNaN(v))
 					page.topmargin = v
 			}
-			if (cfmt.gutter) {
+			if (cfmt.gutter != undefined) {
 				v = this.get_unit(cfmt.gutter)
 				if (!isNaN(v))
 					page.gutter = v
@@ -439,7 +458,7 @@ abc2svg.page = {
 				break
 			v = Number(parm)
 			if (isNaN(v)) {
-				this.syntax(1, errs.bad_val, '%%' + cmd)
+				this.syntax(1, this.errs.bad_val, '%%' + cmd)
 				return
 			}
 			page.pn = v - 1
@@ -449,7 +468,7 @@ abc2svg.page = {
 		case "topmargin":
 			v = this.get_unit(parm)
 			if (isNaN(v)) {
-				this.syntax(1, errs.bad_val, '%%' + cmd)
+				this.syntax(1, this.errs.bad_val, '%%' + cmd)
 				return
 			}
 			page[cmd] = v
@@ -464,6 +483,8 @@ abc2svg.page = {
 
     set_hooks: function(abc) {
 	abc.set_format = abc2svg.page.set_fmt.bind(abc, abc.set_format)
+	user.page_format = true			// do page formatting
+	abc.set_pagef()
     }
 } // page
 

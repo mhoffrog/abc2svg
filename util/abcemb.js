@@ -1,7 +1,7 @@
 //#javascript
 // abcemb-1.js file to include in html pages with abc2svg-1.js
 //
-// Copyright (C) 2014-2019 Jean-Francois Moine
+// Copyright (C) 2014-2020 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -30,7 +30,9 @@ window.onerror = function(msg, url, line) {
 	return false
 }
 
-var abc2svg = {}
+    var user
+if (typeof abc2svg == "undefined")
+    var abc2svg = {}
 
 // function called when abc2svg is fully loaded
 function dom_loaded() {
@@ -55,6 +57,13 @@ var	errtxt = '',
 			return ""	// ??
 	})(),
 
+// play arguments
+    playconf = {
+	onend: function() {
+		playing = false
+	}
+    }
+
 // -- abc2svg init argument
     user = {
 	errmsg: function(msg, l, c) {	// get the errors
@@ -64,13 +73,6 @@ var	errtxt = '',
 		new_page += str
 	},
 	page_format: true		// define the non-page-breakable blocks
-    };
-
-// play arguments
-    playconf = {
-	onend: function() {
-		playing = false
-	}
     }
 
 // replace <>& by XML character references

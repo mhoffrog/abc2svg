@@ -1,6 +1,6 @@
 // perc.js - module to handle %%percmap
 //
-// Copyright (C) 2018-2019 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2020 Jean-Francois Moine - GPL3+
 //
 // This module is loaded when "%%percmap" appears in a ABC source.
 //
@@ -162,22 +162,14 @@ var prn = {
 	return abc2svg.pab40(pit, acc)
     } // abc_b40()
 
-    // convert a MIDI pitch to b40
-    function mid_b40(pit) {
-    var	o = (pit / 12) | 0		// octave
-	pit = pit % 12;			// in octave
-	return o * 40 + abc2svg.isb40[pit] + 2
-    } // mid_b40()
-
-    // convert a drum instrument to b40
-    function tob40(p) {
-    var	i, j, s,
+    // convert a drum instrument to a pitch
+    function topit(p) {
+    var	i, j, s, b40,
 	pit = Number(p)
 
 	if (isNaN(pit)) {		// not a MIDI pitch
-		s = abc_b40(p)		// try a ABC note
-		if (s)
-			return s
+	    b40 = abc_b40(p)		// try a ABC note
+	    if (!b40) {
 
 		// try a drum instrument name
 		p = p.toLowerCase(p);
@@ -218,8 +210,17 @@ var prn = {
 			if (!pit)
 				return
 		}
+	    }
 	}
-	return mid_b40(pit)
+	if (!b40) {
+		p = (pit / 12) | 0		// octave
+		pit = pit % 12;			// in octave
+		b40 = p * 40 + abc2svg.isb40[pit] + 2
+	}
+	return {
+		pit: abc2svg.b40p(b40),
+		acc: abc2svg.b40a(b40)
+	}
     } // tob40()
 
     // do_perc()
@@ -238,8 +239,9 @@ var prn = {
 		acc: 0
 	}
 
-	vpl = tob40(a[2])			// play
-	if (!vpl) {
+	vpl = topit(a[2])				// play
+
+	if (!vpl.pit) {
 		this.syntax(1, this.errs.bad_val, "%%percmap")
 		return
 	}

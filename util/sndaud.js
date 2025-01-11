@@ -1,6 +1,6 @@
-// sndaud5.js - audio output using HTML5 audio
+// sndaud.js - audio output using HTML5 audio
 //
-// Copyright (C) 2019 Jean-Francois Moine
+// Copyright (C) 2019-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -29,15 +29,9 @@
 //		Arguments:
 //			i: start index of the note in the ABC source
 //			on: true on note start, false on note stop
-//	instr_load: function to load the sound font of an instrument
-//			(optional)
-//		Arguments:
-//			instr: MIDI instrument number
-//			done: callback function in case of success
-//				Arguments: soundfont in binary format
-//			fail: callback function in case of error
-//				no argument
 //	errmsg: function called on error (default: alert)
+//		Arguments:
+//			error message
 //
 //  When playing, the following items must/may be set:
 //	gain: (mandatory) volume, must be set to [0..1]
@@ -62,40 +56,20 @@
     var	abcsf2 = []			// SF2 instruments
 
 function Audio5(i_conf) {
-    var	C = abc2svg.C,
+    var	po,			// play object
 	conf = i_conf,		// configuration
-	onend = function() {},
-	onnote = function() {},
-	errmsg = alert,
+	empty = function() {},
+	errmsg,
 	ac,			// audio context
 	gain,			// global gain
 
 	// instruments/notes
+	parser,			// SF2 parser
+	presets,		// array of presets
 	instr = [],		// [voice] bank + instrument
 	params = [],		// [instr][key] note parameters per instrument
 	rates = [],		// [instr][key] playback rates
-	w_instr = 0,		// number of instruments being loaded
-
-	// -- play the memorized events --
-	s_cur,			// current music symbol
-	s_end,			// last music symbol / null
-	stop,			// stop playing
-	repn,			// don't repeat when true
-	repv,			// repeat level (variant number)
-	stime,			// start playing time
-	timouts = []		// note start events
-
-	// default sound font load function
-	if (!conf.instr_load) {
-		conf.instr_load = function(instr, done, fail) {
-			abc2svg.loadjs(conf.sfu + '/' + instr + '.js',
-				function() {
-					 done(b64dcod(abcsf2[instr]))
-				},
-				fail
-			)
-		}
-	}
+	w_instr = 0		// number of instruments being loaded
 
 	// base64 stuff
     var b64d = []
@@ -152,33 +126,106 @@ function Audio5(i_conf) {
 	}
 
 	// create all notes of an instrument
-	function sf2_create(parser, instr) {
-	    var i, sid, gen, parm, sampleRate, sample,
-		infos = parser.getInstruments()[0].info
+	function sf2_create(instr) {
+
+		// get the instrument parameters
+		// adapted from getInstruments() in sf2-parser.js
+		function get_instr(i) {
+		    var	instrument = parser.instrument,
+			zone = parser.instrumentZone,
+			j = instrument[i].instrumentBagIndex,
+			jl = instrument[i + 1]
+				? instrument[i + 1].instrumentBagIndex
+				: zone.length,
+			info = []
+
+			while (j < jl) {
+				instrumentGenerator =
+					parser.createInstrumentGenerator_(zone, j)
+//				instrumentModulator =
+//					parser.createInstrumentModulator_(zone, j)
+
+				info.push({
+					generator: instrumentGenerator.generator,
+//					modulator: instrumentModulator.modulator
+				})
+				j++
+			}
+//console.log('instr: '+instrument[i].instrumentName)
+		return {
+//			name: instrument[i].instrumentName,
+			info: info
+		}
+	} // get_instr()
+
+	// sf2_create
+	    var i, j, k, sid, gen, parm, oparm, sample, infos,
+		sampleRate, scale, sm,
+		b = instr >> 7,			// bank
+		p = instr % 0x7f,		// preset
+		pr = presets
 
 		rates[instr] = []
-		for (i = 0; i < infos.length; i++) {
+
+		// search the bank:preset
+		for (i = 0; i < pr.length; i++) {
+			gen = pr[i].header
+			if (gen.preset == p
+			 && gen.bank == b)
+				break
+		}
+		pr = pr[i]
+		if (!pr) {
+			errmsg('unknown instrument ' + b + ':' + p)
+			return			// unknown preset!
+		}
+		pr = pr.info			// list of gen/mod
+		for (k = 0; k < pr.length; k++) {
+		    if (!pr[k].generator.instrument)
+			continue
+		    oparm = {			// default parameters
+			attack: .001,
+			hold: .001,
+			decay: .001,
+			sustain: 0
+//			release: .001
+		    }
+		    sm = 0			// sampleModes
+
+//		    infos = is[pr[k].generator.instrument.amount].info
+		    infos = get_instr(pr[k].generator.instrument.amount).info
+//console.log('infos '+infos.length)
+		    for (i = 0; i < infos.length; i++) {
 			gen = infos[i].generator
+
+			if (gen.attackVolEnv)
+				oparm.attack = Math.pow(2,
+						gen.attackVolEnv.amount / 1200)
+			if (gen.holdVolEnv)
+				oparm.hold = Math.pow(2,
+						gen.holdVolEnv.amount / 1200)
+			if (gen.decayVolEnv)
+				oparm.decay = Math.pow(2,
+						gen.decayVolEnv.amount / 1200) / 3
+			if (gen.sustainVolEnv)
+				oparm.sustain = gen.sustainVolEnv.amount / 1000
+//			if (gen.releaseVolEnv)
+//				oparm.release = Math.pow(2,
+//						gen.releaseVolEnv.amount / 1200)
+
+			parm = Object.create(oparm)	// new parameters
+			if (gen.sampleModes)
+				sm = gen.sampleModes.amount
+
 			if (!gen.sampleID)	// (empty generator!)
 				continue
 			sid = gen.sampleID.amount
 			sampleRate = parser.sampleHeader[sid].sampleRate
 			sample = parser.sample[sid]
-			parm = {
-				attack: Math.pow(2, (gen.attackVolEnv ?
-					gen.attackVolEnv.amount : -12000) / 1200),
-				hold: Math.pow(2, (gen.holdVolEnv ?
-					gen.holdVolEnv.amount : -12000) / 1200),
-				decay: Math.pow(2, (gen.decayVolEnv ?
-					gen.decayVolEnv.amount : -12000) / 1200) / 3,
-				sustain: gen.sustainVolEnv ?
-					(gen.sustainVolEnv.amount / 1000) : 0,
-//				release: Math.pow(2, (gen.releaseVolEnv ?
-//					gen.releaseVolEnv.amount : -12000) / 1200),
-				buffer: ac.createBuffer(1,
-							sample.length,
-							sampleRate)
-			}
+			parm.buffer = ac.createBuffer(1,
+						sample.length,
+						sampleRate)
+
 			parm.hold += parm.attack
 			parm.decay += parm.hold
 
@@ -190,7 +237,7 @@ function Audio5(i_conf) {
 
 			sample_cp(parm.buffer, sample)
 
-			if (gen.sampleModes && (gen.sampleModes.amount & 1)) {
+			if (sm & 1) {
 				parm.loopStart = parser.sampleHeader[sid].startLoop /
 					sampleRate
 				parm.loopEnd = parser.sampleHeader[sid].endLoop /
@@ -198,7 +245,7 @@ function Audio5(i_conf) {
 			}
 
 			// define the notes
-		    var scale = (gen.scaleTuning ?
+			scale = (gen.scaleTuning ?
 					gen.scaleTuning.amount : 100) / 100,
 			tune = (gen.coarseTune ? gen.coarseTune.amount : 0) +
 				(gen.fineTune ? gen.fineTune.amount : 0) / 100 +
@@ -212,17 +259,19 @@ function Audio5(i_conf) {
 							(j + tune) * scale)
 				params[instr][j] = parm
 			}
+		    }
 		}
 	} // sf2_create()
 
 	// load an instrument (.js file)
 	function load_instr(instr) {
 		w_instr++
-		conf.instr_load(instr,
-			function(sf2_bin) {
-			    var	parser = new sf2.Parser(sf2_bin)
+		abc2svg.loadjs(conf.sfu + '/' + instr + '.js',
+			function() {
+				parser = new sf2.Parser(b64dcod(abcsf2[instr]))
 				parser.parse()
-				sf2_create(parser, instr)
+				presets = parser.getPresets()
+				sf2_create(instr)
 				if (--w_instr == 0)
 					play_start()
 			},
@@ -235,33 +284,111 @@ function Audio5(i_conf) {
 			})
 	} // load_instr()
 
-	// start loading the instruments
-	function load_res() {
-	    var i,
-		s = s_cur
+	// load the needed instruments
+	function load_res(s) {
+	    if (abc2svg.sf2
+	     || conf.sfu.slice(-4) == ".sf2"
+	     || conf.sfu.slice(-3) == ".js") {
 
+		// if the soundfont is loaded as .js
+		if (abc2svg.sf2) {
+			if (!parser) {
+				parser = new sf2.Parser(b64dcod(abc2svg.sf2))
+				parser.parse()
+				presets = parser.getPresets()
+			}
+
+		// load the soundfont if no done yet
+		} else if (!parser) {
+		    if (conf.sfu.slice(-3) == ".js") {
+			abc2svg.loadjs(conf.sfu,
+				function() {
+					load_res(s)	// load the instruments
+				},
+				function() {
+					errmsg('could not load the sound file '
+						+ conf.sfu)
+				})
+			return
+		    }
+		    var	r = new XMLHttpRequest()	// .sf2
+			r.open('GET', conf.sfu, true)
+			r.responseType = "arraybuffer"
+			r.onload = function() {
+				if (r.status === 200) {
+					parser = new sf2.Parser(
+							new Uint8Array(r.response))
+					parser.parse()
+					presets = parser.getPresets()
+					load_res(s)	// load the instruments
+				} else {
+					errmsg('could not load the sound file '
+						+ conf.sfu)
+				}
+			}
+			r.onerror = function() {
+					errmsg('could not load the sound file '
+						+ conf.sfu)
+			}
+			r.send()
+			return
+		}
+
+		// create the instruments
 		while (s) {
-			i = s.instr
+		    var	i = s.instr
 			if (i != undefined && !params[i]) {
-				params[i] = []
+				params[i] = []	// instrument being loaded
+				sf2_create(i)
+			}
+			s = s.ts_next
+		}
+		play_start()
+	   } else {
+
+	// (case instruments as base64 encoded js file,
+	//  one file per instrument)
+		w_instr++			// play lock
+		while (s) {
+		    var	i = s.instr
+			if (i != undefined && !params[i]) {
+				params[i] = []	// instrument being loaded
 				load_instr(i)
 			}
 			s = s.ts_next
 		}
-	}
+		if (--w_instr == 0)		// all resources were there already
+			play_start()
+	    }
+	} // load_res()
+
+	// return the play real time in seconds
+	function get_time(po) {
+		return po.ac.currentTime
+	} // get_time()
+
+	// MIDI control
+	function midi_ctrl(po, s, t) {
+		if (s.ctrl == 7)		// if volume
+			s.p_v.vol = s.val / 127
+	} // midi_ctrl()
 
 	// create a note
+	// @po = play object
 	// @s = symbol
 	// @key = MIDI key + detune
 	// @t = audio start time
 	// @d = duration adjusted for speed
-	function note_run(s, key, t, d) {
+	function note_run(po, s, key, t, d) {
 	    var	g, st,
 		instr = s.instr,
-		parm = params[instr][key | 0],
-		o = ac.createBufferSource()
+		k = key | 0
+		parm = po.params[instr][k],
+		o = po.ac.createBufferSource(),
+		v = s.p_v.vol == undefined ? 1 : s.p_v.vol	// volume (gain)
 
-		if (!parm)		// if the instrument could not be loaded
+		if (!v			// mute voice
+		 || !parm)		// if the instrument could not be loaded
 			return		// or if it has not this key
 		o.buffer = parm.buffer
 		if (parm.loopStart) {
@@ -275,212 +402,42 @@ function Audio5(i_conf) {
 				 o.detune.value = dt
 		}
 //		o.playbackRate.setValueAtTime(parm.rate, ac.currentTime)
-		o.playbackRate.value = rates[instr][key]
+		o.playbackRate.value = po.rates[instr][k]
 
-		g = ac.createGain()
+		g = po.ac.createGain()
 		if (parm.hold < 0.002) {
-			g.gain.setValueAtTime(1, t)
+			g.gain.setValueAtTime(v, t)
 		} else {
 			if (parm.attack < 0.002) {
-				g.gain.setValueAtTime(1, t)
+				g.gain.setValueAtTime(v, t)
 			} else {
 				g.gain.setValueAtTime(0, t)
-				g.gain.linearRampToValueAtTime(1, t + parm.attack)
+				g.gain.linearRampToValueAtTime(v, t + parm.attack)
 			}
-			g.gain.setValueAtTime(1, t + parm.hold)
+			g.gain.setValueAtTime(v, t + parm.hold)
 		}
 
-		g.gain.exponentialRampToValueAtTime(parm.sustain,
+		g.gain.exponentialRampToValueAtTime(parm.sustain * v,
 					t + parm.decay)
 
 		o.connect(g)
-		g.connect(gain)
+		g.connect(po.gain)
 
 		// start the note
 		o.start(t)
 		o.stop(t + d)
 	} // note_run()
 
-	// handle a tie
-	function do_tie(s, b40, d) {
-	    var	i, note,
-		v = s.v,
-		end_time = s.time + s.dur
-
-		// search the end of the tie
-		while (1) {
-			s = s.ts_next
-			if (!s)
-				return d
-			switch (s.type) {
-			case C.BAR:
-				if (s.rep_p) {
-					if (!repn) {
-						s = s.rep_p
-						end_time = s.time
-					}
-				}
-				if (s.rep_s) {
-					if (!s.rep_s[repv + 1])
-						return d
-					s = s.rep_s[repv + 1]
-					end_time = s.time
-				}
-				while (s.ts_next && s.ts_next.type == C.BAR)
-					s = s.ts_next
-			}
-			if (s.time > end_time)
-				return d
-			if (s.type == C.NOTE && s.v == v)
-				break
-		}
-		i = s.notes.length
-		while (--i >= 0) {
-			note = s.notes[i]
-			if (note.b40 == b40) {
-				note.ti2 = true		// the sound is generated
-				d += s.pdur / conf.speed
-				return note.tie_ty ? do_tie(s, b40, d) : d
-			}
-		}
-
-		return d
-	} // do_tie()
-
-	// generate 2 seconds of music
-	function play_next() {
-	    var	d, i, st, m, note, g, s2, t, maxt,
-		s = s_cur
-
-		if (stop) {			// stop
-			onend(repv)
-			return
-		}
-
-		while (s.noplay) {
-			s = s.ts_next
-			if (!s || s == s_end) {
-				onend(repv)
-				return
-			}
-		}
-		t = stime + s.ptim / conf.speed		// start time
-
-		// if speed change, shift the start time
-		if (conf.new_speed) {
-			stime = ac.currentTime -
-					(ac.currentTime - stime) *
-						conf.speed / conf.new_speed
-			conf.speed = conf.new_speed
-			conf.new_speed = 0
-			t = stime + s.ptim / conf.speed
-		}
-
-		maxt = t + 2			// max time = now + 2 seconds
-		timouts = []
-		while (1) {
-			switch (s.type) {
-			case C.BAR:
-				if (s.bar_type.slice(-1) == ':') // left repeat
-					repv = 0
-				if (s.rep_p) {			// right repeat
-					if (!repn) {
-						stime += (s.ptim - s.rep_p.ptim) /
-								conf.speed
-						s = s.rep_p	// left repeat
-						t = stime + s.ptim / conf.speed
-						repn = true
-						break
-					}
-					repn = false
-				}
-				if (s.rep_s) {			// first variant
-					s2 = s.rep_s[++repv]	// next variant
-					if (s2) {
-						stime += (s.ptim - s2.ptim) /
-								conf.speed
-						s = s2
-						t = stime + s.ptim / conf.speed
-						repn = false
-					} else {		// end of tune
-						s = s_end
-						break
-					}
-				}
-				while (s.ts_next && s.ts_next.type == C.BAR)
-					s = s.ts_next
-				break
-			case C.GRACE:
-				for (g = s.extra; g; g = g.next) {
-					d = g.pdur / conf.speed
-					for (m = 0; m <= g.nhd; m++) {
-						note = g.notes[m]
-						note_run(g,
-							note.midi,
-							t + g.ptim - s.ptim,
-//fixme: there may be a tie...
-							d)
-					}
-				}
-				break
-			case C.NOTE:
-				d = s.pdur / conf.speed
-				for (m = 0; m <= s.nhd; m++) {
-					note = s.notes[m]
-					if (note.ti2)
-						continue
-					note_run(s,
-						note.midi,
-						t,
-						note.tie_ty ? 
-							do_tie(s, note.b40, d) : d)
-				}
-				// fall thru
-			case C.REST:
-				d = s.pdur / conf.speed
-
-				// follow the notes/rests while playing
-				i = s.istart
-				st = (t - ac.currentTime) * 1000
-				timouts.push(setTimeout(onnote, st, i, true))
-				setTimeout(onnote, st + d * 1000, i, false)
-				break
-			}
-			while (1) {
-				if (s == s_end || !s.ts_next) {
-					setTimeout(onend,
-						(t - ac.currentTime + d) * 1000,
-						repv)
-					s_cur = s
-					return
-				}
-				s = s.ts_next
-				if (!s.noplay)
-					break
-			}
-			t = stime + s.ptim / conf.speed	// next time
-			if (t > maxt)
-				break
-		}
-		s_cur = s
-
-		// delay before next sound generation
-		timouts.push(setTimeout(play_next, (t - ac.currentTime)
-			* 1000 - 300))		// wake before end of playing
-	} // play_next()
-
 	// wait for all resources, then start playing
 	function play_start() {
-		if (stop) {			// stop playing
-			onend(repv)
+		if (po.stop) {			// stop playing
+			po.onend(repv)
 			return
 		}
 
 		// all resources are there
 		gain.connect(ac.destination)
-		stime = ac.currentTime + .2		// start time + 0.2s
-			- s_cur.ptim * conf.speed
-		play_next()
+		abc2svg.play_next(po)
 	} // play_start()
 
 	// Audio5 function
@@ -503,12 +460,7 @@ function Audio5(i_conf) {
 	play: function(i_start, i_end, i_lvl) {
 
 		// get the callback functions
-		if (conf.onend)
-			onend = conf.onend
-		if (conf.onnote)
-			onnote = conf.onnote
-		if (conf.errmsg)
-			errmsg = conf.errmsg
+		errmsg = conf.errmsg || alert
 
 		// play a null file to unlock the iOS audio
 		// This is needed for iPhone/iPad/...
@@ -534,25 +486,39 @@ function Audio5(i_conf) {
 			gain.gain.value = conf.gain
 		}
 
-		s_end = i_end
-		stop = false
 		while (i_start.noplay)
 			i_start = i_start.ts_next
-		s_cur = i_start
-		repv = i_lvl || 0
-		w_instr++
-		load_res()
-		if (--w_instr == 0)		// all resources are there
-			play_start()
+		po = {
+			conf: conf,	// configuration
+			onend: conf.onend || empty,
+			onnote: conf.onnote || empty,
+//			stop: false,	// stop playing
+			s_end: i_end,	// last music symbol / null
+			s_cur: i_start,	// current music symbol
+//			repn: false,	// don't repeat
+			repv: i_lvl || 0, // repeat variant number
+			tgen: 2,	// // generate by 2 seconds
+			get_time: get_time,
+			midi_ctrl: midi_ctrl,
+			note_run: note_run,
+			timouts: [],
+
+			// audio specific
+			ac: ac,
+			gain: gain,
+			params: params,
+			rates: rates
+		}
+		load_res(i_start)
 	}, // play()
 
 	// stop playing
 	stop: function() {
-		stop = true
-		timouts.forEach(function(id) {
+		po.stop = true
+		po.timouts.forEach(function(id) {
 					clearTimeout(id)
 				})
-		play_next()
+		abc2svg.play_next(po)
 		if (gain) {
 			gain.disconnect()
 			gain = null

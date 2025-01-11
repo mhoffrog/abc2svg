@@ -467,6 +467,8 @@ function Psvg(abcobj_r) {
 		output_font(true);
 		svgbuf += ">"
 	} else if (g != 2) {
+		if (!g)
+			defg1()
 		svgbuf += '<text x="' + (x + gcur.xoffs).toFixed(1) + '" y="' +
 				(gcur.yoffs - y).toFixed(1) + '">';
 		g = 2

@@ -1,6 +1,6 @@
 {
   "name": "abc2svg",
-  "version": "1.20.7",
+  "version": "1.20.17",
   "description": "ABC music notation translator",
   "devDependencies": {
     "uglify-js": "^2.5.0"
@@ -19,10 +19,14 @@
     "abcemb1-1.js",
     "abcemb2-1.js",
     "abctopdf",
+    "abcweb-1.js",
+    "abcweb1-1.js",
     "abcweb2-1.js",
     "ambitus-1.js",
     "break-1.js",
     "capo-1.js",
+    "chord-1.js",
+    "chordnames-1.js",
     "clair-1.js",
     "clip-1.js",
     "cmdline.js",
@@ -42,22 +46,27 @@
     "err-fr.js",
     "err-it.js",
     "err-pt_BR.js",
-    "follow-1.js",
     "grid-1.js",
     "grid2-1.js",
+    "grid3-1.js",
     "json-1.js",
+    "jazzchorg-1.js",
+    "jianpu-1.js",
+    "mdnn-1.js",
     "page-1.js",
+    "pedline-1.js",
     "perc-1.js",
     "play-1.js",
     "psvg-1.js",
-    "setmidi-1.js",
     "snd-1.js",
     "soloffs-1.js",
     "sth-1.js",
+    "strtab-1.js",
     "temper-1.js",
     "toabc.js",
     "toaudio-1.js",
     "toabw.js",
+    "tohtml.js",
     "tomei.js",
     "toodt.js",
     "toparam.js",
@@ -67,9 +76,9 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "abc2odt": "./abc2odt",
-    "abc2svg": "./abc2svg",
-    "abctopdf": "./abctopdf"
+    "abc2odt": "abc2odt",
+    "abc2svg": "abc2svg",
+    "abctopdf": "abctopdf"
   },
   "repository": {
     "type": "fossil",
@@ -85,8 +94,5 @@
   "bugs": {
     "url": "https://chiselapp.com/user/moinejf/repository/abc2svg/reportlist"
   },
-  "homepage": "https://chiselapp.com/user/moinejf/repository/abc2svg",
-  "dependencies": {
-    "npm": "^6.10.1"
-  }
+  "homepage": "https://chiselapp.com/user/moinejf/repository/abc2svg"
 }

@@ -102,9 +102,9 @@ abc2svg.sth = {
 
     set_fmt: function(of, cmd, param) {
 	if (cmd == "sth") {
-	    var	curvoice = this.get_curvoice()
 		if (this.parse.state == 2)
 			this.goto_tune()
+	    var	curvoice = this.get_curvoice()
 		if (curvoice)
 			curvoice.sth = param.split(/[ \t;-]+/)
 		return

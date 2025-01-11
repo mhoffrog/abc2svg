@@ -264,6 +264,19 @@ abc2svg.printErr('<!-- no conversion of '+n+'-->')
 			return ln
 		} // clef_dump()
 
+		// get the number of lines of the staff
+		function nl(st) {
+		    var	i,
+			l = abc.get_staff_tb()[st].stafflines,
+			n = 0
+
+			for (i = 0; i < l.length; i++) {
+				if (l[i] == '|' || l[i] == '[')
+					n++
+			}
+			return n
+		} // nl()
+
 //		meas.sy = sy
 
 		for (v = 0; v < sy.voices.length; v++) {
@@ -278,7 +291,7 @@ abc2svg.printErr('<!-- no conversion of '+n+'-->')
 			p_v = sy.voices[vn[v]]
 			if (p_v.st == st)
 				continue
-			if (st >= 0) {
+			if (st >= 0) {		// if a previous staff
 				if (staff.flags & CLOSE_BRACE2)
 					abc2svg.print('\t    </staffGrp>')
 				if (staff.flags & CLOSE_BRACE)
@@ -306,7 +319,16 @@ abc2svg.printErr('<!-- no conversion of '+n+'-->')
 				abc2svg.print('\t    <staffGrp symbol="brace"' +
 						stop + '>')
 
-			ln = '\t     <staffDef n="' + (st + 1).toString() + '"'
+			// must have a staff group
+			if (v == 0
+			 && !(staff.flags & (OPEN_BRACKET |
+					OPEN_BRACKET2 |
+					OPEN_BRACE |
+					OPEN_BRACE2)))
+				abc2svg.print('\t <staffGrp>')
+
+			ln = '\t     <staffDef n="' + (st + 1).toString() +
+				'" lines="' + nl(st) + '"'
 			for (s2 = voice_tb[vn[v]].sym; s2; s2 = s2.next) {
 				if (s2.dur)
 					break
@@ -327,6 +349,11 @@ abc2svg.printErr('<!-- no conversion of '+n+'-->')
 		if (staff.flags & CLOSE_BRACKET2)
 			abc2svg.print('\t   </staffGrp>')
 		if (staff.flags & CLOSE_BRACKET)
+			abc2svg.print('\t </staffGrp>')
+		if (!(staff.flags & (CLOSE_BRACKET |
+				CLOSE_BRACKET2 |
+				CLOSE_BRACE |
+				CLOSE_BRACE2)))
 			abc2svg.print('\t </staffGrp>')
 	} // staves_dump()
 
@@ -720,7 +747,7 @@ abc2svg.printErr('!! V:'+s.p_v.id+' '+s.time+' '+s.type+' st '+s.st)
 	} // note_dump()
 
 	function tempo_dump(s) {
-		if (s.del)
+		if (s.invis)
 			return
 	    var	v,
 		t = '\t  <tempo place="above" startid="#a',

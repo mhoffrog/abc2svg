@@ -26,8 +26,7 @@ function ToAudio() {
 
 	p_time,				// last playing time
 	abc_time,			// last ABC time
-	play_factor,			// play time factor
-	abcmidi = AbcMIDI()
+	play_factor			// play time factor
 
 // ToAudio
   return {
@@ -210,9 +209,6 @@ function ToAudio() {
 	} // gen_note()
 
 	// add() main
-
-	// set the MIDI pitches
-	abcmidi.add(start, voice_tb)
 
 	if (!a_e) {			// if first call
 		a_e = []

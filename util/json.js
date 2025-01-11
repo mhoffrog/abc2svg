@@ -1,7 +1,8 @@
 //#javascript
 // Generate a JSON representation of ABC
 //
-// Copyright (C) 2016 Jean-Francois Moine
+// Copyright (C) 2016-2020 Jean-Francois Moine
+//
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License version 2 as
 // published by the Free Software Foundation.
@@ -39,24 +40,40 @@ function AbcJSON(nindent) {			// indentation level
 			ts_next: true,
 			ts_prev: true,
 			extra: true,
+			note: true,
 			p_v: true,
 			s: true,
 			sn: true,
 			tie_s: true,
-			dd_st: true
-		}
+			dd_st: true,
+		        sym: true,
+			last_sym: true,
+			last_note: true,
+			lyric_restart: true,
+			sym_restart: true,
+			rep_p: true,
+			rep_v: true,
+		        rep_s: true
+		},
+		objstk = []
+
 	// generate an attribute
 	function attr_gen(ind, attr, val) {
-		var	i, e,
+		var	i, e, l,
 			indn = ind + inb	// next indentation
 
 		if (links[attr]) {
-			if (attr == "extra") {
+			switch (attr) {
+			case "extra":
 				json += h + ind + '"extra": [';
 				h = '\n'
 				for (e = val ; e; e = e.next)
 					attr_gen(indn, null, e);
 				json += '\n' + ind + ']'
+				break
+			case "tie_s":
+				json += h + ind + '"ti1": true'
+				break
 			}
 			return
 		}
@@ -72,6 +89,11 @@ function AbcJSON(nindent) {			// indentation level
 				json += "null"
 				break
 			}
+			if (objstk.indexOf(val) >= 0) {
+				json += "!!! to_json: loop in '" + attr + "' !!!"
+				break
+			}
+			objstk.push(val)
 			if (Array.isArray(val)) {
 				if (val.length == 0) {
 					json += "[]"
@@ -89,6 +111,7 @@ function AbcJSON(nindent) {			// indentation level
 					attr_gen(indn, i, val[i]);
 				json += '\n' + ind + '}'
 			}
+			objstk.pop()
 			break
 		default:
 			json += JSON.stringify(val)

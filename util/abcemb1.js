@@ -12,7 +12,7 @@
 // The header of the tune list ("Tunes:") may be set in a global
 // javascript variable 'list_head'.
 //
-// Copyright (C) 2019 Jean-Francois Moine
+// Copyright (C) 2019-2020 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -53,7 +53,9 @@ window.onafterprint = function() {
 		e.style.display = "block"
 }
 
-var abc2svg = {}
+    var user
+if (typeof abc2svg == "undefined")
+    var abc2svg = {}
 
 // function called when abc2svg is fully loaded
 function dom_loaded() {
@@ -80,6 +82,13 @@ var	errtxt = '',
 			}
 			return ""	// ??
 	})(),
+
+// play arguments
+    playconf = {
+	onend: function() {
+		playing = false
+	}
+    }
 
 // -- abc2svg init argument
     user = {
@@ -115,14 +124,7 @@ var	errtxt = '',
 	},
 
 	page_format: true		// define the non-page-breakable blocks
-    };
-
-// play arguments
-    playconf = {
-	onend: function() {
-		playing = false
-	}
-    }
+    } // user
 
 // replace <>& by XML character references
 function clean_txt(txt) {
