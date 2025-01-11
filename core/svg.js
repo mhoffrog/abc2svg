@@ -1,6 +1,6 @@
 // abc2svg - svg.js - svg functions
 //
-// Copyright (C) 2014-2022 Jean-Francois Moine
+// Copyright (C) 2014-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -32,8 +32,9 @@ var	output = "",		// output buffer
 	img = {			// image
 		width: cfmt.pagewidth,	// width
 		lm: cfmt.leftmargin,	// left and right margins
-		rm: cfmt.rightmargin
-//		chg: false
+		rm: cfmt.rightmargin,
+		wx: 0,			// used width between the left and right margins
+		chg: 1 //true
 	},
 	defined_glyph = {},
 	defs = '',
@@ -62,10 +63,10 @@ var tgls = {
   short: {x:0, y:32, c:"\ue038"},
   tick: {x:0, y:29, c:"\ue039"},
   rdots: {x:-1, y:0, c:"\ue043"},	// repeat dots
-  dsgn: {x:-4, y:-4, c:"\ue045"},	// D.S.
-  dcap: {x:-4, y:-4, c:"\ue046"},	// D.C.
-  sgno: {x:-6, y:0, c:"\ue047"},	// segno
-  coda: {x:-12, y:-6, c:"\ue048"},
+  dsgn: {x:-12, y:0, c:"\ue045"},	// D.S.
+  dcap: {x:-12, y:0, c:"\ue046"},	// D.C.
+  sgno: {x:-5, y:0, c:"\ue047"},	// segno
+  coda: {x:-10, y:0, c:"\ue048"},
   tclef: {x:-8, y:0, c:"\ue050"},
   cclef: {x:-8, y:0, c:"\ue05c"},
   bclef: {x:-8, y:0, c:"\ue062"},
@@ -131,12 +132,12 @@ var tgls = {
  "acc-3_2": {x:-3, y:0, c:"\ue281"},	// three-quarter-tones flat
   acc1_2: {x:-1, y:0, c:"\ue282"},	// quarter-tone sharp
   acc3_2: {x:-3, y:0, c:"\ue283"},	// three-quarter-tones sharp
-  accent: {x:-3, y:2.5, c:"\ue4a0"},
-  stc: {x:-1, y:-2, c:"\ue4a2"},	// staccato
-  emb: {x:-4, y:-2, c:"\ue4a4"},
-  wedge: {x:-1, y:0, c:"\ue4a8"},
+  accent: {x:-3, y:2, c:"\ue4a0"},
+  stc: {x:0, y:-2, c:"\ue4a2"},		// staccato
+  emb: {x:0, y:-2, c:"\ue4a4"},
+  wedge: {x:0, y:0, c:"\ue4a8"},
   marcato: {x:-3, y:-2, c:"\ue4ac"},
-  hld: {x:-7, y:-2, c:"\ue4c0"},	// fermata
+  hld: {x:-7, y:-2, c:"\ue4c0"},		// fermata
   brth: {x:0, y:0, c:"\ue4ce"},
   caes: {x:0, y:8, c:"\ue4d1"},
   r00: {x:-1.5, y:0, c:"\ue4e1"},
@@ -152,31 +153,31 @@ var tgls = {
 //  mrest: {x:-10, y:0, c:"\ue4ee"},
   mrep: {x:-6, y:0, c:"\ue500"},
   mrep2: {x:-9, y:0, c:"\ue501"},
-  p: {x:-4, y:-6, c:"\ue520"},
-  f: {x:-2.5, y:-6, c:"\ue522"},
-  pppp: {x:-15, y:-6, c:"\ue529"},
-  ppp: {x:-11, y:-6, c:"\ue52a"},
-  pp: {x:-8, y:-6, c:"\ue52b"},
-  mp: {x:-8.5, y:-6, c:"\ue52c"},
-  mf: {x:-8, y:-6, c:"\ue52d"},
-  ff: {x:-6, y:-6, c:"\ue52f"},
-  fff: {x:-9, y:-6, c:"\ue530"},
-  ffff: {x:-12, y:-6, c:"\ue531"},
-  sfz: {x:-9, y:-6, c:"\ue539"},
-  trl: {x:-4, y:-2, c:"\ue566"},	// trill
-  turn: {x:-5, y:3, c:"\ue567"},
-  turnx: {x:-5, y:3, c:"\ue569"},
-  umrd: {x:-7, y:2, c:"\ue56c"},
-  lmrd: {x:-7, y:2, c:"\ue56d"},
-  dplus: {x:-4, y:0, c:"\ue582"},	// plus
+  p: {x:-3, y:0, c:"\ue520"},
+  f: {x:-3, y:0, c:"\ue522"},
+  pppp: {x:-15, y:0, c:"\ue529"},
+  ppp: {x:-14, y:0, c:"\ue52a"},
+  pp: {x:-8, y:0, c:"\ue52b"},
+  mp: {x:-8, y:0, c:"\ue52c"},
+  mf: {x:-8, y:0, c:"\ue52d"},
+  ff: {x:-7, y:0, c:"\ue52f"},
+  fff: {x:-10, y:0, c:"\ue530"},
+  ffff: {x:-14, y:0, c:"\ue531"},
+  sfz: {x:-10, y:0, c:"\ue539"},
+  trl: {x:-5, y:-2, c:"\ue566"},	// trill
+  turn: {x:-5, y:0, c:"\ue567"},
+  turnx: {x:-5, y:0, c:"\ue569"},
+  umrd: {x:-6, y:2, c:"\ue56c"},
+  lmrd: {x:-6, y:2, c:"\ue56d"},
+  dplus: {x:-3, y:0, c:"\ue582"},	// plus
   sld: {x:-8, y:12, c:"\ue5d0"},	// slide
-  grm: {x:-2, y:0, c:"\ue5e2"},		// grace mark
-  dnb: {x:-4, y:0, c:"\ue610"},		// down bow
-  upb: {x:-3, y:0, c:"\ue612"},		// up bow
-  opend: {x:-2, y:0, c:"\ue614"},	// harmonic
-  roll: {x:0, y:2, c:"\ue618"},
-  thumb: {x:0, y:0, c:"\ue624"},
-  snap: {x:-2, y:0, c:"\ue630"},
+  grm: {x:-3, y:-2, c:"\ue5e2"},	// grace mark
+  dnb: {x:-3, y:0, c:"\ue610"},		// down bow
+  upb: {x:-2, y:0, c:"\ue612"},		// up bow
+  opend: {x:-2, y:-2, c:"\ue614"},	// harmonic
+  roll: {x:0, y:0, c:"\ue618"},
+  thumb: {x:-2, y:-2, c:"\ue624"},
+  snap: {x:-2, y:-2, c:"\ue630"},
   ped: {x:-10, y:0, c:"\ue650"},
   pedoff: {x:-5, y:0, c:"\ue655"},
 // "mtro.": {x:0, y:0, c:"\ue910"},	// (unused)
@@ -885,53 +886,59 @@ function out_wln(x, y, w) {
 
 // decorations with string
 var deco_str_style = {
-crdc:	{
+crdc:	{				// cresc., decresc., dim., ...
 		dx: 0,
 		dy: 5,
-		style: 'font:italic 14px text,serif'
+		style: 'font:italic 14px text,serif',
+		anchor: ' text-anchor="middle"'
 	},
-dacs:	{
+dacs:	{				// long repeats (da capo, fine...)
 		dx: 0,
 		dy: 3,
-		style: 'font:16px text,serif',
+		style: 'font:bold 15px text,serif',
 		anchor: ' text-anchor="middle"'
 	},
 pf:	{
 		dx: 0,
 		dy: 5,
-		style: 'font:italic bold 16px text,serif'
-	},
-'@':	{
-		dx: 0,
-		dy: 5,
-		style: 'font:12px text,sans-serif'
+		style: 'font:italic bold 16px text,serif',
+		anchor: ' text-anchor="middle"'
 	}
 }
+deco_str_style.at = deco_str_style.crdc
 
-function out_deco_str(x, y, name, str) {
+function out_deco_str(x, y, de) {
+    var	name = de.dd.glyph			// class
+
 	if (name == 'fng') {
 		out_XYAB('\
-<text x="X" y="Y" style="font-size:14px" text-anchor="middle">A</text>\n',
-			x, y, m_gl(str))
+<text x="X" y="Y" style="font-size:14px">A</text>\n',
+			x - 2, y, m_gl(de.dd.str))
 		return
 	}
-	var	a, f,
+
+	if (name == '@') {			// compatibility
+		name = 'at'
+	} else if (!/^[A-Za-z][A-Za-z\-_]*$/.test(name)) {
+		error(1, de.s, "No function for decoration '$1'", de.dd.name)
+		return
+	}
+
+    var	f,
 		a_deco = deco_str_style[name]
 
-	if (!a_deco) {
-		xygl(x, y, name)
-		return
-	}
+	if (!a_deco)
+		a_deco = deco_str_style.crdc	// default style
+	else if (a_deco.style)
+		style += "\n." + name + "{" + a_deco.style + "}",
+		delete a_deco.style
+
 	x += a_deco.dx;
 	y += a_deco.dy;
-	if (!a_deco.def) {
-		style += "\n." + name + " {" + a_deco.style + "}";
-		a_deco.def = true
-	}
 	out_XYAB('<text x="X" y="Y" class="A"B>', x, y,
 		name, a_deco.anchor || "");
 	set_font("annotation");
-	out_str(str);
+	out_str(de.dd.str)
 	output += '</text>\n'
 }
 
@@ -949,7 +956,7 @@ function out_cresc(x, y, val, defl) {
 	x += val * stv_g.scale
 	val = -val;
 	out_XYAB('<path class="stroke"\n\
-	d="mX YlF ', x, y + 5, val)
+	d="mX YlF ', x, y, val)
 	if (defl.nost)
 		output += '-2.2m0 -3.6l' + (-val).toFixed(1) + ' -2.2"/>\n'
 	else
@@ -958,7 +965,7 @@ function out_cresc(x, y, val, defl) {
 }
 function out_dim(x, y, val, defl) {
 	out_XYAB('<path class="stroke"\n\
-	d="mX YlF ', x, y + 5, val)
+	d="mX YlF ', x, y, val)
 	if (defl.noen)
 		output += '-2.2m0 -3.6l' + (-val).toFixed(1) + ' -2.2"/>\n'
 	else
@@ -973,7 +980,6 @@ function out_ltr(x, y, val) {
 	}
 }
 Abc.prototype.out_lped = function(x, y, val, defl) {
-	y += 4;
 	if (!defl.nost)
 		xygl(x, y, "ped");
 	if (!defl.noen)
@@ -1134,12 +1140,56 @@ var deco_l_tb = {
 }
 
 function out_deco_long(x, y, de) {
-	var	name = de.dd.glyph
+    var	s, p_v, m, nt, i,
+	name = de.dd.glyph,
+	de1 = de.start
 
-	if (deco_l_tb[name])
-		deco_l_tb[name](x, y, de)
-	else
+	if (!deco_l_tb[name]) {
 		error(1, null, "No function for decoration '$1'", name)
+		return
+	}
+
+	// if no start or no end, get the y offset of the other end
+	p_v = de.s.p_v				// voice
+	if (de.defl.noen) {			// if no end
+		s = p_v.s_next			// start of the next music line
+		while (s && !s.dur)
+			s = s.next
+		if (s) {
+			for (m = 0; m <= s.nhd; m++) {
+				nt = s.notes[m]
+				if (!nt.a_dd)
+					continue
+				for (i = 0; i < nt.a_dd.length; i++) {
+					if (nt.a_dd[i].name == de.dd.name) {
+						y = 3 * (nt.pit - 18)
+							+ staff_tb[de.s.st].y
+						break
+					}
+				}
+			}
+		}
+		x += 8				// (there is no note width)
+	} else if (de.defl.nost) {		// no start
+		s = p_v.s_prev			// end of the previous music line
+		while (s && !s.dur)
+			s = s.prev
+		if (s) {
+			for (m = 0; m <= s.nhd; m++) {
+				nt = s.notes[m]
+				if (!nt.a_dd)
+					continue
+				for (i = 0; i < nt.a_dd.length; i++) {
+					if (nt.a_dd[i].name == de1.dd.name) {
+						de1.y = 3 * (nt.pit - 18)
+						break
+					}
+				}
+			}
+		}
+		de1.x -= 8			// (there is no note width)
+	}
+	deco_l_tb[name](x, y, de)
 }
 
 // return a tempo note
@@ -1284,6 +1334,10 @@ function svg_flush() {
 		return
 
     var	i, font,
+	fmt = tsnext ? tsnext.fmt : cfmt,
+	w = Math.ceil((fmt.trimsvg || fmt.singleline == 1)
+		? (cfmt.leftmargin + img.wx * cfmt.scale + cfmt.rightmargin + 2)
+		: img.width),
 	head = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
 	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
 	fill="currentColor" stroke-width=".7"',
@@ -1296,32 +1350,24 @@ function svg_flush() {
 		' tune' + tunes.length + '"\n'	// tune index for play
 
 	posy *= cfmt.scale
-	if (user.imagesize) {
-		head += user.imagesize +
-			' viewBox="0 0 ' + img.width.toFixed(0) + ' ' +
-			 posy.toFixed(0) + '">\n'
-	} else {
-		head += ' viewBox="0 0 ' + img.width.toFixed(0) + ' ' +
-			posy.toFixed(0) +
-			'" width="' + img.width.toFixed(0) +
-			'px" height="' + posy.toFixed(0) + 'px">\n'
-	}
+	if (user.imagesize != undefined)
+		head += user.imagesize
+	else
+		head += ' width="' + w
+			+ 'px" height="' + posy.toFixed(0) + 'px"'
+	head += ' viewBox="0 0 ' + w + ' '
+		+ posy.toFixed(0) + '"'
+	if (cfmt.fgcolor || cfmt.bgcolor)
+		head += ' style="'
+			+ (cfmt.fgcolor ? ('color:' + cfmt.fgcolor + ';')
+					: '')
+			+ (cfmt.bgcolor ? ('background-color:' + cfmt.bgcolor)
+					: '')
+			+ '"'
+	head += '>\n' + fulldefs
 
-	head += fulldefs
-
-	if (style || font_style) {
-		head += '<style>' + font_style
-		if (cfmt.fgcolor || cfmt.bgcolor) {
-			head += '\n.f' + font.fid + (cfmt.fullsvg || '')
-				+ '{'
-				+ (cfmt.fgcolor ? ('color:' + cfmt.fgcolor + ';')
-						: '')
-				+ (cfmt.bgcolor ? ('background-color:' + cfmt.bgcolor)
-						: '')
-				+ '}'
-		}
-		head += style + '\n</style>\n'
-	}
+	if (style || font_style)
+		head += '<style>' + font_style + style + '\n</style>\n'
 
 	if (defs)
 		head += '<defs>' + defs + '\n</defs>\n'
@@ -1352,14 +1398,15 @@ function svg_flush() {
 	font_style = ''
 	if (cfmt.fullsvg) {
 		defined_glyph = {}
-		for (i = 0; i < font_tb.length; i++)
-			font_tb[i].used = false
+		for (i = 0; i < abc2svg.font_tb.length; i++)
+			abc2svg.font_tb[i].used = false
 	} else {
 		style = '';
 		fulldefs = ''
 	}
 	defs = '';
 	posy = 0
+	img.wx = 0			// space used between the margins
 }
 
 // mark the end of a <div> block

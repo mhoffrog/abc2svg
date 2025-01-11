@@ -1,6 +1,6 @@
 // jianpu.js - module to output jiănpŭ (简谱) music sheets
 //
-// Copyright (C) 2020-2023 Jean-Francois Moine
+// Copyright (C) 2020-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -21,6 +21,9 @@
 //
 // Parameters (none)
 //	%%jianpu 1
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.jianpu = {
 
@@ -70,6 +73,8 @@ abc2svg.jianpu = {
 				while (!s1.bar_type) {
 					s1.dy = 14
 					s1.notes[0].pit = 30
+					if (s1.type == C.REST)
+						s1.combine = -1
 					s1 = s1.next
 				}
 				// add deco '}' on s1
@@ -148,7 +153,24 @@ abc2svg.jianpu = {
 			n = 1
 		else
 			n = 2
-		s.notes[0].dur =
+
+		// duplicate the note/rest for display
+		s2 = abc.clone(s)
+		s2.invis =
+			s2.play = 1 //true
+		s2.next = s
+		if (s2.prev)
+			s2.prev.next = s2
+		s.prev = s2
+		s2.ts_next = s
+		if (s2.ts_prev)
+			s2.ts_prev.ts_next = s2
+		s.ts_prev = s2
+		delete s.seqst
+		s.noplay = 1 // true
+
+		// create the continuation symbols
+//		s.notes[0].dur =
 		s.dur = s.dur_orig = C.BLEN / 4
 		delete s.fmr
 		while (--n >= 0) {
@@ -327,7 +349,7 @@ abc2svg.jianpu = {
 		p_v = voice_tb[v]
 		if (p_v.jianpu) {
 			set_sym(p_v)
-			if (v > 0 && voice_tb[v - 1].st == p_v.st)
+			if (p_v.second)
 				ov_def(v)
 		}
 	}
@@ -340,6 +362,7 @@ abc2svg.jianpu = {
 	C = abc2svg.C,
 	abc = this,
 	dot = "\ue1e7",
+	anno_a = abc.anno_a,
 	staff_tb = abc.get_staff_tb(),
 	out_svg = abc.out_svg,
 	out_sxsy = abc.out_sxsy,
@@ -447,6 +470,7 @@ abc2svg.jianpu = {
 			out_svg('</g>\n')
 			abc.stv_g().g--
 		}
+		anno_a.push(s)
 	} // draw_note()
 
 	// -- draw_symbols --
@@ -603,7 +627,6 @@ abc2svg.jianpu = {
     } // set_hooks()
 } // jianpu
 
-abc2svg.modules.hooks.push(abc2svg.jianpu.set_hooks)
-
-// the module is loaded
-abc2svg.modules.jianpu.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.jianpu = abc2svg.jianpu.set_hooks

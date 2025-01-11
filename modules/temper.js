@@ -1,6 +1,6 @@
 // temper.js - module to define the temperament
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -39,6 +39,9 @@
 //
 // % well temperament (F.A. Vallotti 1754)
 // %%temperament +00 -06 -04 -02 -08 +02 -08 -02 -04 -06 +00 -10
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.temper = {
 
@@ -81,8 +84,6 @@ abc2svg.temper = {
     }
 } // temper
 
-
-abc2svg.modules.hooks.push(abc2svg.temper.set_hooks);
-
-// the module is loaded
-abc2svg.modules.temperament.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.temper = abc2svg.temper.set_hooks

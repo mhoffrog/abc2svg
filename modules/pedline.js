@@ -1,6 +1,6 @@
 // pedline.js - module to draw pedal lines instead of 'Ped .. *'
 //
-// Copyright (C) 2020-2022 Jean-Francois Moine
+// Copyright (C) 2020-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -22,9 +22,12 @@
 // Parameters
 //	%%pedline 1
 
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
+
 abc2svg.pedline = {
     draw_all_deco: function(of) {
-    var	de, i,
+    var	de, i, x, dp, ds,
 	a_de = this.a_de()
 
 	if (!a_de.length)
@@ -34,21 +37,29 @@ abc2svg.pedline = {
 			de = a_de[i]
 			if (de.dd.name != "ped)")
 				continue
-			if (de.prev
-			 && de.prev.dd.name == "ped)") {
+			ds = de.start
+			dp = de.prev
 // ( .. ) ( .. )
 //		\ de
+//	  \ de.start
 //	\ de.prev
 // \ de.prev.start
 // |_____/\____|
-				de.defl.nost = true
-				de.prev.defl.noen = true
-				de.x = de.prev.s.x - 5
-				de.val = de.s.x - de.x - 5
-				de.prev.val = de.x - de.prev.x
+			if (dp && dp.dd.name == "ped)"
+			 && dp.s.v == ds.s.v) {
+				de.defl.nost =		// /\
+					dp.defl.noen = 2
+				de.x = ds.s.x - 10
+				de.val = de.s.x - ds.s.x - 3
+				dp.val = de.x - dp.x
+
+				if (de.y > dp.y)
+					de.y = dp.y
+				dp.y = de.y
 			} else {
-				de.x -= 3
-				de.val += 10
+				de.x = ds.s.x - 8
+				if (!de.defl.noen)
+					de.val = de.s.x - ds.s.x - de.s.wl
 			}
 		}
 	}
@@ -60,19 +71,28 @@ abc2svg.pedline = {
 		of(x, y, val, defl)
 		return
 	}
-	this.xypath(x, y + 16)
+	this.xypath(x, y + 8)
 	if (defl.nost) {
-		this.out_svg("l2.5 6")
-		val -= 2.5
+		if (defl.nost == 2) {		// \
+			this.out_svg("l2.5 6")
+			val -= 2.5
+		} else {
+			this.out_svg("m0 6")
+		}
 	} else {
 		this.out_svg("v6")
 	}
 	if (defl.noen) {
-		val -= 2.5
-		this.out_svg("h" + val.toFixed(1) + 'l2.5 -6"/>\n')
+		if (defl.noen == 2) {		// /
+			val -= 2.5
+			this.out_svg("h" + val.toFixed(1) + 'l2.5 -6')
+		} else {
+			this.out_svg("h" + val.toFixed(1))
+		}
 	} else {
-		this.out_svg("h" + val.toFixed(1) + 'v-6"/>\n')
+		this.out_svg("h" + val.toFixed(1) + 'v-6')
 	}
+	this.out_svg('"/>\n')
     }, // out_lped()
 
     set_fmt: function(of, cmd, param) {
@@ -89,7 +109,6 @@ abc2svg.pedline = {
     } // set_hooks()
 } // pedline
 
-abc2svg.modules.hooks.push(abc2svg.pedline.set_hooks)
-
-// the module is loaded
-abc2svg.modules.pedline.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.pedline = abc2svg.pedline.set_hooks

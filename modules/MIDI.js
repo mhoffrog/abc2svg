@@ -39,6 +39,9 @@
 //	%%percmap g 42 x
 // but this is not abcMIDI compatible!
 
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
+
 abc2svg.MIDI = {
 
     // parse %%MIDI commands
@@ -295,6 +298,9 @@ abc2svg.MIDI = {
 	abc = this,
 	curvoice = abc.get_curvoice()
 
+	// set the voice parameters before inserting any block
+	of(a.slice(0))			// (copy because the parameters are removed)
+
 	for (i = 0; i < a.length; i++) {
 		switch (a[i]) {
 		case "channel=":		// %%MIDI channel
@@ -326,7 +332,6 @@ abc2svg.MIDI = {
 			break
 		}
 	}
-	of(a)
     }, // set_vp()
 
     do_pscom: function(of, text) {
@@ -342,7 +347,6 @@ abc2svg.MIDI = {
     }
 } // MIDI
 
-abc2svg.modules.hooks.push(abc2svg.MIDI.set_hooks);
-
-// the module is loaded
-abc2svg.modules.MIDI.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.MIDI = abc2svg.MIDI.set_hooks

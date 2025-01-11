@@ -1,6 +1,6 @@
 // abc2svg - front.js - ABC parsing front-end
 //
-// Copyright (C) 2014-2022 Jean-Francois Moine
+// Copyright (C) 2014-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -19,7 +19,8 @@
 
     var	sav = {},	// save global (between tunes) definitions
 	mac = {},	// macros (m:)
-	maci = {}	// first letters of macros
+	maci = {},	// first letters of macros
+	modone = {}	// hooks done by module
 
 // translation table from the ABC draft version 2.2
 var abc_utf = {
@@ -283,7 +284,7 @@ function tosvg(in_fname,		// file name
 		parse.tune_v_opts = null;
 		parse.scores = null;
 		parse.ufmt = false
-		delete parse.ctrl
+		delete parse.pq
 		init_tune()
 		img.chg = true;
 		set_page();
@@ -382,9 +383,14 @@ function tosvg(in_fname,		// file name
 	} // tune_filter()
 
 	// export functions and/or set module hooks
-	if (abc2svg.modules
-	 && (abc2svg.modules.hooks.length || abc2svg.modules.g_hooks.length))
-		set_hooks()
+	if (abc2svg.mhooks) {
+		for (i in abc2svg.mhooks) {
+			if (!modone[i]) {
+				modone[i] = 1 //true
+				abc2svg.mhooks[i](self)
+			}
+		}
+	}
 
 	// initialize
 	parse.file = file;		// used for errors
@@ -437,8 +443,9 @@ function tosvg(in_fname,		// file name
 		// check if the line is a pseudo-comment or I:
 		line0 = file[bol];
 		line1 = file[bol + 1]
-		if (line0 == '%') {
-			if (parse.prefix.indexOf(line1) < 0)
+		if ((line0 == 'I' && line1 == ':')
+		  || line0 == '%') {
+			if (line0 == '%' && parse.prefix.indexOf(line1) < 0)
 				continue		// comment
 
 			// change "%%abc xxxx" to "xxxx"
@@ -452,8 +459,6 @@ function tosvg(in_fname,		// file name
 			} else {
 				pscom = true
 			}
-		} else if (line0 == 'I' && line1 == ':') {
-			pscom = true
 		}
 
 		// pseudo-comments
@@ -535,17 +540,14 @@ function tosvg(in_fname,		// file name
 //						v_opts: {}
 					};
 				while (1) {
-					bol = ++eol
-					if (file[bol] != '%')
+					bol = eol
+					if (file[bol + 1] != '%')
 						break
-					eol = file.indexOf('\n', eol);
-					if (file[bol + 1] != line1)
+					eol = file.indexOf('\n', eol + 1)
+					if (file[bol + 2] != line1)
 						continue
-					bol += 2
-					if (eol < 0)
-						text = file.slice(bol)
-					else
-						text = file.slice(bol, eol);
+					text = file.slice(bol + 3,
+							eol < 0 ? undefined : eol)
 					a = text.match(/([^\s]+)\s*(.*)/)
 					switch (a[1]) {
 					case "tune":
@@ -565,7 +567,7 @@ function tosvg(in_fname,		// file name
 					opt.v_opts = parse.tune_v_opts;
 					parse.tune_v_opts = null
 				}
-				parse.eol = bol - 1
+				parse.eol = bol
 				continue
 			case "voice":
 				if (parse.state != 0) {
@@ -741,6 +743,10 @@ function tosvg(in_fname,		// file name
 	}
 	if (include)
 		return
+	if (parse.state == 1) {
+		syntax(1, "End of file in tune header")
+		get_key("C")
+	}
 	if (parse.state >= 2)
 		end_tune();
 	parse.state = 0

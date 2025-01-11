@@ -1,6 +1,6 @@
 // sndgen.js - sound generation
 //
-// Copyright (C) 2019-2023 Jean-Francois Moine
+// Copyright (C) 2019-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -51,6 +51,107 @@ function ToAudio() {
 	rsk = [],		// repeat variant array (repeat skip)
 	b_tim,			// time of last measure bar
 	b_typ			// type of last measure bar
+
+	function get_beat() {
+	    var	s = first.p_v.meter
+
+		if (!s.a_meter[0])
+			return C.BLEN / 4
+		if (!s.a_meter[0].bot)
+			return (s.a_meter[1]
+				&& s.a_meter[1].top == '|')	// (cut time)
+					? C.BLEN / 2 : C.BLEN / 4
+		if (s.a_meter[0].bot == "8"
+		 && s.a_meter[0].top % 3 == 0)
+			return C.BLEN / 8 * 3
+		return C.BLEN / s.a_meter[0].bot | 0
+	} // get_beat()
+
+	// create the starting beats
+	function def_beats() {
+	    var	i, s2, s3, tim,
+		beat = get_beat(),		// time between two beats
+		d = first.p_v.meter.wmeasure,	// duration of a measure
+		nb = d / beat | 0,		// number of beats in a measure
+		v = voice_tb.length,		// beat voice number
+		p_v = {				// voice for the beats
+			id: "_beats",
+			v: v,
+//			time:
+			sym: {
+				type: C.BLOCK,
+				v: v,
+//				p_v: p_v,
+				subtype: "midiprog",
+				chn: 9,			// percussion channel
+				instr: 16384,	// percussion bank
+//				time:
+//				next:
+				ts_prev: first
+//				ts_next: 
+			}
+//			vol:
+		},
+		s = {
+			type: C.NOTE,
+			v: v,
+			p_v: p_v,
+//			time:
+			dur: beat,
+			nhd: 0,
+			notes: [{
+				midi: 37	// Side Stick
+			}]
+		}
+
+		abc_time = -d			// start time of the beat ticks
+
+		// check for an anacrusis
+		for (s2 = first; s2; s2 = s2.ts_next) {
+			if (s2.bar_type && s2.time) {
+				nb = (2 * d - s2.time) / beat | 0
+				abc_time -= d - s2.time
+				break
+			}
+		}
+
+		// add the tempo
+		s2 = p_v.sym			// midiprog
+		for (s3 = first; s3 && !s3.time; s3 = s3.ts_next) {
+			if (s3.type == C.TEMPO) {
+				s3 = Object.create(s3)	// new tempo
+				s3.v = v
+				s3.p_v = p_v
+				s3.prev =
+					s3.ts_prev = s2
+				s2.next =
+					s2.ts_next = s3
+				s2 = s3
+				play_fac = set_tempo(s2)
+				break
+			}
+		}
+
+		voice_tb[v] = p_v
+		p_v.sym.p_v = p_v
+		first.time = s2.time = tim = abc_time
+		if (s3)
+			p_v.sym.time = tim
+		for (i = 0; i < nb; i++) {
+			s3 = Object.create(s)	// new beat tick
+			s3.time = tim
+			s3.prev = s2
+			s2.next = s3
+			s3.ts_prev = s2
+			s2.ts_next = s3
+			s2 = s3
+			tim += beat
+		}
+		s2.ts_next = first.ts_next
+		s2.ts_next.ts_prev = s2
+		first.ts_next = p_v.sym
+		rst = s2.ts_next
+	} // def_beats()
 
 	// build the information about the parts (P:)
 	function build_parts(first) {
@@ -187,9 +288,13 @@ function ToAudio() {
 
 	// add() main
 
-	// if some MIDI stuff, load the associated module
+	// if some chord stuff, set the accompaniment data
 	if (cfmt.chord)
 		abc2svg.chord(first, voice_tb, cfmt)
+
+	// if %%playbeats, create the sounds
+	if (cfmt.playbeats)
+		def_beats()
 
 	if (s.parts)
 		build_parts(s)
@@ -256,18 +361,19 @@ function ToAudio() {
 			    }
 
 			// left repeat
-			} else if (s.rbstop == 2) {
-				if (s.bar_type.slice(-1) == ':') {
-					if (b_typ & 4)
-						break
-					b_typ |= 4
-				} else {
-					if (b_typ & 8)
-						break
-					b_typ |= 8
-				}
+			} else if (s.bar_type.slice(-1) == ':') {
+				if (b_typ & 4)
+					break
+				b_typ |= 4
 				rst = s			// new possible restart
 				rst_fac = play_fac
+// fixme: does not work when |1 split at end of line
+//			} else if (s.rbstop == 2) {
+//				if (b_typ & 8)
+//					break
+//				b_typ |= 8
+//				rst = s			// new possible restart
+//				rst_fac = play_fac
 			}
 			break
 		case C.GRACE:
@@ -399,8 +505,7 @@ abc2svg.play_next = function(po) {
 		s = {
 			subtype: "midictl",
 			p_v: p_v,
-			v: p_v.v,
-			chn: p_v.chn
+			v: s2.v
 		}
 
 		for (i in p_v.midictl) { // MIDI controls at voice start time
@@ -553,7 +658,7 @@ abc2svg.play_next = function(po) {
 			}
 			break
 		}
-	    if (s && s != po.s_end) {
+	    if (s && s != po.s_end && !s.noplay) {
 		switch (s.type) {
 		case C.BAR:
 			break

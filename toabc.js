@@ -1,6 +1,6 @@
 // abc2svg - toabc.js - convert ABC to ABC
 //
-// Copyright (C) 2016-2022 Jean-Francois Moine
+// Copyright (C) 2016-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -495,17 +495,8 @@ break
 	    var	p, j, sl, s2, a, d,
 		ln = ""
 
-		if (note.sls) {
-			for (j = 0; j < note.sls.length; j++) {
-				sl = note.sls[j];
-				ln += slti_dump(sl.ty, '(')
-				s2 = sl.note.s
-				if (s2.sl2)
-					s2.sl2++
-				else
-					s2.sl2 = 1
-			}
-		}
+		if (note.sl1)
+			ln += slti_dump(note.sl1, '(')
 		if (note.a_dd)
 			ln += deco_dump(note.a_dd)
 		if (note.color)
@@ -740,17 +731,23 @@ break
 		if (s.sls) {
 			for (i = 0; i < s.sls.length; i++) {
 				sl = s.sls[i];
-				line += slti_dump(sl.ty, '(')
-				if (sl.is_note) {
-					if (sl.note.sl2)
-						sl.note.sl2++
+				if (sl.loc != 'i'
+				 && !s.bar_type) {
+					if (sl.nts)
+						sl.nts.sl1 = sl.ty
 					else
-						sl.note.sl2 = 1
-				} else {
-					if (sl.note.s.sl2)
-						sl.note.s.sl2++
+						line += slti_dump(sl.ty, '(')
+				}
+				if (sl.nte) {
+					if (sl.nte.sl2)
+						sl.nte.sl2++
 					else
-						sl.note.s.sl2 = 1
+						sl.nte.sl2 = 1
+				} else if (sl.se) {
+					if (sl.se.sl2)
+						sl.se.sl2++
+					else
+						sl.se.sl2 = 1
 				}
 			}
 		}
@@ -883,9 +880,12 @@ break
 			staves_dump(s)
 			break
 		case C.STBRK:
-			voice_out();
-			abc2svg.print('%%staffbreak ' + s.xmx.toString() +
-				(s.stbrk_forced ? 'f' : ''))
+			if (vo[v].length && vo[v].slice(-1) != '\n')
+				line += '[I:staffbreak ' + s.xmx.toString() +
+					(s.stbrk_forced ? ' f' : '') + ']'
+			else
+				line += '%%staffbreak ' + s.xmx.toString() +
+					(s.stbrk_forced ? ' f' : '') + '\n'
 			break
 		case C.BLOCK:
 			voice_out();

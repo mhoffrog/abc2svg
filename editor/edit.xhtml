@@ -16,43 +16,43 @@
 
 <!-- menu bar -->
     <ul id="nav">
-	<li class="dropbutton"><label id="f">File</label>
+	<li class="dropbutton"><span id="f">File</span>
 		<ul class="droplinks">
 		    <li><input type="file" id="abcfile" accept="*"
 				style="display:none" onchange="loadtune()"/>
 			<label id="fl" for="abcfile">Load file</label>
 		    </li>
-		    <li><label id="saveas">Save file</label></li>
+		    <li><span id="saveas">Save file</span></li>
 		</ul>
 	</li>
-	<li class="dropbutton"><label id="pr">Preferences</label>
+	<li class="dropbutton"><span id="pr">Preferences</span>
 		<ul class="droplinks">
-			<li><label id="fs">Font size</label>
+			<li><span id="fs">Font size</span>
 			    <input type="number" id="fontsize"
 				 min="10" max="20" value="14" onchange="setfont()"/>
 			</li>
 			<li id="playdiv1" style="display: none">
-				<label id="sful">Sound font URL</label>
+				<span id="sful">Sound font URL</span>
 				 <input id="sfu" type="text" maxlength="120"
 					size="50"
 					onblur="set_sfu(this.value)"/>
 			</li>
 			<li id="playdiv3" style="display: none">
-				<label id="gv">Volume</label>
+				<span id="gv">Volume</span>
 				 <input id="gvol" type="range" min="1" max="10" value="7"
 					onchange="set_vol(this.value / 10)"/>
-				<label id="gvl">0.70</label>
+				<span id="gvl">0.70</span>
 			</li>
 			<li id="playdiv4" style="display: none">
-				<label id="sp">Speed</label>
+				<span id="sp">Speed</span>
 				 <input id="spv" type="range"
 					min="1" max="20" value="10" step=".5"
 					onchange="set_speed(this.value)"/>
-				<label id="spvl">1</label>
+				<span id="spvl">1</span>
 			</li>
 		</ul>
 	</li>
-	<li class="dropbutton"><label id="lg">Language</label>
+	<li class="dropbutton"><span id="lg">Language</span>
 		<ul class="droplinks">
 		<li onclick="loadlang('de')">Deutsch</li>
 		<li onclick="loadlang('en')">English</li>
@@ -61,7 +61,7 @@
 		<li onclick="loadlang('pt_BR')">Português do Brasil</li>
 		</ul>
 	</li>
-	<li class="dropbutton"><label id="h">Help</label>
+	<li class="dropbutton"><span id="h">Help</span>
 		<ul class="droplinks">
 			<li id="ha" onclick="popshow('help', true)">Help</li>
 			<li><a id="df" target="_blank"
@@ -78,13 +78,13 @@
 
 <!-- buttons -->
 <p>
-<label id="b">ABC files:</label>
+<span id="b">ABC files:</span>
 <input id="s0" type="button" style="display: inline; background-color: #80ff80"
 	value="(noname)"/>
 <input id="s1" type="button" style="display: none; background-color: #ffd0d0"
 	value=""/>
-<label id="er" onclick="popshow('errlist', true)"
- style="display: none; background: #ff8080">Errors</label>
+<span id="er" onclick="popshow('errlist', true)"
+ style="display: none; background: #ff8080">Errors</span>
 
 <!-- ABC source in textarea (main and include) -->
 </p>
@@ -144,7 +144,7 @@
 <div id="about" class="popup" style="width: 350px">
 <div class="close" onclick="popshow('about')">x</div>
 <p id="abc2svg">abc2svg</p>
-<p>Copyright &#x00A9; 2016-2022 <a
+<p>Copyright &#x00A9; 2016-2024 <a
 href="http://moinejf.free.fr">Jean-François Moine</a></p>
 </div>
 

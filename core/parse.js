@@ -1,6 +1,6 @@
 // abc2svg - parse.js - ABC parse
 //
-// Copyright (C) 2014-2023 Jean-Francois Moine
+// Copyright (C) 2014-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -75,6 +75,7 @@ function new_clef(clef_def) {
 	case 'n':				// none
 		i = 4
 		s.invis = true
+		s.clef_none = 1 //true
 		break
 	case 't':
 		if (clef_def[1] == 'e') {	// tenor
@@ -91,11 +92,6 @@ function new_clef(clef_def) {
 	case 'P':				// perc
 		s.clef_type = "p";
 		s.clef_line = 3;
-		curvoice.key.k_sf = 0;		// no accidental
-		curvoice.ckey.k_sf = 0
-		curvoice.ckey.k_map = abc2svg.keys[7]
-		curvoice.ckey.k_b40 = 2
-		curvoice.ckey.k_drum = true	// no transpose
 		break
 	default:
 		syntax(1, "Unknown clef '$1'", clef_def)
@@ -190,7 +186,7 @@ function nt_trans(nt,
 	}
 
 	// set the microtonal accidental after transposition
-	switch (a) {
+	switch (an) {
 	case -2:
 		if (n > 0)
 			n -= d * 2
@@ -331,15 +327,19 @@ function get_st_lines(param) {
 
 // create a block symbol in the tune body
 function new_block(subtype) {
-	var	s = {
+    var	c_v,
+	s = {
 			type: C.BLOCK,
 			subtype: subtype,
 			dur: 0
 		}
 
+	c_v = curvoice
 	if (subtype.slice(0, 4) != "midi")	// if not a play command
 		curvoice = voice_tb[0]		// set the block in the first voice
 	sym_link(s)
+	if (c_v)
+		curvoice = c_v
 	return s
 }
 
@@ -531,6 +531,10 @@ Abc.prototype.set_vp = function(a) {
 			else
 				curvoice.staffscale = val
 			break
+		case "tacet=":
+			val = a.shift()
+			curvoice.tacet = val || undefined
+			break
 		case "transpose=":		// (abcMIDI compatibility)
 			if (cfmt.nedo) {
 				syntax(1, errs.notransp)
@@ -582,15 +586,7 @@ Abc.prototype.set_vp = function(a) {
 	}
 
 	// if transposition
-	if (tr_p) {
-		curvoice.tr_p = tr_p			// keep this key signature
-		tr_p = (curvoice.score | 0)
-			+ (curvoice.shift | 0)
-			+ (cfmt.transp | 0)
-		if (tr_p)
-			curvoice.tr_sco = tr_p		// b40 interval
-		else if (curvoice.tr_sco)
-			curvoice.tr_sco = 0
+	if (tr_p & 2) {			// curvoice.tr_sco is set in key_trans()
 		tr_p = (curvoice.sound | 0) + (curvoice.shift | 0)
 		if (tr_p)
 			curvoice.tr_snd = abc2svg.b40m(tr_p + 122) - 36
@@ -912,7 +908,7 @@ function new_meter(p) {
 						break
 					meter.top += p[i++]
 				}
-				m1 = +meter.top
+				m1 = eval(meter.top)
 				break
 			}
 			if (!in_parenth) {
@@ -978,6 +974,48 @@ function new_meter(p) {
 			p_v.wmeasure = wmeasure
 	}
 }
+
+// link P: or Q:
+function link_pq(s, text) {
+    var	p_v, s2
+
+	if (curvoice.v == par_sy.top_voice) {
+		sym_link(s)
+	} else if (voice_tb[par_sy.top_voice].time == s.time) {
+		p_v = curvoice
+		curvoice = voice_tb[par_sy.top_voice]
+		sym_link(s)
+		curvoice = p_v
+	} else if (voice_tb[par_sy.top_voice].time > s.time) {
+		p_v = voice_tb[par_sy.top_voice]
+		for (s2 = p_v.sym; ; s2 = s2.next) {
+			if (s2.time >= s.time) {
+				set_ref(s)
+				s.fmt = cfmt
+				s.next = s2
+				s.prev = s2.prev
+				if (s2.prev)
+					s.prev.next = s
+				else
+					p_v.sym = s
+				s2.prev = s
+				s.v = s2.v
+				s.p_v = p_v
+				s.st = p_v.st
+				break
+			}
+		}
+	} else {
+		set_ref(s)
+		s.fmt = cfmt
+		if (!parse.pq_d)
+			parse.pq_d = []
+		parse.pq_d.push(s)		// delayed insertion
+	}
+	if (!parse.pq)
+		parse.pq = {}
+	parse.pq[text] = s.time
+} // link_pq()
 
 /* Q: tempo */
 function new_tempo(text) {
@@ -1071,19 +1109,14 @@ function new_tempo(text) {
 		return
 	}
 
-    var	tim = curvoice.time
 	if (!glovar.tempo)
 		syntax(0, "No previous tempo")
-	if (!parse.ctrl)
-		parse.ctrl = {}
-	if (!parse.ctrl[tim])
-		parse.ctrl[tim] = {}
-	parse.ctrl[tim].tempo = s
-	s.v = par_sy.top_voice
-	s.p_v = voice_tb[s.v]
-	s.fmt = cfmt
-	s.st = s.p_v.st
-	s.time = tim
+	s.time = curvoice.time
+	text = 'Q' + s.time
+	if (parse.pq
+	 && parse.pq[text] == s.time)
+		return				// already seen
+	link_pq(s, text)
 }
 
 // treat the information fields which may embedded
@@ -1151,25 +1184,22 @@ function do_info(info_type, text) {
 			info.P = text
 			break
 		}
-
-		// memorize the part in the control
-		tim = curvoice.time
 		s = {
+			type: C.PART,
 			text: text,
-			time: tim
+			time: curvoice.time
 		}
-		set_ref(s)
-		if (cfmt.writefields.indexOf(info_type) < 0)
-			s.invis = true
-		if (!parse.ctrl)
-			parse.ctrl = {}
-		if (!parse.ctrl[tim])
-			parse.ctrl[tim] = {}
-		parse.ctrl[tim].part = s
-		s.v = par_sy.top_voice
-		s.p_v = voice_tb[s.v]
-		s.fmt = cfmt
-		s.st = s.p_v.st
+		tim = parse.pq && parse.pq[text] // time of previous P: with same text
+		if (tim == s.time)
+			break				// already seen
+		if (tim != null) {
+			syntax(1, "Misplaced P:")	// different dates
+			break
+		}
+
+		if (cfmt.writefields.indexOf('P') < 0)
+			s.invis = 1 //true
+		link_pq(s, text)
 		break
 	case 'Q':
 		if (!parse.state)
@@ -1235,23 +1265,7 @@ function adjust_dur(s) {
 	auto_time = curvoice.time - time
 	fac = curvoice.wmeasure / auto_time
 
-	/* remove the invisible rest at start of tune */
-	if (!time) {
-		while (s2 && !s2.dur)
-			s2 = s2.next
-		if (s2 && s2.type == C.REST
-		 && s2.invis) {
-			time += s2.dur * fac
-			if (s2.prev)
-				s2.prev.next = s2.next
-			else
-				curvoice.sym = s2.next
-			if (s2.next)
-				s2.next.prev = s2.prev;
-			s2 = s2.next
-		}
-	}
-	if (curvoice.wmeasure == auto_time)
+	if (fac == 1)
 		return				/* already good duration */
 
 	for ( ; s2; s2 = s2.next) {
@@ -1315,25 +1329,6 @@ function new_bar() {
 	if (a_dcn.length)
 		deco_cnv(s)
 
-	// set the start/stop of ottava
-	if (parse.ottava.length) {
-		s2 = s
-		if (curvoice.cst != curvoice.st) {	// if staff change
-			s2 = {
-				type: C.SPACE,		// put the decoration on a ...
-				fname: parse.fname,
-				istart: parse.bol + line.index,
-				dur: 0,
-				multi: 0,
-				invis: true,
-				width: 1		// .. small space
-			}
-			sym_link(s2)
-		}
-		s2.ottava = parse.ottava
-		parse.ottava = []
-	}
-
 	/* if the last element is '[', it may start
 	 * a chord or an embedded header */
 	if (bar_type.slice(-1) == '['
@@ -1386,7 +1381,7 @@ function new_bar() {
 
 	// there cannot be variants on a left repeat bar
 	if (bar_type.slice(-1) == ':') {	// left repeat
-		s.rbstop = 2			// stop the bracket
+		s.rbstop = 1			// end the bracket
 		if (s.text) {
 			syntax(1, "Variant ending on a left repeat bar")
 			delete s.text
@@ -1408,48 +1403,41 @@ function new_bar() {
 			if (curvoice.acc_tie_rep)
 				curvoice.acc_tie = curvoice.acc_tie_rep.slice()
 		}
+		if (curvoice.norepbra
+		 && !curvoice.second)
+			s.norepbra = 1 //true
 	}
-
-	if (s.rbstart
-	 && curvoice.norepbra
-	 && !curvoice.second)
-		s.norepbra = true
 
 	if (curvoice.ulen < 0)			// L:auto
 		adjust_dur(s);
 
-	if (bar_type == "[" || bar_type == "|:") {
+	// merge ":| |:" into "::" and other cases
+	if ((bar_type == "[" || bar_type == "|:")
+	 && !curvoice.eoln
+	 && !s.a_gch && !s.invis) {		// no annotation nor invisible
 		s2 = curvoice.last_sym
-		if (s2 && s2.time == curvoice.time) {
 
-			// search if a previous bar at this time
-			do {
-				if (s2.type == C.BAR)
-					break
-				if (w_tb[s2.type]) // symbol with a width
-					break
-				s2 = s2.prev
-			} while (s2)
-			if (s2 && s2.type == C.BAR) {
+		// if the previous symbol is also a bar
+		if (s2 && s2.type == C.BAR) {
 //		&& !s2.a_gch && !s2.a_dd
 //		&& !s.a_gch && !s.a_dd) {
 
-				// remove the invisible repeat bars
+				// remove the invisible variant bars
 				// when no shift is needed
 				if ((bar_type == "["
-				 && !s2.text
-				 && (!curvoice.st
-				  || (par_sy.staves[curvoice.st - 1].flags & STOP_BAR)
-				  || s.norepbra))
-				 || s2.bar_type == "|") {	// "|" + "|:" => "|:"
-					if (bar_type != "[")
-						s2.bar_type = bar_type
-					if (s.text)
+				  && !s2.text)
+				 || s.norepbra) {
+					if (s.text) {
 						s2.text = s.text
-					if (s.a_gch)
-						s2.a_gch = s.a_gch
+						if (curvoice.st && !s.norepbra
+						 && !(par_sy.staves[curvoice.st - 1]
+								.flags & STOP_BAR))
+							s2.xsh = 4	// volta shift
+					}
+//					if (s.a_gch)
+//						s2.a_gch = s.a_gch
 					if (s.norepbra)
-						s2.norepbra = s.norepbra
+						s2.norepbra = 1 //true
 					if (s.rbstart)
 						s2.rbstart = s.rbstart
 					if (s.rbstop)
@@ -1460,18 +1448,13 @@ function new_bar() {
 
 				// merge back-to-back repeat bars
 				if (bar_type == "|:") {
-					if (s2.bar_type == ":|") {
+					switch (s2.bar_type) {
+					case ":|":		// :| + |: => ::
 						s2.bar_type = "::";
 						s2.rbstop = 2
 						return
 					}
-					if (s2.bar_type == "||") {
-						s2.bar_type = "||:";
-						s2.rbstop = 2
-						return
-					}
 				}
-			}
 		}
 	}
 
@@ -1506,28 +1489,11 @@ function new_bar() {
 
 	s.st = curvoice.st			/* original staff */
 
-	/* if repeat bar and shift, add a repeat bar */
-	if (s.rbstart
-	 && bar_type != "["
-	 && !curvoice.norepbra
-	 && s.st > 0
-	 && !(par_sy.staves[s.st - 1].flags & STOP_BAR)) {
-		s2 = {
-			type: C.BAR,
-			fname: s.fname,
-			istart: s.istart,
-			iend: s.iend,
-			bar_type: "[",
-			multi: 0,
-			invis: true,
-			text: s.text,
-			rbstart: 2
-		}
-		sym_link(s2);
-		s2.st = s.st
-		delete s.text;
-		s.rbstart = 0
-	}
+	// possibly shift the volta bracket if not on the first staff
+	if (s.text && s.st > 0 && !s.norepbra
+	 && !(par_sy.staves[s.st - 1].flags & STOP_BAR)
+	 && bar_type != '[')
+		s.xsh = 4			// volta shift
 
 	if (!s.bar_dotted && !s.invis)
 		curvoice.acc = []		// no accidental anymore
@@ -1793,16 +1759,16 @@ function parse_acc_pit(line) {
 //	[1] print (note)
 //	[2] color
 //	[3] play (note)
-function set_map(note, acc) {
-    var	pit = note.pit,
-	nn = not2abc(pit, acc),
-	map = maps[curvoice.map]	// never null
+function set_map(p_v, note, acc,
+		 trp) {			// transpose done
+    var	nn = not2abc(note.pit, acc),
+	map = maps[p_v.map]		// never null
 
 	if (!map[nn]) {
 		nn = 'o' + nn.replace(/[',]+/, '')	// ' octave
 		if (!map[nn]) {
-			nn = 'k' + ntb[(pit + 75 -
-					curvoice.ckey.k_sf * 11) % 7]
+			nn = 'k' + ntb[(note.pit + 75 -
+					p_v.ckey.k_sf * 11) % 7]
 			if (!map[nn]) {
 				nn = 'all'		// 'all'
 				if (!map[nn])
@@ -1810,11 +1776,20 @@ function set_map(note, acc) {
 			}
 		}
 	}
-	note.map = map = map[nn]
-	if (map[1]) {				// if print map
-		note.pit = pit = map[1].pit
-		note.acc = map[1].acc
+	map = map[nn]
+	if (!trp) {				// transpose not done yet
+		if (map[1]) {			// if note shift
+			note.pit = map[1].pit
+			note.acc = map[1].acc
+			if (map[1].notrp) {
+				note.notrp = 1 //true	// no transpose
+				note.noplay = 1 //true	// no play
+			}
+		}
+		return
 	}
+	note.map = map
+
 	if (map[2])				// if color
 		note.color = map[2]
 	nn = map[3]
@@ -1856,6 +1831,9 @@ function parse_vpos() {
 	case ",":
 		line.index++
 		return ty + C.SL_BELOW
+	case '?':				// slur between staves (like ~)
+		line.index++
+		return ty + C.SL_CENTER
 	}
 	return ty + C.SL_AUTO
 }
@@ -1991,7 +1969,6 @@ function do_ties(s, tie_s) {
 				  || !not1.tie_e)) {	// (if unison)
 					not2.tie_s = not1
 					not2.s = s
-					delete not2.acc	// (if transposing)
 					if (se) {
 						not1.tie_e = not2
 						not1.s = tie_s
@@ -2095,6 +2072,10 @@ Abc.prototype.new_note = function(grace, sls) {
 			}]
 		} else {
 			glovar.mrest_p = true
+			if (par_sy.voices.length == 1) {
+				s.tacet = curvoice.tacet
+				delete s.invis	// show the 'H' when 'Xn'
+			}
 		}
 		break
 	case 'y':
@@ -2202,17 +2183,16 @@ Abc.prototype.new_note = function(grace, sls) {
 			if (acc_tie && acc_tie[apit])
 				i = acc_tie[apit]	// tied note
 
-			// map
-			if (curvoice.map
-			 && maps[curvoice.map])
-				set_map(note, i)
-
 			// set the MIDI pitch
 			if (!note.midi)		// if not map play
 				note.midi = pit2mid(apit, i)
 
 			// transpose
+			if (curvoice.map
+			 && maps[curvoice.map])
+				set_map(curvoice, note, i)	// transpose not done
 			if (curvoice.tr_sco) {
+			    if (!note.notrp) {
 				i = nt_trans(note, i)
 				if (i == -3) {		// if triple sharp/flat
 					error(1, s, "triple sharp/flat")
@@ -2221,6 +2201,7 @@ Abc.prototype.new_note = function(grace, sls) {
 					note.acc = i
 				}
 				dpit = note.pit + 19 - apit
+			    }
 			}
 			if (curvoice.tr_snd)
 				note.midi += curvoice.tr_snd
@@ -2458,13 +2439,8 @@ Abc.prototype.new_note = function(grace, sls) {
 		a_dcn = a_dcn_sav
 		deco_cnv(s, s.prev)
 	}
-	if (parse.ottava.length) {
-		if (grace)
-			grace.ottava = parse.ottava
-		else
-			s.ottava = parse.ottava
-		parse.ottava = []
-	}
+	if (grace && s.ottava)
+		grace.ottava = s.ottava
 	if (parse.stemless)
 		s.stemless = true
 	s.iend = parse.bol + line.index
@@ -2521,12 +2497,7 @@ function get_deco() {
 			break
 		dcn += c
 	}
-	if (ottava[dcn] != undefined) {
-		glovar.ottava = true;
-		parse.ottava.push(ottava[dcn])
-	} else {
-		a_dcn.push(dcn)
-	}
+	a_dcn.push(dcn)
 } // get_deco()
 
 // characters in the music line (ASCII only)
@@ -2567,9 +2538,7 @@ var nil = "0",
 		"!downbow!", "d",	/* t u v w */
 	"n", "n", "n", "{",		/* x y z { */
 	"|", "}", "!gmark!", nil,	/* | } ~ (del) */
-],
-    ottava = {"8va(":1, "8va)":0, "15ma(":2, "15ma)":0,
-	"8vb(":-1, "8vb)":0, "15mb(":-2, "15mb)":0}
+] // char_tb[]
 
 function parse_music_line() {
 	var	grace, last_note_sav, a_dcn_sav, no_eol, s, tps,

@@ -1,6 +1,6 @@
 // edit.js - file used in the abc2svg editor
 //
-// Copyright (C) 2014-2022 Jean-Francois Moine
+// Copyright (C) 2014-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -29,6 +29,12 @@ window.onerror = function(msg, url, line) {
 	return false
 }
 
+// function called before the page is closed
+window.onbeforeunload = function () {
+	if (chg)			// if the textarea has been modified
+		return ""		// ask close page confirmation
+}
+
 var	abc_images,			// image buffer
 	abc_fname = ["noname.abc", ""],	// file names
 	abc_mtime = [],			// associated last modification time
@@ -41,6 +47,7 @@ var	abc_images,			// image buffer
 	play = {},			// play data
 	pop,				// current popup message
 	texts = {},			// language specific texts
+	chg = 0,			// > 0 when the textarea is modified
 	jsdir = document.currentScript ?
 		document.currentScript.src.match(/.*\//) :
 		(function() {
@@ -168,6 +175,7 @@ function loadtune() {
 
 		elt_ref[s].value = evt.target.result;
 		elt_ref["s" + srcidx].value = abc_fname[srcidx];
+		chg = -1			// no change yet
 		src_change()
 	}
 
@@ -211,6 +219,7 @@ function render() {
 	}
 	elt_ref.diverr.innerHTML = '';
 	selx[0] = selx[1] = 0;
+	chg++					// textarea modified
 	render2()
 }
 function render2() {
@@ -451,6 +460,8 @@ function saveas() {
 
 	// click the new link
 	link.click()
+
+	chg = 0					// no change anymore
 }
 
 // destroy the clicked element
@@ -539,7 +550,6 @@ function play_tune(what) {
 	}
 
 	// search a symbol to play
-
 	function gnrn(sym, loop) {	// go to the next real note (not tied)
 	    var	i
 		while (1) {
@@ -573,6 +583,7 @@ function play_tune(what) {
 		}
 		// not reached
 	}
+
 	function gprn(sym, loop) {	// go to the previous real note (not tied)
 	    var	i
 		while (1) {
@@ -611,7 +622,11 @@ function play_tune(what) {
 	}
 
 	function gsot(si) {		// go to the first symbol of a tune
-		return syms[si].p_v.sym
+	    var	sym = syms[si].p_v.sym
+
+		while (!sym.seqst)
+			sym = sym.ts_prev
+		return sym
 	}
 	function get_se(si) {			// get the starting symbol
 	    var	sym = syms[si]
@@ -895,6 +910,7 @@ function drop(evt) {
 		elt_ref["s" + srcidx].value = abc_fname[srcidx] = data[0].name
 		reader.onload = function(evt) {
 			elt_ref[s].value = evt.target.result
+			chg = -1			// no change yet
 			src_change()
 		}
 		reader.readAsText(data[0],"UTF-8")

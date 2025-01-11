@@ -1,6 +1,6 @@
 // sth.js - module to set the stem heights
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -24,6 +24,9 @@
 // The values h1, h2, .. are applied to the following notes which
 // have a stem and which are not inside a beam.
 // The value may be '*' for keeping the original stem length.
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.sth = {
 
@@ -138,7 +141,6 @@ abc2svg.sth = {
     }
 } // sth
 
-abc2svg.modules.hooks.push(abc2svg.sth.set_hooks);
-
-// the module is loaded
-abc2svg.modules.sth.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.sth = abc2svg.sth.set_hooks

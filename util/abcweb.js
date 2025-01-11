@@ -1,6 +1,6 @@
 // abcweb-1.js file to include in html pages
 //
-// Copyright (C) 2014-2022 Jean-Francois Moine
+// Copyright (C) 2014-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -175,7 +175,6 @@ function dom_loaded() {
 	} // get_p()
 
 	// move the musique sequences to <script> text/vnd.abc
-	//	<mei> .. </mei>
 	//	<anytag .. class="abc" .. > ..ABC.. </anytag>
 	//	%abc-n ..ABC.. '<' with skip %%beginxxx .. %%endxxx
 	//	X:n ..ABC.. '<' with skip %%beginxxx .. %%endxxx
@@ -247,23 +246,6 @@ Printing may be bad because the file contains pure HTML and %%pageheight\
 	function save_music() {
 	    var i, k, div, c, s, sa
 
-		// save MEI sequences
-		function save_spe(ty) {
-		    var	s, div
-			while (1) {
-				s = document.getElementsByTagName(ty)[0]
-				if (!s)
-					break
-				div = document.createElement('div')
-				abc2svg.music.push({
-					n: 'mus' + abc2svg.music.length,
-					t: s.outerHTML,
-					d: div
-				})
-				s.parentNode.replaceChild(div, s)
-			}
-		} // save_spe()
-
 		// get the global parameters
 		abc2svg.music = [{
 			t: "",			// global parameters
@@ -307,9 +289,6 @@ Printing may be bad because the file contains pure HTML and %%pageheight\
 			}
 			s.parentNode.replaceChild(div, s)
 		}
-
-		// special treatment for MEI
-		save_spe('mei')
 	} // save_music()
 
 	// generate a music sequence
@@ -332,6 +311,10 @@ Printing may be bad because the file contains pure HTML and %%pageheight\
 			abc.tosvg(mu.n, t)	// music source
 
 			abc2svg.abc_end()	// close the page if %%pageheight
+
+			// mu.d can be null when parameters in query string
+			// and no ABC script with global parameters
+		    if (mu.d) {
 
 			if (err)
 				outb += '<pre class="nop" style="background:#ff8080">'
@@ -359,6 +342,7 @@ Printing may be bad because the file contains pure HTML and %%pageheight\
 				j = j[1]		// tune number
 				tune_lst[j] = null	// get new play references
 			}
+		    } // if (mu.d)
 
 			// if some generation waiting, start it
 			mu.w = busy = 0 //false
@@ -415,8 +399,8 @@ Printing may be bad because the file contains pure HTML and %%pageheight\
 		if (abc2svg.modules.load(t, include))
 			include()
 	} // musgen()
-//test
-abc2svg.musgen = musgen
+
+abc2svg.musgen = musgen			// used in set_music() below
 
 // -- abc2svg init argument
     user = {
@@ -521,10 +505,7 @@ function clean_txt(txt) {
 	// load the abc2svg core if not done by <script>
 	src = document.body.innerHTML
 	if (!abc2svg.Abc) {
-		abc2svg.loadjs(src.indexOf("<mei ") >= 0 ?
-					"mei2svg-1.js" :
-					"abc2svg-1.js",
-						dom_loaded)
+		abc2svg.loadjs("abc2svg-1.js", dom_loaded)
 		return
 	}
 
@@ -537,16 +518,8 @@ function clean_txt(txt) {
 	abc = new abc2svg.Abc(user)
 	if (typeof follow == "function")	// if snd-1.js loaded
 		follow(abc, user, playconf)	// initialize the play follow
-	if (abc2svg.music[0].t) {
-		abc.tosvg(abc2svg.music[0].n,	// global definitions
-			  abc2svg.music[0].t)
-		if (abc.cfmt().with_source
-		 && abc.cfmt().with_source.indexOf('nohead') < 0) {
-			abc2svg.music[0].d.innerHTML = '<pre class="source">'
-					+ clean_txt(abc2svg.music[0].t)
-					+ '</pre>\n'
-		}
-	}
+	if (abc2svg.music[0].t)
+		musgen(abc2svg.music[0])	// global definitions
 
 	// create a list of all <div>'s
 	abc2svg.alldiv = []

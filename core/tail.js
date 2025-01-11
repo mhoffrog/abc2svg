@@ -1,6 +1,6 @@
 // abc2svg - tail.js
 //
-// Copyright (C) 2014-2022 Jean-Francois Moine
+// Copyright (C) 2014-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -23,6 +23,7 @@
 // Abc functions used by the modules
 Abc.prototype.a_de = function() { return a_de }
 Abc.prototype.add_style = function(s) { style += s };
+Abc.prototype.anno_a = anno_a
 Abc.prototype.cfmt = function() { return cfmt };
 Abc.prototype.clone = clone;
 Abc.prototype.deco_put = function(nm, s) {
@@ -78,6 +79,7 @@ Abc.prototype.set_dscale = set_dscale;
 Abc.prototype.set_font = set_font;
 Abc.prototype.set_a_gch = function(s, a) { a_gch = a; csan_add(s) }
 Abc.prototype.set_hl = set_hl
+Abc.prototype.set_page = set_page
 Abc.prototype.set_pagef = function() { blkdiv = 1 }
 Abc.prototype.set_realwidth = function(v) { realwidth = v }
 Abc.prototype.set_scale = set_scale;
@@ -94,34 +96,8 @@ Abc.prototype.use_font = use_font;
 Abc.prototype.vskip = vskip
 Abc.prototype.xy_str = xy_str;
 Abc.prototype.xygl = xygl;
-
-    var	hook_init		// set after setting the first module hooks
-
-    // export functions and/or set module hooks
-    function set_hooks() {
-    var	h = abc2svg.modules.hooks,
-	gh = abc2svg.modules.g_hooks
-
-	function set_hs(hs) {
-		for (var k = 0; k < hs.length; k++)
-			hs[k](self)
-	} // set_hs()
-
-	if (hook_init) {			// if new modules
-		if (h.length) {
-			set_hs(h);
-			gh.push.apply(gh, h);
-			abc2svg.modules.hooks = []
-		}
-	} else {				// all modules
-		if (h.length) {
-			gh.push.apply(gh, h);
-			abc2svg.modules.hooks = []
-		}
-		set_hs(gh);
-		hook_init = true
-	}
-    } // set_hooks()
+Abc.prototype.y_get = y_get
+Abc.prototype.y_set = y_set
 }	// end of Abc()
 
 // compatibility

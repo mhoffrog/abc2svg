@@ -56,8 +56,6 @@ abc2svg.modules = {
 	tropt: {},
 
 	nreq: 0,
-	hooks: [],
-	g_hooks: [],
 
 	// scan the file and find the required modules
 	// @file: ABC file

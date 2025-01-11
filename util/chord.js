@@ -36,7 +36,7 @@ abc2svg.ch_names = {
 	aug:	["C-E a C+", "E-C a C+", "a-C E a "],
 //	plus:	["C-E a C+", "E-C a C+", "a-C E a "],
 	aug7:	["C-b-E a ", "E-C a b ", "a-E b C+", "b-E a C+"],
-	dim:	["C-E g C+", "E-C g C+", "g-C E g "],
+	dim:	["C-e g C+", "e-C g C+", "g-C e g "],
 	dim7:	["C-e g A ", "e-C g A ", "g-e A C+", "A-C e G "],
 	'9':	["C-b-E G D+", "E-C G b D+", "G-E b C+D+", "b-E G C+D+", "D-G-C E b "],
 	m9:	["C-b-e G D+", "e-C G b D+", "G-e b C+D+", "b-e G C+D+", "D-G-C e b "],
@@ -242,6 +242,8 @@ abc2svg.chord = function(first,		// first symbol in time
 		},
 		vol: cfmt.chord.vol || .6	// (external default 76.2)
 	}
+	vch.sym.p_v = vch
+	vch.sym.v = vch.v
 	vch.last_sym = vch.sym
 	voice_tb.push(vch)
 	first.ts_next = vch.sym

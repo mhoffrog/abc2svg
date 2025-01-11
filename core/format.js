@@ -1,6 +1,6 @@
 // abc2svg - format.js - formatting functions
 //
-// Copyright (C) 2014-2022 Jean-Francois Moine
+// Copyright (C) 2014-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -17,15 +17,13 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
-var	font_tb = [],
-	font_st = {},	// font style => font_tb index for incomplete user fonts
-	font_scale_tb = {
+    var	font_scale_tb = {
 		serif: 1,
 		serifBold: 1,
 		'sans-serif': 1,
 		'sans-serifBold': 1,
 		Palatino: 1.1,
-		monospace: 1.35
+		monospace: 1
 	},
 	txt_ff = "text,serif",		// text font-family (serif for compatibility)
 	fmt_lock = {}
@@ -111,6 +109,7 @@ H "History: "',
 	subtitlefont: {name: txt_ff, size: 16},
 	subtitlespace: 3,
 	sysstaffsep: 34,
+	systnames: -1,
 	tempofont: {name: txt_ff, weight: "bold", size: 12},
 	textfont: {name: txt_ff, size: 16},
 //	textoption: undefined,
@@ -124,7 +123,7 @@ H "History: "',
 //	topmargin: .7 * IN,
 	topspace: 22,
 	tuplets: [0, 0, 0, 0],
-	tupletfont: {name: txt_ff, style: "italic", size: 12},
+	tupletfont: {name: txt_ff, style: "italic", size: 10},
 	vocalfont: {name: txt_ff, weight: "bold", size: 13},
 	vocalspace: 10,
 	voicefont: {name: txt_ff, weight: "bold", size: 13},
@@ -157,11 +156,13 @@ shiftunison: true,
 slurheight: true,
 squarebreve: true,    
 staffsep: true,
+systnames: 1, //
 stemheight: true,
 stretchlast: true,
 stretchstaff: true,
 tieheight: true,
 timewarn: true,
+trimsvg: 1, //true
 vocalspace: true
 } // sfmt
 
@@ -196,7 +197,7 @@ function set_font_fac(font) {
 
 // %%xxxfont fontname|* [encoding] [size|*]
 function param_set_font(xxxfont, p) {
-    var	font, n, a
+    var	font, n, a, ft2, k
 
 	// "setfont-<n>" goes to "u<n>font"
 	if (xxxfont[xxxfont.length - 2] == '-') {
@@ -206,25 +207,8 @@ function param_set_font(xxxfont, p) {
 		xxxfont = "u" + n + "font"
 	}
 
-	// create a new font
-	font = cfmt[xxxfont];
-	if (!font) {			// set-font-<n> or new element
-		font = {
-			pad: 0
-		}
-	} else {
-		font = {
-			name: font.name,
-			size: font.size,
-			weight: font.weight,
-			style: font.style,
-			box: font.box,
-			pad: font.pad || 0
-		}
-	}
-	cfmt[xxxfont] = font;
-
 	// fill the values
+	font = {}
 	a = p.match(/\s+(no)?box(\s|$)/)
 	if (a) {				// if box
 		if (a[1]) {
@@ -275,41 +259,27 @@ function param_set_font(xxxfont, p) {
 		p = p.replace(a[0], "")
 	}
 
-	font.fname = p			// full name for scale factor
-
-	// accept url(...) as the font name
-	if (p[0] == 'u' && p.slice(0, 4) == "url(") {
+	// accept local(..) and url(...) as the font source
+	if ((p[0] == 'u' && p.slice(0, 4) == "url(")
+	 || (p[0] == 'l' && p.slice(0, 6) == "local(")) {
 		n = p.indexOf(')', 1)
 		if (n < 0) {
 			syntax(1, "No end of url in font family")
 			return
 		}
-		p = p.slice(0, n + 1)
 
-		font.src = p
-		font.fid = font_tb.length
-		font_tb.push(font)
-		font.normal = true
-		p = 'ft' + font.fid
-	} else {
-		if (p[0] == '"') {
-			n = p.indexOf('"', 1)
-			if (n < 0) {
-				syntax(1, "No end of string in font family")
-				return
-			}
-			p = p.slice(1, n)
-		}
+		font.src = p.slice(0, n + 1)
+		font.fid = abc2svg.font_tb.length
+		abc2svg.font_tb.push(font)
+		font.name = 'ft' + font.fid
+		p = p.replace(font.src, '')
+	}
 
 		// extract the font attributes
 		a = p.match(/[- ]?[nN]ormal/)
 		if (a) {
 			font.normal = true
 			p = p.replace(a[0], '')
-			if (font.weight)
-				font.weight = null
-			if (font.style)
-				font.style = null
 		}
 
 		// font weight
@@ -331,12 +301,22 @@ function param_set_font(xxxfont, p) {
 			p = p.replace(a[0], '')
 		}
 
+	if (!font.src) {			// if no url(...)
+		if (p[0] == '"') {
+			n = p.indexOf('"', 1)
+			if (n < 0) {
+				syntax(1, "No end of string in font family")
+				return
+			}
+			p = p.slice(1, n)
+		}
+
 		// here is the font family
 		p = p.trim()
 
 		switch (p) {
 		case "":
-		case "*": return
+		case "*": p = ""; break
 		case "Times-Roman":
 		case "Times":	p = "serif"; break
 		case "Helvetica": p = "sans-serif"; break
@@ -349,12 +329,44 @@ function param_set_font(xxxfont, p) {
 			break
 		}
 	}
-	font.name = p
+	if (p && !font.name)
+		font.name = p
 
 	if (font.size)
 		set_font_fac(font)
-	else
-		font.swfac = 0
+
+	// keep the previous attributes if no font name or no size
+	if (!font.name || !font.size) {
+		ft2 = cfmt[xxxfont]
+		for (k in ft2) {
+			if (!ft2.hasOwnProperty(k)
+			 || font[k] != undefined)
+				continue
+			switch (k) {
+			case "fid":
+			case "used":
+			case "src":
+				break
+			case "style":
+			case "weight":
+				if (font.normal)
+					break
+				// fall thru
+			default:
+				font[k] = ft2[k]
+				break
+			}
+		}
+		if (!font.swfac)
+			set_font_fac(font)
+	}
+	if (font.pad == undefined)
+		font.pad = 0
+	font.fname = font.name
+	if (font.weight >= 700)
+		font.fname += 'Bold'
+
+	cfmt[xxxfont] = font
 }
 
 // get a length with a unit - return the number of pixels
@@ -370,7 +382,7 @@ function get_unit(param) {
 	case "in":
 		return v[1] * IN
 	case "pt":		// paper point in 1/72 inch
-		return v[1] * .75
+		return v[1] / .75
 	case "px":		// screen pixel in 1/96 inch
 	case "":
 		return v[1]
@@ -407,7 +419,14 @@ var textopt = {
 	obeylines: 'l',
 	ragged: 'f',
 	right: 'r',
-	skip: 's'
+	skip: 's',
+// abcm2ps compatibility
+	"0": 'l',
+	"1": 'j',
+	"2": 'f',
+	"3": 'c',
+	"4": 's',
+	"5": 'r'
 }
 function get_textopt(v) {
     var	i = v.indexOf(' ')
@@ -514,6 +533,7 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "rbmin":
 	case "measrepnb":
 	case "shiftunison":
+	case "systnames":
 		v = parseInt(param)
 		if (isNaN(v)) {
 			syntax(1, "Bad integer value");
@@ -540,7 +560,7 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "stemheight":
 	case "tieheight":
 		f = +param
-		if (isNaN(f)) {
+		if (isNaN(f) || !param || f < 0) {
 			syntax(1, errs.bad_val, '%%' + cmd)
 			break
 		}
@@ -548,6 +568,8 @@ Abc.prototype.set_format = function(cmd, param) {
 		case "scale":			// old scale
 			f /= .75
 		case "pagescale":
+			if (f < .1)
+				f = .1		// smallest scale
 			cmd = "scale";
 			img.chg = true
 			break
@@ -583,6 +605,7 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "timewarn":
 	case "titlecaps":
 	case "titleleft":
+	case "trimsvg":
 		cfmt[cmd] = get_bool(param)
 		break
 	case "dblrepbar":
@@ -655,13 +678,15 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "writefields":
 		set_writefields(param)
 		break
+	case "volume":
+		cmd = "dynamic"
+		// fall thru
 	case "dynamic":
 	case "gchord":
 	case "gstemdir":
 	case "ornament":
 	case "stemdir":
 	case "vocal":
-	case "volume":
 		set_pos(cmd, param)
 		break
 	case "font":
@@ -766,6 +791,8 @@ Abc.prototype.set_format = function(cmd, param) {
 			}
 			break
 		}
+		if (cmd[1].slice(0, 3) == "vol")
+			cmd[1] = "dyn"			// compatibility
 		set_pos(cmd[1], cmd[2])
 		break
 	case "sounding-score":
@@ -816,6 +843,12 @@ Abc.prototype.set_format = function(cmd, param) {
 		break
 	case "voicescale":
 		set_v_param("scale", param)
+		break
+	case "unsizedsvg":
+		if (get_bool(param))
+			user.imagesize = ""
+		else
+			delete user.imagesize
 		break
 	// deprecated
 	case "rbdbstop":
@@ -873,12 +906,20 @@ function use_font(font) {
 	if (!font.used) {
 		font.used = true;
 		if (font.fid == undefined) {	// if default font
-			font.fid = font_tb.length
-			font_tb.push(font)
+			font.fid = abc2svg.font_tb.length
+			abc2svg.font_tb.push(font)
 			if (!font.swfac)
 				set_font_fac(font)
 			if (!font.pad)
 				font.pad = 0
+
+			// set the pointer to the width of the characters
+			font.cw_tb = !font.name ? ssw_tb
+				: font.name.indexOf("ans") > 0
+					? ssw_tb		// sans-serif
+					: font.name.indexOf("ono") > 0
+						? mw_tb		// monospace
+						: sw_tb		// serif
 		}
 		add_fstyle(".f" + font.fid +
 			(cfmt.fullsvg || "") +
@@ -929,10 +970,10 @@ function get_font(fn) {
 			font2.class = font.class
 			st += ' '+ font.class
 		}
-		fid = font_st[st]
+		fid = abc2svg.font_st[st]
 		if (fid != undefined)
-			return font_tb[fid]
-		font_st[st] = font_tb.length	// will be the font id
+			return abc2svg.font_tb[fid]
+		abc2svg.font_st[st] = abc2svg.font_tb.length	// will be the font id
 		font2.fid = font2.used = undefined
 		font = font2
 	}

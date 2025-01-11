@@ -1,6 +1,6 @@
 // grid3.js - module to insert a manual chords
 //
-// Copyright (C) 2020-2022 Jean-Francois Moine
+// Copyright (C) 2020-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -31,6 +31,9 @@
 // above the staff system.
 // When 'noprint' is also present, the grid itself is not displayed.
 
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
+
 abc2svg.grid3 = {
 
 // generate the grid
@@ -40,6 +43,7 @@ abc2svg.grid3 = {
 		return
 	}
 
+	this.set_page()
 	this.blk_flush()
 
     var	abc = this,
@@ -468,7 +472,6 @@ abc2svg.grid3 = {
     }
 } // grid3
 
-abc2svg.modules.hooks.push(abc2svg.grid3.set_hooks)
-
-// the module is loaded
-abc2svg.modules.begingrid.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.grid3 = abc2svg.grid3.set_hooks

@@ -23,6 +23,9 @@
 //	%%grid2 y
 // This command may appear globally or in a voice.
 
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
+
 abc2svg.grid2 = {
 
 // function called before tune generation
@@ -121,7 +124,6 @@ abc2svg.grid2 = {
     }
 } // grid2
 
-abc2svg.modules.hooks.push(abc2svg.grid2.set_hooks);
-
-// the module is loaded
-abc2svg.modules.grid2.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.grid2 = abc2svg.grid2.set_hooks

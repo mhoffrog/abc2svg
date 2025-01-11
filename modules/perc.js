@@ -27,6 +27,9 @@
 
 // Using this command creates a voicemap named "MIDIdrum".
 
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
+
 abc2svg.perc = {
 
     // parse %%percmap
@@ -244,7 +247,6 @@ var prn = {
     }
 } // perc
 
-abc2svg.modules.hooks.push(abc2svg.perc.set_hooks);
-
-// the module is loaded
-abc2svg.modules.percmap.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.perc = abc2svg.perc.set_hooks

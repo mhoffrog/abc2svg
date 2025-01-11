@@ -61,7 +61,7 @@ abc2svg.abc_end = function() {
 					+ '  MIDI control ' + s.ctrl + ' ' + s.val)
 		}, // midi_ctrl()
 		midi_prog: function(po, s) {
-			if (s.instr)
+			if (s.instr != undefined)
 				abc2svg.print(' v:' + s.v
 					+ '  MIDI program '
 					+ (s.chn + 1) + ' '

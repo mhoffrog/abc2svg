@@ -1,6 +1,6 @@
 // clip.js - module to handle the %%clip command
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -21,6 +21,9 @@
 //
 // Parameters
 //	%%clip start_measure_nb [":" num "/" den] "-" end_measure_nb [":" num "/" den]
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.clip = {
 
@@ -212,7 +215,6 @@ abc2svg.clip = {
     }
 } // clip
 
-abc2svg.modules.hooks.push(abc2svg.clip.set_hooks);
-
-// the module is loaded
-abc2svg.modules.clip.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.clip = abc2svg.clip.set_hooks

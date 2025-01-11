@@ -1,6 +1,6 @@
 // abc2svg - mei.js - MEI front-end
 //
-// Copyright (C) 2019-2021 Jean-Francois Moine
+// Copyright (C) 2019-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -1233,6 +1233,7 @@ return true
 						not2.tie_s = not1
 					}
 				}
+			}
 		}
 		s1.ti1 = s2.ti2 = true
 	}, // tie()

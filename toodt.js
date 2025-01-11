@@ -1,6 +1,6 @@
 // abc2svg - toodt.js - ABC translation to ODT+SVG
 //
-// Copyright (C) 2017-2019 Jean-Francois Moine
+// Copyright (C) 2017-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -33,15 +33,27 @@
 
     var	margins, page_size, page_type, page_left, page_mid, page_right,
 	header, footer, headerfont, footerfont, in_p, t_info, title,
+	init_done,
 	style = '',
 	content = '',
 	imgs = '',
 	seq = 0,
-	outfn = 'abc.odt',
-	fs = require('fs'),		// file system
-	JSZip = require('jszip'),	// Zip
-	zip = new JSZip(),
-	sep = require('path').sep;	// '/' or '\'
+	outfn = 'abc.odt'
+
+	if (typeof std != "undefined") {	// quickjs
+		zip = {
+		    file: function(fn, p) {
+		    var	f = std.open("/tmp/odt/" + fn, "w")
+			f.puts(p)
+			f.close()
+		    }
+		}
+	} else  {				// nodejs ?
+	    var	fs = require('fs'),		// file system
+		JSZip = require('jszip'),	// Zip
+		zip = new JSZip(),
+		sep = require('path').sep	// '/' or '\'
+	}
 
 // get the command line arguments
 function get_args(args) {
@@ -214,6 +226,9 @@ function odt_out() {
 		{ compression: "DEFLATE" });
 
 	// Fonts/abc2svg.ttf
+	if (typeof std != "undefined")		// quickjs
+		os.exec(["cp", path + '/abc2svg.ttf', '/tmp/odt/Fonts/abc2svg.ttf'])
+	else
 	zip.file('Fonts/abc2svg.ttf',
 		fs.readFileSync(__dirname + sep + 'abc2svg.ttf'),
 		{ compression: "STORE" });
@@ -343,11 +358,22 @@ function odt_out() {
 		{ compression: "DEFLATE" });
 
 // - generate the ODT file
+	if (typeof os != "undefined") {
+		if (outfn[0] != '/')
+			outfn = os.getcwd() + outfn
+		os.exec(["zip", "-0", "-X", outfn,
+			"mimetype", "Fonts/abc2svg.ttf"],
+			{cwd: "/tmp/odt"})
+		os.exec(["zip", "-r", outfn,
+			".", "-x", "mimetype", "Fonts/abc2svg.ttf"],
+			{cwd: "/tmp/odt"})
+	} else {
 	zip	.generateNodeStream({streamFiles:true})
 		.pipe(fs.createWriteStream(outfn))
 		.on('finish', function () {
 			console.log(outfn + ' created')
 		})
+	}
 }
 
 abc2svg.abort = function(e) {
@@ -529,6 +555,15 @@ abc2svg.abc_init = function(args) {
 
 	get_args(args);
 
+	// create the odt hierarchy and clear the odt out file
+	if (typeof std != "undefined") {
+		os.exec(["rm", "-r", "/tmp/odt", outfn])
+		os.mkdir("/tmp/odt")
+		os.mkdir("/tmp/odt/Fonts")
+		os.mkdir("/tmp/odt/META-INF")
+		os.mkdir("/tmp/odt/Pictures")
+	}
+
 	// generate mimetype which is the first item and without compression
 	zip.file('mimetype',
 		'application/vnd.oasis.opendocument.text',
@@ -541,6 +576,12 @@ abc2svg.abc_init = function(args) {
 
 	// get the page parameters
 	user.img_out = function(str) {
+		if (init_done) {
+			svg_out(str)
+			return
+		}
+		init_done = 1
+
 	    var cfmt = abc.cfmt(),
 		pw = cfmt.pagewidth;
 
@@ -570,9 +611,6 @@ abc2svg.abc_init = function(args) {
 
 		// output the first generated string
 		svg_out(str);
-
-		// change the output function
-		user.img_out = svg_out
 	}
 
 	user.page_format = true

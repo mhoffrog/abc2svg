@@ -1,6 +1,6 @@
 // soloffs.js - module to set the X offset of some elements at start of music line
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -21,6 +21,9 @@
 //	%%soloffs <type>=<offset> [<type>=<offset>]*
 //		<type> is one of 'part', 'tempo' or 'space'
 //		<offset> is the X offset from the start of staff
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.soloffs = {
 
@@ -83,7 +86,6 @@ abc2svg.soloffs = {
     }
 } // soloffs
 
-abc2svg.modules.hooks.push(abc2svg.soloffs.set_hooks);
-
-// the module is loaded
-abc2svg.modules.soloffs.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.soloffs = abc2svg.soloffs.set_hooks

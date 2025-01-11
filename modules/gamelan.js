@@ -41,6 +41,9 @@
 //	??	C ^C _E G _A (or ^C D E ^G A)
 // dot = continuation (not rest)
 
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
+
 abc2svg.gamelan = {
 
   cde2fcg: new Int8Array([0, 2, 4, -1, 1, 3, 5]),
@@ -464,7 +467,6 @@ abc2svg.gamelan = {
     } // set_hooks()
 } // gamelan
 
-abc2svg.modules.hooks.push(abc2svg.gamelan.set_hooks)
-
-// the module is loaded
-abc2svg.modules.gamelan.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.gamelan = abc2svg.gamelan.set_hooks

@@ -1,7 +1,7 @@
 // abc2svg - roman.js - convert the chord symbols to the RNN
 //			(Roman Numeral Notation)
 //
-// Copyright (C) 2021 Jean-Francois Moine
+// Copyright (C) 2021-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -25,6 +25,9 @@
 // <int>
 //	 = '1': use uppercase letters with 'm' for minor chords
 //	 = '2': user lowercase letters for minor chords
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.roman = {
     note_nm: "CDEFGAB",
@@ -145,5 +148,6 @@ abc2svg.roman = {
     } // set_hooks()
 } // roman
 
-abc2svg.modules.hooks.push(abc2svg.roman.set_hooks)
-abc2svg.modules.roman.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.roman = abc2svg.roman.set_hooks

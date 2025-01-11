@@ -57,6 +57,9 @@ if (typeof Object.assign !== 'function') {
   });
 }
 
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
+
 abc2svg.mdnn = {
 
   cde2fcg: new Int8Array([0, 2, 4, -1, 1, 3, 5]),
@@ -284,7 +287,6 @@ abc2svg.mdnn = {
     }
 } // mdnn
 
-abc2svg.modules.hooks.push(abc2svg.mdnn.set_hooks)
-
-// the module is loaded
-abc2svg.modules.mdnn.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.mdnn = abc2svg.mdnn.set_hooks

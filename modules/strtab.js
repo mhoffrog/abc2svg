@@ -1,6 +1,6 @@
 // abc2svg - strtab.js - tablature for string instruments
 //
-// Copyright (C) 2020-2022 Jean-Francois Moine
+// Copyright (C) 2020-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -34,6 +34,9 @@
 //
 // This module accepts Willem Vree's tablature syntax:
 //	https://wim.vree.org/svgParse/abc2xml.html#tab
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.strtab = {
 
@@ -209,9 +212,37 @@ abc2svg.strtab = {
 	abc.out_svg('</g>\n')
     }, // draw_symbols()
 
+    // change the font size of the chord symbols
+    csan_bld: function(of, s) {
+	if (s.p_v.tab) {
+	    var	i, gch,
+		fmt = this.cfmt()
+
+		for (i = 0; i < s.a_gch.length; i++) {
+			gch = s.a_gch[i]
+			if (gch.type != 'g')
+				continue
+
+			// create the smaller font if not done yet
+			if (!fmt.cstabfont) {
+			    var	f = gch.font
+
+				this.param_set_font("cstabfont",
+						f.name + ' ' + (f.size / 1.6).toFixed(1))
+			}
+			gch.font = this.get_font("cstab")
+		}
+	}
+	of(s)
+    }, // set_csan()
+
     // set a format parameter
     set_fmt: function(of, cmd, parm) {
-	if (cmd == "strtab") {
+	switch (cmd) {
+	case "cstabfont":
+		this.param_set_font("cstabfont", parm)
+		return
+	case "strtab":
 		if (!parm)
 			return
 	    var	p_v = this.get_curvoice()
@@ -226,8 +257,7 @@ abc2svg.strtab = {
 		}
 		this.set_v_param("strings", parm)
 		return
-	}
-	if (cmd == "minfret") {
+	case "minfret":
 		this.set_v_param("minfret", parm)
 		return
 	}
@@ -392,7 +422,7 @@ abc2svg.strtab = {
 			s.invis = true
 		default:
 			delete s.a_dd
-			continue
+			break
 		case C.GRACE:
 			if (p_v.pos.gst == C.SL_HIDDEN)
 				s.sappo = 0
@@ -646,6 +676,7 @@ abc2svg.strtab = {
 
     set_hooks: function(abc) {
 	abc.draw_symbols = abc2svg.strtab.draw_symbols.bind(abc, abc.draw_symbols)
+	abc.gch_build = abc2svg.strtab.csan_bld.bind(abc, abc.gch_build)
 	abc.set_format = abc2svg.strtab.set_fmt.bind(abc, abc.set_format);
 	abc.set_stems = abc2svg.strtab.set_stems.bind(abc, abc.set_stems)
 	abc.set_vp = abc2svg.strtab.set_vp.bind(abc, abc.set_vp)
@@ -665,5 +696,6 @@ abc2svg.strtab = {
     } // set_hooks()
 } // strtab
 
-abc2svg.modules.hooks.push(abc2svg.strtab.set_hooks)
-abc2svg.modules.strtab.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.strtab = abc2svg.strtab.set_hooks

@@ -78,9 +78,10 @@ user.textrans = {
     "Cannot have V:* in tune body": "V:* im Notenbereich nicht erlaubt",
     "Cannot read file '$1'": "File '$1' kann nicht gelesen werden",
     "Decoration ignored": "Dekoration ignoriert",
-	"Decoration without symbol": "Decoration without symbol",
+	"Decoration(s) without symbol: $1": "Decoration(s) without symbol: $1",
 	"Double voice in %%score": "Double voice in %%score",
     "Empty line in tune header - ignored": "Leerzeile in Kopfbereich - ignoriert",
+	"End of file in tune header": "End of file in tune header",
 	"End of slur without start": "End of slur without start",
 	"Erroneous end of voice overlay":
 			"Fehlerhaftes Ende einer Stimme in Stimm-Überlagerung",
@@ -107,6 +108,7 @@ user.textrans = {
 				"Microtone transposition not coded",
     "Misplaced '$1' in %%score": "'$1' fehlerhaft platziert in %%score",
     "Misplaced dot": "fehlerhaft platzierter Punkt",
+	"Misplaced P:": "Misplaced P:",
 	"Mix of old and new transposition syntaxes":
 				"Mix von alter und neuer Transponierungs-syntax",
 	"multi-measure rest, but no measure!":
@@ -120,6 +122,7 @@ user.textrans = {
     "No end of chord symbol/annotation": "kein Ende des Akkordsymbols",
     "No end of repeat string": "kein Ende des Wiederholungszeichens",
 	"No end of string in font family": "No end of string in font family",
+	"No end of the previous %%multicol": "No end of the previous %%multicol",
     "No end of tuplet": "kein Ende des Tuplets",
     "No end of tuplet in this music line":
 			"Kein Ende des Tuplets in dieser Zeile",

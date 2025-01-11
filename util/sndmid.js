@@ -96,7 +96,7 @@ function Midi5(i_conf) {
 
 	// send a MIDI control
 	function midi_ctrl(po, s, t) {
-		po.op.send(new Uint8Array([0xb0 + s.chn,
+		po.op.send(new Uint8Array([0xb0 + po.v_c[s.v],
 					s.ctrl, s.val]),
 			t * 1000)
 	} // midi_ctrl()
@@ -107,24 +107,27 @@ function Midi5(i_conf) {
 		c = s.chn
 
 		po.v_c[s.v] = c
-		if (s.instr != undefined)
-			return
-		i = po.c_i[c]
 
 		// at channel start, reset and initialize the controllers
-		if (i == undefined) {
+		if (po.c_i[c] == undefined) {
 //fixme: does not work with fluidsynth
 			po.op.send(new Uint8Array([0xb0 + c, 121, 0]))
+//fixme: is this useful?
+if(0){
 			if (s.p_v.midictl) {
 			    for (i in s.p_v.midictl)
 				po.op.send(new Uint8Array([0xb0 + c,
 							i,
 							s.p_v.midictl[i]]))
 			}
+}
 		}
 
-		po.c_i[c] = i = s.instr
-		po.op.send(new Uint8Array([0xc0 + c, i & 0x7f])) // program
+		i = s.instr
+		if (i != undefined) {		// if not channel only
+			po.c_i[c] = i		// send a MIDI program
+			po.op.send(new Uint8Array([0xc0 + c, i & 0x7f]))
+		}
 	} // midi_prog()
 
 	// MIDI output is possible,
@@ -176,10 +179,11 @@ function Midi5(i_conf) {
 
 		// set the output port
 		set_output: function(name) {
-		    var o, os
 			if (!Midi5.ma)
 				return
+		    var o,
 			os = Midi5.ma.outputs.values()
+
 			while (1) {
 				o = os.next()
 				if (!o || o.done)

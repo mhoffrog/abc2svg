@@ -114,27 +114,16 @@ abc2svg.b40_m = new Int8Array(			// base-40 to midi
 	2, 3, 4, 5, 6, 3, 4, 5, 6, 7, 0, 5, 6, 7, 8, 9, 0,
 //	      A			    B
 	7, 8, 9, 10, 11, 0, 9, 10, 11, 12, 13 ])
-abc2svg.b40k =  new Int8Array(		// base-40 interval to possible transposition
-//		        C		  D
-		[36, 1, 2, 3, 8, 2, 2, 7, 8,13,14, 2,
-//		    37
-//	       E	      F		        G
-	 8,13,14,19,20,13,14,19,20,25, 2,19,24,25,30,31, 2,
-//					    20
-//	       A		 B
-	25,30,31,36,37, 2,31,36,37, 2, 3 ])
-//				    2
-abc2svg.b40sf = new Int8Array(		// base-40 interval to key signature
-//		        C		   D
-		[-2,-7, 0, 7, 2, 88, 0,-5, 2,-3, 4, 88,
-//	       E	      F		        G
-	 2,-3, 4,-1, 6,-3, 4,-1, 6, 1,88,-1,-6, 1,-4, 3,88,
-//	       A		 B
-	 1,-4, 3,-2, 5,88, 3,-2, 5, 0, 7 ])
+abc2svg.b40l5 = new Int8Array([			// base-40 to line of fifth
+//		  C			  D
+	-14, -7,  0,  7, 14,  0,-12, -5,  2,  9, 16,  0,
+//		  E		      F			      G	
+	-10, -3,  4, 11, 18,-15, -8, -1,  6, 13,  0,-13, -6,  1,  8, 15,  0,
+//		  A			  B
+	-11, -4,  3, 10, 17,  0, -9, -2,  5, 12, 19 ])
+
 abc2svg.isb40 = new Int8Array(		// interval with sharp to base-40 interval
-	[0, 1, 6,11,12,17,18,23,28,29,34,35])
-abc2svg.ifb40 = new Int8Array(		// interval with flat to base-40 interval
-	[0, 5, 6,11,12,17,22,23,28,29,34,39])
+	[0, 1, 6,7,12,17,18,23,24,29,30,35])
 
 abc2svg.pab40 = function(p, a) {
 	p += 19				// staff pitch from C-1
@@ -178,6 +167,10 @@ abc2svg.ch_alias = {
 	"sus": "sus4",
 	"7sus": "7sus4"
 } // ch_alias
+
+// global fonts
+abc2svg.font_tb = []	// fonts - index = font.fid
+abc2svg.font_st = {}	// font style => font_tb index for incomplete user fonts
 
 // font weight
 // reference:
@@ -243,7 +236,9 @@ abc2svg.Abc = function(user) {
     var	require = empty_function,
 	system = empty_function,
 	write = empty_function,
-	XMLHttpRequest = empty_function;
+	XMLHttpRequest = empty_function,
+	std = null,
+	os = null
 
 // -- constants --
 
@@ -421,8 +416,5 @@ function syntax(sev, msg, a1, a2, a3, a4) {
 
 // inject javascript code
 function js_inject(js) {
-	if (!/eval *\(|Function|setTimeout|setInterval/.test(js))
-		eval('"use strict";\n' + js)
-	else
-		syntax(1, "Unsecure code")
+	eval('"use strict";\n' + js)
 }

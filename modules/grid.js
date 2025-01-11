@@ -1,6 +1,6 @@
 // abc2svg - grid.js - module to insert a chord grid before or after a tune
 //
-// Copyright (C) 2018-2022 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -29,6 +29,9 @@
 //		'repbrk' starts a new grid line on start/stop repeat
 //		'parts' displays the parts on the left side of the grid
 //	%%gridfont font_name size (default: 'serif 16')
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.grid = {
     pl: '<path class="stroke" stroke-width="1" d="M',
@@ -302,6 +305,7 @@ function build_grid(s, font) {
 	// ----- block_gen() -----
     var	p_voice, n, font, f2
 
+	abc.set_page()
 	img = abc.get_img()
 
 	// set the text style
@@ -401,6 +405,7 @@ function build_grid(s, font) {
 			switch (s.type) {
 			case C.NOTE:
 			case C.REST:
+			case C.SPACE:
 				if (!s.a_gch || chord[beat_i])
 					break
 				bt = cs_filter(s.a_gch)
@@ -418,7 +423,8 @@ function build_grid(s, font) {
 				i = s.bar_num		// check if normal measure bar
 				bt = s.bar_type
 				while (s.ts_next && s.ts_next.time == s.time) {
-					if (s.ts_next.dur)
+					if (s.ts_next.dur
+					 || s.ts_next.type == C.SPACE)
 						break
 					s = s.ts_next
 					if (s.type == C.METER) {
@@ -583,7 +589,6 @@ function build_grid(s, font) {
     }
 } // grid
 
-abc2svg.modules.hooks.push(abc2svg.grid.set_hooks);
-
-// the module is loaded
-abc2svg.modules.grid.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.grid = abc2svg.grid.set_hooks

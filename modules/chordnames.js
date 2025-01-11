@@ -1,6 +1,6 @@
 // abc2svg - chordnames.js - change the names of the chord symbols
 //
-// Copyright (C) 2020-2021 Jean-Francois Moine
+// Copyright (C) 2020-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -29,6 +29,9 @@
 //	The key may be a chord letter ('A') with/or an accidental
 //	Example:
 //		%%chordnames Bb:B,B:H,b:s	% German chords
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.chordnames = {
 
@@ -87,5 +90,6 @@ abc2svg.chordnames = {
     } // set_hooks()
 } // chordnames
 
-abc2svg.modules.hooks.push(abc2svg.chordnames.set_hooks)
-abc2svg.modules.chordnames.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.chordnames = abc2svg.chordnames.set_hooks

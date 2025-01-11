@@ -1,6 +1,6 @@
 // abc2svg - jazzchord.js - Adds jazz chord styling to chord symbols
 //
-// Copyright (C) 2020-2022 Jean-Francois Moine
+// Copyright (C) 2020-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -24,6 +24,9 @@
 //
 // Parameters
 //	%%jazzchord [ string '=' replacement-string ]*
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.jazzchord = {
 
@@ -61,10 +64,22 @@ abc2svg.jazzchord = {
 			return t
 		if (a[2])
 			r = "$7" + a[2]
+		if (a[3][0] == 'm'		// if minor
+		 && a[3].slice(0, 3) != "maj") {
+			if (!r)
+				r += "$7"
+			if (a[3].slice(0, 3) == "min") {
+				r += a[3].slice(0, 3)
+				a[3] = a[3].slice(3)
+			} else {		// assume 'm'
+				r += 'm'
+				a[3] = a[3].slice(1)
+			}
+		}
 		if (a[3])
-			r += (a[2] ? "$0" : '') + "$8" + a[3]
+			r += (r ? "$0" : '') + "$8" + a[3]
 		if (a[4])
-			r += ((a[2] || a[3]) ? "$0" : '') + "$9/" + a[4]
+			r += (r ? "$0" : '') + "$9/" + a[4]
 		if (!r)
 			return t
 		return a[1] + r + "$0"
@@ -159,7 +174,7 @@ abc2svg.jazzchord = {
 	abc.set_format = abc2svg.jazzchord.set_fmt.bind(abc, abc.set_format)
 
 	abc.add_style("\
-\n.jc7{baseline-shift:10%;font-size:90%;letter-spacing:-0.05em}\
+\n.jc7{font-size:90%}\
 \n.jc8{baseline-shift:25%;font-size:75%;letter-spacing:-0.05em}\
 \n.jc9{font-size:75%;letter-spacing:-0.05em}\
 ")
@@ -169,5 +184,6 @@ abc2svg.jazzchord = {
     } // set_hooks()
 } // jazzchord
 
-abc2svg.modules.hooks.push(abc2svg.jazzchord.set_hooks)
-abc2svg.modules.jazzchord.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.jazzchord = abc2svg.jazzchord.set_hooks

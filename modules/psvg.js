@@ -1,6 +1,6 @@
 // psvg.js - small PS to SVG convertor for abc2svg
 
-// Copyright (C) 2014-2021 Jean-Francois Moine
+// Copyright (C) 2014-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -16,6 +16,9 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 function Psvg(abcobj_r) {
     var	svgbuf = '',
@@ -565,8 +568,9 @@ function pscall(f, x, y, script) {
 }
 
 // try to generate a decoration by PS
-Psvg.prototype.psdeco = function(f, x, y, de) {
+Psvg.prototype.psdeco = function(x, y, de) {
 	var	dd, de2, script, defl,
+	f = de.dd.glyph,
 		Os = wps.parse('/' + f + ' where'),
 		A = Os.pop(),
 	staff_tb = abcobj.get_staff_tb()
@@ -754,10 +758,10 @@ abc2svg.psvg = {
 			this.psvg = new Psvg(this);
 		this.psvg.ps_eval.call(this.psvg, text)
 	},
-	psdeco: function(of, f, x, y, de) {
+	psdeco: function(of, x, y, de) {
 		if (!this.psvg)			// no %%beginps yet
 			return false
-		return this.psvg.psdeco.call(this.psvg, f, x, y, de)
+		return this.psvg.psdeco.call(this.psvg, x, y, de)
 	},
 	psxygl: function(of, x, y, gl) {
 		if (!this.psvg)
@@ -772,7 +776,6 @@ abc2svg.psvg = {
     }
 } // psvg
 
-abc2svg.modules.hooks.push(abc2svg.psvg.set_hooks);
-
-// the module is loaded
-abc2svg.modules.beginps.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.psvg = abc2svg.psvg.set_hooks

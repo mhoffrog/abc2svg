@@ -98,7 +98,7 @@ var min_tb = [
 // (possible hook)
 Abc.prototype.calculate_beam = function(bm, s1) {
     var	s, s2, g, notes, nflags, st, v, two_staves, two_dir,
-		x, y, ys, a, b, stem_err, max_stem_err,
+	n, x, y, ys, a, b, stem_err, max_stem_err,
 		p_min, p_max, s_closest,
 		stem_xoff, scale,
 		visible, dy
@@ -197,14 +197,14 @@ Abc.prototype.calculate_beam = function(bm, s1) {
 			scale = staff_tb[s.st].staffscale
 		if (s.stem >= 0) {
 			x = stem_xoff + s.notes[0].shhd
-			if (s.notes[s.nhd].pit > p_max) {
-				p_max = s.notes[s.nhd].pit;
+			if (s.notes[s.nhd].midi > p_max) {
+				p_max = s.notes[s.nhd].midi
 				s_closest = s
 			}
 		} else {
 			x = -stem_xoff + s.notes[s.nhd].shhd
-			if (s.notes[0].pit < p_min) {
-				p_min = s.notes[0].pit;
+			if (s.notes[0].midi < p_min) {
+				p_min = s.notes[0].midi
 				s_closest = s
 			}
 		}
@@ -224,8 +224,15 @@ Abc.prototype.calculate_beam = function(bm, s1) {
 		a = 0
 
 	y = s1.ys + staff_tb[st].y
-	if (a == undefined)
+	if (a == undefined) {
+		if (two_dir
+		 && s1.stem != s2.stem
+		 && s1.st == s2.st) {		// if inverted stems,
+			y -= 5 * s1.stem	// remove the beam depth
+			s2.ys -= 5 * s2.stem			
+		}
 		a = (s2.ys + staff_tb[s2.st].y - y) / (s2.xs - s1.xs)
+	}
 
 	if (a != 0) {
 		a = s1.fmt.beamslope * a /
@@ -234,23 +241,36 @@ Abc.prototype.calculate_beam = function(bm, s1) {
 			a = 0				// slope too low
 	}
 
-	// pivot around the middle of the beam
+	// center the main beam
 	b = (y + s2.ys + staff_tb[s2.st].y) / 2 - a * (s2.xs + s1.xs) / 2
 
-/*fixme: have a look again*/
 	/* have room for the symbols in the staff */
 	max_stem_err = 0;		/* check stem lengths */
+
+	// when 2 directions, check if all beams are on the same side of the main beam
 	s = s1
-	if (two_dir) {				/* 2 directions */
-/*fixme: more to do*/
-		ys = ((s1.grace ? 3.5 : BEAM_SHIFT) * (nflags - 1) +
-			BEAM_DEPTH) * .5
-		if (s1.nflags == s2.nflags)
-			;
-		else if (s1.stem != s2.stem && s1.nflags < s2.nflags)
-			b += ys * s2.stem
-		else
-			b += ys * s1.stem
+	if (two_dir) {
+		n = 1
+		while (1) {
+			if (s.stem != s1.stem
+			 && (s.nflags == 1
+			  || s.beam_br1  || s.beam_br2)) {
+				n = 0
+				break
+			}
+			if (s == s2)
+				break
+			s = s.next
+		}
+		if (n)				// same side
+			n = (s1.nflags + s2.nflags)
+				* (s1.nflags >= s2.nflags ? s1.stem : s2.stem)
+					/ 4
+		else				// different sides
+			n = -(s1.nflags * s1.stem + s2.nflags * s2.stem)
+					/ 2
+		b += ((s1.grace ? 3.5 : BEAM_SHIFT) * n
+				+ BEAM_DEPTH * s1.stem) / 2
 	} else if (!s1.grace) {		/* normal notes */
 		var beam_h = BEAM_DEPTH + BEAM_SHIFT * (nflags - 1)
 //--fixme: added for abc2svg
@@ -339,8 +359,7 @@ Abc.prototype.calculate_beam = function(bm, s1) {
 	if (max_stem_err > 0)		/* shift beam if stems too short */
 		b += s1.stem * max_stem_err
 
-	/* have room for the gracenotes, bars and clefs */
-/*fixme: test*/
+	// have room for the gracenotes and clefs
     if (!two_staves && !two_dir)
 	for (s = s1.next; ; s = s.next) {
 		switch (s.type) {
@@ -354,7 +373,7 @@ Abc.prototype.calculate_beam = function(bm, s1) {
 //fixme:too much vertical shift if some space above the note
 //fixme:this does not fix rest under beam in second voice (ts_prev)
 			/*fall thru*/
-		case C.BAR:
+//		case C.BAR:
 			if (s.invis)
 				break
 			/*fall thru*/
@@ -460,8 +479,9 @@ Abc.prototype.calculate_beam = function(bm, s1) {
 /* -- draw the beams for one word -- */
 /* (the staves are defined) */
 function draw_beams(bm) {
-	var	s, i, beam_dir, shift, bshift, bstub, bh, da, bd,
+    var	s, i, beam_dir, shift, bshift, bstub, bh, da, bsh,
 		k, k1, k2, x1,
+	osh = 0,				// shift other side
 		s1 = bm.s1,
 		s2 = bm.s2
 
@@ -520,7 +540,7 @@ function draw_beams(bm) {
 /*fixme: quick hack for stubs at end of beam and different stem directions*/
 	beam_dir = s1.stem
 	if (s1.stem != s2.stem
-	 && s1.nflags < s2.nflags)
+	 && s1.nflags > s2.nflags)
 		beam_dir = s2.stem
 	if (beam_dir < 0)
 		bh = -bh;
@@ -595,7 +615,7 @@ function draw_beams(bm) {
 			while (k2.type != C.NOTE)
 				k2 = k2.prev;
 			x1 = k1.xs
-			bd = beam_dir
+			bsh = shift * beam_dir
 			if (k1 == k2) {
 				if (k1 == s1) {
 					x1 += bstub
@@ -625,13 +645,27 @@ function draw_beams(bm) {
 					}
 				}
 				if (k1.stem != beam_dir) {
-					bd = k1.stem
+					osh -= bshift
+					bsh = osh * beam_dir
 					k1.ys = bm.a * k1.xs + bm.b
 						- staff_tb[k1.st].y - bh
 				}
+			} else if (k1.stem == k2.stem && k1.stem != beam_dir) {
+
+				// inverted stems: put the beam on the other side
+				osh -= bshift
+				bsh = osh * beam_dir
+				for (s = k1; ; s = s.next) {
+					if (s.type == C.NOTE)
+						s.ys = bm.a * s.xs + bm.b
+							- staff_tb[s.st].y
+							- bh
+					if (s == k2)
+						break
+				}
 			}
 			draw_beam(x1, k2.xs,
-				  shift * bd,
+				  bsh,
 				  bh, bm, i)
 			if (s == s2)
 				break
@@ -1168,6 +1202,34 @@ function draw_mrest(s) {
 	y = p_st.y + (p_st.topbar + p_st.botbar) / 2,
 	p = s.nmes.toString()
 
+	// output an old multimeasure rest
+	function omrest() {
+	    var	x = s.x,
+		y = p_st.y + 12,
+		n = s.nmes,
+		k = n >> 2			// number of rests
+
+		if (n & 3) {
+			k++
+			if (n & 3 == 3)
+				k++
+		}
+//dx = 6
+		x -= 3 * (k - 1)
+		while (n >= 4) {
+			xygl(x, y, "r00")
+			n -= 4
+			x += 6
+		}
+		if (n >= 2) {
+			xygl(x, y, "r0")
+			n -= 2
+			x += 6
+		}
+		if (n)
+			xygl(x + 2, y, "r1")
+	} // omrest()
+
 	if (!s.next) {
 		error(1, s, "Lack of bar after multi-measure rest")
 		return
@@ -1185,10 +1247,19 @@ function draw_mrest(s) {
 	x2 = s.next.x - 20
 	s.x = (x1 + x2) / 2
 	anno_start(s)
-	out_XYAB('<path d="mX Y', x1 + .6, y - 2.7)
-	output += 'v2.7h-1.4v-10.8h1.4v2.7h'
-		+ ((x2 - x1 - 2.8) / stv_g.scale).toFixed(1)
-		+ 'v-2.7h1.4v10.8h-1.4v-2.7z"/>\n'
+	if (!cfmt.oldmrest || s.nmes > cfmt.oldmrest) {
+		out_XYAB('<path d="mX Y', x1 + .6, y - 2.7)
+		output += 'v2.7h-1.4v-10.8h1.4v2.7h'
+			+ ((x2 - x1 - 2.8) / stv_g.scale).toFixed(1)
+			+ 'v-2.7h1.4v10.8h-1.4v-2.7z"/>\n'
+	} else {
+		omrest()		// old multirest
+	}
+    if (s.tacet)
+	out_XYAB('<text x ="X" y="Y" style="font-size:12px;font-weight:700"\
+ text-anchor="middle">A</text>\n',
+		s.x, y + 18, s.tacet)
+    else
 	out_XYAB('<text x ="X" y="Y" text-anchor="middle">A</text>\n',
 		s.x, y + 22, m_gl(p))
 	anno_a.push(s)
@@ -1748,24 +1819,20 @@ function slur_out(x1, y1, x2, y2, dir, height, dotted) {
 /* (delayed output) */
 /* (not a pretty routine, this) */
 function draw_slur(path,	// list of symbols under the slur
-		sl) {		// slur variables: type, end symbol, note
+		   sl,		// slur variables: type, end symbol, note
+		   recurr) {	// recurrent call when slur on two staves
     var	i,
-	k, g, x1, y1, x2, y2, height, addy,
+	k, g, x1, y1, x2, y2, height, addy, s_st2,
 	a, y, z, h, dx, dy,
 	ty = sl.ty,
 	dir = (ty & 0x07) == C.SL_ABOVE ? 1 : -1,
 	n = path.length,
 	i1 = 0,
 	i2 = n - 1,
-	not1 = sl.nts,		// if the slur start on a note
+	not1 = sl.nts,		// if the slur starts on a note
 	k1 = path[0],
-	k2 = path[i2]
-
-/*fixme: if two staves, may have upper or lower slur*/
-
-	var	nn = 1,
-		upstaff = k1.st,
-		two_staves = false
+	k2 = path[i2],
+	nn = 1
 
 	set_dscale(k1.st)
 
@@ -1773,15 +1840,104 @@ function draw_slur(path,	// list of symbols under the slur
 		k = path[i]
 		if (k.type == C.NOTE || k.type == C.REST) {
 			nn++
-			if (k.st != upstaff) {
-				two_staves = true
-				if (k.st < upstaff)
-					upstaff = k.st
-			}
+			if (k.st != k1.st
+			 && !s_st2)
+				s_st2 = k
 		}
 	}
-/*fixme: KO when two staves*/
-if (two_staves) error(2, k1, "*** multi-staves slurs not treated yet");
+
+	// if slur on 2 staves, define it, but don't output it now
+	// this will be done in draw_sl2()
+	if (s_st2 && !recurr) {			// if not 2nd call to draw_slur()
+		if (!gene.a_sl)
+			gene.a_sl = []
+
+		// replace the symbols of the other staff
+		// by symbols in the current staff but with updated y offsets
+		h = 24 + k1.fmt.sysstaffsep		// delta y
+		if (s_st2.st > k1.st)
+			h = -h
+		for (i = 0; i < n; i++) {
+			k = path[i]
+			if (k.st == k1.st) {
+				if (k.dur)
+					a = k		// (used for types // and \\)
+				continue
+			}
+			k = clone(k)
+			if (path[i] == s_st2)
+				s_st2 = k
+			path[i] = k
+			if (k.dur) {
+				k.notes = clone(k.notes)
+				k.notes[0] = clone(k.notes[0])
+				if (sl.ty & C.SL_CENTER) {
+					if (k.st != a.st) {
+						sl.ty = (sl.ty & ~0x07)
+							 | (a.st < k.st
+								? C.SL_BELOW
+								: C.SL_ABOVE)
+						z = k1.ymn
+						h = k2.ymx
+						if (k.st < a.st) {
+							for (i1 = 1; i1 < i; i1++) {
+								a = path[i1]
+								if (a.ymn < z)
+									z = a.ymn
+							}
+							for (i1 = i; i1 < i2; i1++) {
+								a = path[i1]
+								if (a.ymx > h)
+									h = a.ymx
+							}
+						} else {
+							for (i1 = 1; i1 < i; i1++) {
+								a = path[i1]
+								if (a.ymx > h)
+									h = a.ymx
+							}
+							for (i1 = i; i1 < i2; i1++) {
+								a = path[i1]
+								if (a.ymn < z)
+									z = a.ymn
+							}
+						}
+						h += z
+						a = k
+					}
+					k.y = h - k.y
+					k.notes[0].pit = (k.y / 3 | 0) + 18
+					k.ys = h - k.ys
+					y = k.ymx
+					k.ymx = h - k.ymn
+					k.ymn = h - y
+					k.stem = -k.stem
+				} else {
+					k.notes[0].pit += h / 3 | 0
+					k.ys += h
+					k.y += h
+					k.ymx += h
+					k.ymn += h
+				}
+			}
+//			k.st = k1.st	// keep the staff number for draw_sl2()
+		}
+
+		ty = k1.st > s_st2.st ? '/' : '\\'
+		if (sl.ty & C.SL_CENTER)
+			ty = ty + ty			// type = // or \\
+		else if (k1.st == k2.st)
+			ty = ty == '/' ? '/\\' : '\\/'	// type = /\ or \/
+		else
+			ty += dir > 0 ? '+' : '-'	// type = .+ or .-
+
+	    var	savout = output
+		output = ""
+		draw_slur(path, sl, 1 /*true*/)
+		gene.a_sl.push([k1, s_st2, ty, output])
+		output = savout
+		return
+	}
 
 	/* fix endpoints */
 	x1 = k1.x
@@ -1962,8 +2118,6 @@ if (two_staves) error(2, k1, "*** multi-staves slurs not treated yet");
 	    addy = y1 - a * x1
 	    for (i = 1; i < i2; i++) {
 		k = path[i]
-		if (k.st != upstaff)
-			continue
 		switch (k.type) {
 		case C.NOTE:
 		case C.REST:
@@ -2054,28 +2208,28 @@ if (two_staves) error(2, k1, "*** multi-staves slurs not treated yet");
 		addy -= 4 * Math.sqrt(-height) - 2
 	for (i = 0; i < i2; i++) {
 		k = path[i]
-		if (k.st != upstaff || k.type == C.BAR)
+		if (k.st != k1.st || k.type == C.BAR)
 			continue
 		y = a * k.x + addy
 		if (k.ymx < y)
 			k.ymx = y
 		else if (k.ymn > y)
 			k.ymn = y
+		if (recurr)			// no room when slur on 2 staves
+			continue
 		if (i == i2 - 1) {
 			dx = x2
 			if (sl.nte)
 				dx -= 5;
-			if (i)
-				y -= height / 3
 		} else {
-			dx = path[i + 1].x
+			dx = k.x + k.wr
 		}
 		if (i != 0)
 			x1 = k.x
-		else
+		if (!i || i == i2)
 			y -= height / 3
-		dx -= x1;
-		y_set(upstaff, dir > 0, x1, dx, y)
+		dx -= x1 - k.wl
+		y_set(k1.st, dir > 0, x1 - k.wl, dx, y)
 	}
 }
 
@@ -2096,24 +2250,7 @@ function draw_slurs(s, last) {
 		// handle slurs without start or end
 		switch (sl.loc) {
 		case 'i':			// no start
-			s3 = s.ts_prev
-			for (s = s3; s; s = s.ts_prev) {
-				if (s.dur) {
-					if (s.v == s2.v) {
-						s3 = s
-						break
-					}
-					if (s.st == s2.st) {
-						s3 = s
-						continue
-					} else if (!s3) {
-						s3 = s
-					}
-				} else if (!s3) {
-					s3 = s
-				}
-			}
-			s = s3
+			s = prev_scut(s)
 			break
 		case 'o':			// no end
 			for (s3 = s; s3.ts_next; s3 = s3.ts_next)
@@ -2134,17 +2271,27 @@ function draw_slurs(s, last) {
 
 		// if the slur continues on the next music line,
 		// stop it at the end of the current line
-		if (tsnext && s2.time >= tsnext.time) {
-		    if (s2.grace && s2.time == tsnext.time) {
+		if (s.p_v.s_next && s2.time >= tsnext.time) {
+		  if (s2.time == tsnext.time) {
+		    if (s2.grace) {
 			for (s3 = tsnext; s3 && s3.time == s2.time; s3 = s3.ts_next) {
-				if (s3.type == C.GRACE)
-//fixme: check if s2 in the grace notes
+				if (s3.type == C.GRACE) {
+					s3 = null
 					break
+				}
 			}
-			if (s3.type == C.GRACE)
-				s3 = null
+		    } else {
+			for (s3 = tsnext; s3.time == s2.time; s3 = s3.ts_next) {
+				if (s3 == s2) {
+					s3 = null	// end of slur in next line
+					break
+				}
+			}
 		    }
-		    if (!s2.grace || s2.time == tsnext.time || !s3) {
+		  } else {
+			s3 = null
+		  }
+		    if (!s3) {
 			s.p_v.sls.push(sl);		// continuation on next line
 			s2 = s.p_v.s_next.prev		// one voice
 			while (s2.next)
@@ -2197,8 +2344,7 @@ function draw_slurs(s, last) {
 
 		if (!s2.grace) {		// if end on a normal note
 			while (s) {
-				if (s.v == v
-				 && !s.invis)
+				if (s.v == v)
 					path.push(s)
 				if (s == s2)
 					break
@@ -2279,7 +2425,7 @@ function draw_slurs(s, last) {
 /* See http://moinejf.free.fr/abcm2ps-doc/tuplets.html
  * for the value of 'tp.f' */
 function draw_tuplet(s1) {
-    var	s2, s3, g, upstaff, nb_only,
+    var	s2, s3, g, stu, std, nb_only,
 	x1, x2, y1, y2, xm, ym, a, s0, yy, yx, dy, a, dir, r,
 	tp = s1.tp.shift()		// tuplet parameters
 
@@ -2287,8 +2433,7 @@ function draw_tuplet(s1) {
 		delete s1.tp		// last tuplet
 
 	// treat the slurs and the nested tuplets
-	upstaff = s1.st
-	set_dscale(s1.st)
+	stu = std = s1.st
 	for (s2 = s1; s2; s2 = s2.next) {
 		switch (s2.type) {
 		case C.GRACE:
@@ -2307,8 +2452,12 @@ function draw_tuplet(s1) {
 		}
 		if (s2.sls)
 			draw_slurs(s2)
-		if (s2.st < upstaff)
-			upstaff = s2.st
+		if (s2.st < stu) {
+			std = stu
+			stu = s2.st
+		} else if (s2.st > std) {
+			std = s2.st
+		}
 		if (s2.tp)
 			draw_tuplet(s2)
 		if (s2.tpe)
@@ -2333,6 +2482,7 @@ function draw_tuplet(s1) {
 			s3 = s3.next
 		dir = (s3 && s3.stem < 0) ? C.SL_BELOW : C.SL_ABOVE
 	}
+	set_dscale(dir == C.SL_ABOVE ? stu : std)
 
 	if (s1 == s2				// tuplet with 1 note (!)
 	 || tp.f[1] == 2) {			// what == nothing
@@ -2397,22 +2547,23 @@ function draw_tuplet(s1) {
 		set_font("tuplet")
 		xm = (s2.x + s1.x) / 2
 		if (dir == C.SL_ABOVE)		// 8 = width around the middle
-			ym = y_get(upstaff, 1, xm - 4, 8)
+			ym = y_get(stu, 1, xm - 4, 8)
 		else
-			ym = y_get(upstaff, 0, xm - 4, 8) -
+			ym = y_get(std, 0, xm - 4, 8) -
 					gene.curfont.size
 
 		if (s1.stem * s2.stem > 0) {
 			if (s1.stem > 0)
-				xm += 1.5
+				xm += 4
 			else
-				xm -= 1.5
+				xm -= 4
 		}
 
+		yy = ym + gene.curfont.size * .22
 		if (tp.f[2] == 0)		// if 'which' == number
-			xy_str(xm, ym, tp.p.toString(), 'c')
+			xy_str(xm, yy, tp.p.toString(), 'c')
 		else
-			xy_str(xm, ym, tp.p+':'+tp.q, 'c')
+			xy_str(xm, yy, tp.p + ':' + tp.q, 'c')
 
 		for (s3 = s1; ; s3 = s3.next) {
 			if (s3.x >= xm)
@@ -2422,16 +2573,16 @@ function draw_tuplet(s1) {
 			ym += gene.curfont.size
 			if (s3.ymx < ym)
 				s3.ymx = ym;
-			y_set(upstaff, true, xm - 3, 6, ym)
+			y_set(stu, 1, xm - 3, 6, ym)
 		} else {
 			if (s3.ymn > ym)
 				s3.ymn = ym;
-			y_set(upstaff, false, xm - 3, 6, ym)
+			y_set(std, 0, xm - 3, 6, ym)
 		}
 		return
 	}
 
-	// here, what is square bracket
+	// here, 'what' is square bracket
 
 /*fixme: two staves not treated*/
 /*fixme: to optimize*/
@@ -2457,38 +2608,30 @@ function draw_tuplet(s1) {
 		r = s2.stem >= 0 ? 0 : s2.nhd
 		if (s2.notes[r].shhd > 0)
 			x2 += s2.notes[r].shhd
-		if (s2.st == upstaff
+		if (s2.st == stu
 		 && s2.stem > 0)
 			x2 += 3.5
 	}
 
     // above
     if (dir == C.SL_ABOVE) {
-
-	/* sole or upper voice: the bracket is above the staff */
-	if (s1.st == s2.st) {
-		y1 = y2 = staff_tb[upstaff].topbar + 2
-	} else {
-		y1 = s1.ymx;
-		y2 = s2.ymx
-	}
-
-	if (s1.st == upstaff) {
-		for (s3 = s1; !s3.dur; s3 = s3.next)
-			;
-		ym = y_get(upstaff, 1, s3.x - 4, 8)
-		if (ym > y1)
-			y1 = ym
+	if (s1.st >= s2.st) {
 		if (s1.stem > 0)
 			x1 += 3
+		ym = y_get(s1.st, 1, x1 - 4, 8)
+		y1 = ym > staff_tb[s1.st].topbar + 2
+			? ym
+			: staff_tb[s1.st].topbar + 2
+	} else {
+		y1 = staff_tb[s1.st].topbar + 2
 	}
-
-	if (s2.st == upstaff) {
-		for (s3 = s2; !s3.dur; s3 = s3.prev)
-			;
-		ym = y_get(upstaff, 1, s3.x - 4, 8)
-		if (ym > y2)
-			y2 = ym
+	if (s2.st >= s1.st) {
+		ym = y_get(s2.st, 1, x2 - 4, 8)
+		y2 = ym > staff_tb[s2.st].topbar + 2
+			? ym
+			: staff_tb[s2.st].topbar + 2
+	} else {
+		y2 = staff_tb[s2.st].topbar + 2
 	}
 
 	xm = .5 * (x1 + x2);
@@ -2515,13 +2658,13 @@ function draw_tuplet(s1) {
 	dy = 0
 	for (s3 = s1; ; s3 = s3.next) {
 		if (!s3.dur			/* not a note or a rest */
-		 || s3.st != upstaff) {
+		 || s3.st != stu) {
 			if (s3 == s2)
 				break
 			continue
 		}
 		yy = ym + (s3.x - xm) * a;
-		yx = y_get(upstaff, 1, s3.x - 4, 8) + 2
+		yx = y_get(stu, 1, s3.x - 4, 8) + 2
 		if (yx - yy > dy)
 			dy = yx - yy
 		if (s3 == s2)
@@ -2535,11 +2678,11 @@ function draw_tuplet(s1) {
 	/* shift the slurs / decorations */
 	ym += 6
 	for (s3 = s1; ; s3 = s3.next) {
-		if (s3.st == upstaff) {
+		if (s3.st == stu) {
 			yy = ym + (s3.x - xm) * a
 			if (s3.ymx < yy)
 				s3.ymx = yy
-			y_set(upstaff, true, s3.x - 3, 6, yy)
+			y_set(stu, 1, s3.x - 3, 6, yy)
 		}
 		if (s3 == s2)
 			break
@@ -2547,23 +2690,23 @@ function draw_tuplet(s1) {
 
     // below
     } else {	/* lower voice of the staff: the bracket is below the staff */
-/*fixme: think to all of that again..*/
-	if (s1.stem < 0)
-		x1 -= 2
-
-	if (s1.st == upstaff) {
-		for (s3 = s1; !s3.dur; s3 = s3.next)
-			;
-		y1 = y_get(upstaff, 0, s3.x - 4, 8)
+	if (s1.st <= s2.st) {
+		ym = y_get(s1.st, 0, x1 - 4, 8)
+		y1 = ym < -2
+			? ym
+			: -2
 	} else {
-		y1 = 0
+		y1 = -2
 	}
-	if (s2.st == upstaff) {
-		for (s3 = s2; !s3.dur; s3 = s3.prev)
-			;
-		y2 = y_get(upstaff, 0, s3.x - 4, 8)
+	if (s2.st <= s1.st) {
+		if (s2.stem < 0)
+			x2 -= 3
+		ym = y_get(s2.st, 0, x2 - 4, 8)
+		y2 = ym < -2
+			? ym
+			: -2
 	} else {
-		y2 = 0
+		y2 = -2
 	}
 
 	xm = .5 * (x1 + x2);
@@ -2593,13 +2736,13 @@ function draw_tuplet(s1) {
 	dy = 0
 	for (s3 = s1; ; s3 = s3.next) {
 		if (!s3.dur			/* not a note nor a rest */
-		 || s3.st != upstaff) {
+		 || s3.st != std) {
 			if (s3 == s2)
 				break
 			continue
 		}
 		yy = ym + (s3.x - xm) * a;
-		yx = y_get(upstaff, 0, s3.x - 4, 8)
+		yx = y_get(std, 0, s3.x - 4, 8)
 		if (yx - yy < dy)
 			dy = yx - yy
 		if (s3 == s2)
@@ -2613,11 +2756,11 @@ function draw_tuplet(s1) {
 	/* shift the slurs / decorations */
 	ym -= 2
 	for (s3 = s1; ; s3 = s3.next) {
-		if (s3.st == upstaff) {
+		if (s3.st == std) {
 			yy = ym + (s3.x - xm) * a
 			if (s3.ymn > yy)
 				s3.ymn = yy;
-			y_set(upstaff, false, s3.x - 3, 6, yy)
+			y_set(std, 0, s3.x - 3, 6, yy)
 		}
 		if (s3 == s2)
 			break
@@ -2632,9 +2775,9 @@ function draw_tuplet(s1) {
 		tp.f[2] == 0 ? tp.p.toString() : tp.p + ':' +  tp.q);
 
 	if (dir == C.SL_ABOVE)
-		y_set(upstaff, true, xm - 3, 6, yy + 2)
+		y_set(stu, 1, xm - 3, 6, yy + 2)
 	else
-		y_set(upstaff, false, xm - 3, 6, yy)
+		y_set(std, 0, xm - 3, 6, yy)
 }
 
 // -- draw a ties --
@@ -2817,6 +2960,7 @@ function draw_all_ties(p_voice) {
  *   - staff decorations
  *   - chord symbols
  *   - repeat brackets
+ *   - parts and tempos
  * The buffer output is delayed until the definition of the staff system
  */
 function draw_sym_near() {
@@ -3042,6 +3186,8 @@ function draw_sym_near() {
 
 	draw_deco_staff()
 
+	draw_partempo()			// draw the parts and tempo indications if any
+
 	set_dscale(-1);
 	output = output_sav
 }
@@ -3051,7 +3197,11 @@ function draw_vname(indent, stl) {
     var	p_voice, n, st, v, a_p, p, y, h, h2,
 	staff_d = []
 
-	for (st = stl.length; st >= 0; st--) {
+	if (!gene.vnt)
+		return
+
+//	for (st = stl.length; st >= 0; st--) {
+	for (st = stl.length; --st >= 0; ) {
 		if (stl[st])
 			break
 	}
@@ -3107,10 +3257,12 @@ function draw_vname(indent, stl) {
 
 // -- set the y offset of the staves and return the height of the whole system --
 function set_staff() {
-    var	i, st, prev_staff, v,
+    var	i, st, prev_staff, v, fmt, s,
 	y, staffsep, dy, maxsep, mbot, val, p_voice, p_staff,
-	fmt = tsfirst.fmt,
 	sy = cur_sy
+
+	// the last values of {,max}{,sys}staffsep are in the last format
+	fmt = tsnext ? tsnext.fmt : cfmt
 
 	/* set the scale of the voices */
 	for (v = 0; v < voice_tb.length; v++) {
@@ -3126,25 +3278,19 @@ function set_staff() {
 			break
 	}
 	y = 0
-	if (st > nstaff) {
-		st--;			/* one staff, empty */
-		p_staff = staff_tb[st]
-	}
-// else {
+	if (st > nstaff)
+		return y
+
 		p_staff = staff_tb[st]
 		for (i = 0; i < YSTEP; i++) {
 			val = p_staff.top[i]
 			if (y < val)
 				y = val
 		}
-//	}
-
-	/* draw the parts and tempo indications if any */
-	y += draw_partempo(st, y)
 
 	/* set the vertical offset of the 1st staff */
 	y *= p_staff.staffscale;
-	staffsep = fmt.staffsep * .5 +
+	staffsep = tsfirst.fmt.staffsep / 2 +
 			p_staff.topbar * p_staff.staffscale
 	if (y < staffsep)
 		y = staffsep
@@ -3163,8 +3309,8 @@ function set_staff() {
 		if (!gene.st_print[st])
 			continue
 		p_staff = staff_tb[st]
-		staffsep = sy_staff_prev.sep || cfmt.sysstaffsep;
-		maxsep = sy_staff_prev.maxsep || cfmt.maxsysstaffsep;
+		staffsep = sy_staff_prev.sep || fmt.sysstaffsep;
+		maxsep = sy_staff_prev.maxsep || fmt.maxsysstaffsep;
 
 		dy = 0
 		if (p_staff.staffscale == staff_tb[prev_staff].staffscale) {
@@ -3293,6 +3439,7 @@ function draw_systems(indent) {
 
 		// check if default staff
 		if (cache && cache.st_l == stafflines
+		 && staff_tb[st].staffscale == 1
 		 && cache.st_w == (w | 0)) {
 			xygl(x1, staff_tb[st].y, 'stdef' + cfmt.fullsvg)
 			return
@@ -3325,7 +3472,8 @@ function draw_systems(indent) {
 		}
 		y = staff_tb[st].y
 		if (!cache
-		 && w > get_lwidth() - 10) {
+		 && w > get_lwidth() - 10
+		 && staff_tb[st].staffscale == 1) {
 			cache = {
 				st_l: stafflines,
 				st_w: w | 0
@@ -3504,11 +3652,27 @@ function draw_systems(indent) {
 		}
 	} // hl_rest()
 
+	// return the left x offset of a new staff
+	// s is the %%staves
+	function st1(st, s) {
+	    var	tim = s.time
+
+		do {			// search a voice of this staff
+			s = s.ts_next
+		} while (s.st != st)
+		while (s.prev		// search the first symbol of this voice
+		    && s.prev.time >= tim)
+			s = s.prev
+		if (s.bar_type)
+			return s.x
+		return s.x - s.wl
+	} // st1()
+
 	// ---- draw_systems() ----
 
 	/* draw the staff, skipping the staff breaks */
 	for (st = 0; st <= nstaff; st++) {
-		stl[st] = gene.st_print[st] || cur_sy.st_print[st] // staff in the line
+		stl[st] = cur_sy.st_print[st]		// staff at start of line
 		xstaff[st] = !stl[st] ? -1 : 0;
 	}
 	bar_set();
@@ -3521,13 +3685,7 @@ function draw_systems(indent) {
 				x = xstaff[st]
 				if (x < 0) {		// no staff yet
 					if (sy.st_print[st]) {
-						if (s.ts_prev.bar_type)
-							xstaff[st] = s.ts_prev.x
-						else if (s.ts_next.bar_type)
-							xstaff[st] = s.x
-						else
-							xstaff[st] = s.ts_prev.x
-								+ s.ts_prev.wr
+						xstaff[st] = st1(st, s)
 						stl[st] = true
 					}
 					continue
@@ -3563,7 +3721,9 @@ function draw_systems(indent) {
 		case C.STBRK:
 			if (cur_sy.voices[s.v]
 			 && cur_sy.voices[s.v].range == 0) {
-				if (s.xmx > 14) {
+				if (s.xmx > 14
+				 && s.next			// if not at end of line
+				 && s.next.type == C.CLEF) {	// and before a clef
 
 					/* draw the left system if stbrk in all voices */
 					var nv = 0
@@ -3649,6 +3809,10 @@ Abc.prototype.draw_symbols = function(p_voice) {
 	for (s = p_voice.sym; s; s = s.next) {
 		if (s.invis) {
 			switch (s.type) {
+			case C.CLEF:
+				if (s.time >= staff_tb[s.st].clef.time)
+					staff_tb[s.st].clef = s
+				continue
 			case C.KEY:
 				p_voice.ckey = s
 			default:
@@ -3687,7 +3851,8 @@ Abc.prototype.draw_symbols = function(p_voice) {
 			if (s.time >= staff_tb[st].clef.time)
 				staff_tb[st].clef = s
 			if (s.second
-			 || !staff_tb[st].topbar)
+			 || !staff_tb[st].topbar
+			 || !gene.st_print[st])
 				break
 			set_color();
 			set_sscale(st);
@@ -3770,6 +3935,101 @@ function draw_all_sym() {
     var	p_voice, v,
 	n = voice_tb.length
 
+	// draw the slurs on 2 staves
+	// sl = [symbol of 1st staff, symbol of 2nd staff, slur type, <path .../>
+	function draw_sl2() {
+	    var	i, a, d, dy, dy2, dy2o, dz, n, sl
+
+		while (1) {
+			sl = gene.a_sl.shift()
+			if (!sl)
+				break
+
+			// extract the path header and the values
+			i = sl[3].indexOf('d="M') + 4
+			output += sl[3].slice(0, i)	// <path .. >d="M
+
+			a = new Float32Array(sl[3].slice(i).match(/[\d.-]+/g))
+
+			// update the starting point of the slur
+			a[1] -= staff_tb[sl[0].st].y	// absolute vertical offset
+
+// [0][1] = M
+// [2][3] [4][5] [6][7] = c
+// [8] = v			second curve if not dotted
+// [9][10] [11][12] [13][14] = c
+//
+// y:      3-------5
+//	  / 12---10 \
+//	 / /       \ \
+//	/ /         \ \ 7
+//     1 14          \| 8
+//
+// x:  0   2       4    6
+//       13 11    9	
+
+			// deltas between staves, original and now
+			dy2o = sl[0].fmt.sysstaffsep + 24
+			dy2 = staff_tb[sl[1].st].y - staff_tb[sl[0].st].y
+
+			switch (sl[2]) {		// slur type
+			case "//":			// '~' like
+			case "\\\\":
+
+				// get the middle of the '~' slur (* 2)
+				d = -(sl[1].prev.prev.y + staff_tb[sl[0].st].y
+					+ sl[1].prev.next.y + staff_tb[sl[1].st].y)
+					- 2 * (a[1] - posy)
+				a[5] = d - a[5]
+				a[7] = d - a[7]
+				if (a.length > 8) {
+					d = sl[2][0] == '/' ? 3 : -3
+					a[8] = -a[8]
+					a[10] = -a[3] + d
+					a[12] = -a[5] + d
+					a[14] = -a[7]
+				}
+				break
+			case "/\\":
+			case "\\/":
+				d = sl[2][0] == '/'
+					? dy2 - dy2o - 10
+					: dy2 + dy2o + 10
+				a[3] += d
+				a[5] += d
+				if (a.length > 8) {
+					a[10] += d
+					a[12] += d
+				}
+				break
+			default:			// /+, /-, \+ or \-
+				d = sl[2][0] == '/' ? dy2 - dy2o : -dy2 - dy2o
+				a[5] += d
+				a[7] += d
+				if (a.length > 8) {
+					a[12] -= d
+					a[14] -= d
+				}
+				break
+			}
+
+			// output the slur
+			output += a[0].toFixed(1) + ' ' + a[1].toFixed(1)
+				+ 'c' + a[2].toFixed(1) + ' ' + a[3].toFixed(1)
+				+ ' ' + a[4].toFixed(1) + ' ' + a[5].toFixed(1)
+				+ ' ' + a[6].toFixed(1) + ' ' + a[7].toFixed(1)
+			if (a.length > 8)
+				output += 'v' + a[8].toFixed(1)
+					+ 'c' + a[9].toFixed(1)
+						+ ' ' + a[10].toFixed(1)
+					+ ' ' + a[11].toFixed(1)
+						+ ' ' + a[12].toFixed(1)
+					+ ' ' + a[13].toFixed(1)
+						+ ' ' + a[14].toFixed(1)
+			output += '"/>\n'
+		}
+	} // draw_sl2()
+
 	for (v = 0; v < n; v++) {
 		p_voice = voice_tb[v]
 		if (p_voice.sym
@@ -3784,7 +4044,11 @@ function draw_all_sym() {
 	self.draw_all_deco()
 	glout()			// output the symbols
 	anno_put()		// before outputting the symbol annotations
+
 	set_sscale(-1)				/* restore the scale */
+
+	if (gene.a_sl)		// if slurs on two staves
+		draw_sl2()
 }
 
 /* -- set the tie directions for one voice -- */

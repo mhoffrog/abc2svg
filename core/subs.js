@@ -1,6 +1,6 @@
 // abc2svg - subs.js - text output
 //
-// Copyright (C) 2014-2022 Jean-Francois Moine
+// Copyright (C) 2014-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -86,11 +86,27 @@ var add_fstyle = typeof document != "undefined" ?
 	.556,.222,.222,.500,.222,.833,.556,.556,
 	.556,.556,.333,.500,.278,.556,.500,.722,	// 70
 	.500,.500,.500,.334,.260,.334,.584,.512]),
-
-    cw_tb = sw_tb				// current width table
+// monospace
+    mw_tb = new Float32Array([
+	.0,.0,.0,.0,.0,.0,.0,.0,		// 00
+	.0,.0,.0,.0,.0,.0,.0,.0,
+	.0,.0,.0,.0,.0,.0,.0,.0,		// 10
+	.0,.0,.0,.0,.0,.0,.0,.0,
+	.52,.52,.52,.52,.52,.52,.52,.52,	// 20
+	.52,.52,.52,.52,.52,.52,.52,.52,
+	.52,.52,.52,.52,.52,.52,.52,.52,	// 30
+	.52,.52,.52,.52,.52,.52,.52,.52,
+	.52,.52,.52,.52,.52,.52,.52,.52,	// 40
+	.52,.52,.52,.52,.52,.52,.52,.52,
+	.52,.52,.52,.52,.52,.52,.52,.52,	// 50
+	.52,.52,.52,.52,.52,.52,.52,.52,
+	.52,.52,.52,.52,.52,.52,.52,.52,	// 60
+	.52,.52,.52,.52,.52,.52,.52,.52,
+	.52,.52,.52,.52,.52,.52,.52,.52,	// 70
+	.52,.52,.52,.52,.52,.52,.52,.52])
 
 /* -- return the character width -- */
-function cwid(c) {
+function cwid(c, font) {
 	var i = c.charCodeAt(0)		// utf-16
 
 	if (i >= 0x80) {		// if not ASCII
@@ -98,7 +114,7 @@ function cwid(c) {
 			return 0;	// combining diacritical mark
 		i = 0x61		// 'a'
 	}
-	return cw_tb[i]
+	return (font || gene.curfont).cw_tb[i]
 }
 // return the character width with the current font
 function cwidf(c) {
@@ -114,7 +130,7 @@ var strwh
     // .. by the browser
 
 	// create a text element if not done yet
-    var	el = abc2svg.eltxt
+      var	el
 
 	// change the function
 	strwh = function(str) {
@@ -125,8 +141,8 @@ var strwh
 			el.style.position = 'absolute'
 			el.style.top = '-1000px'
 			el.style.padding = '0'
+			el.style.visibility = "hidden"
 			document.body.appendChild(el)
-			abc2svg.eltxt = el	// reused after new Abc()
 		}
 
 	    var	c,
@@ -221,7 +237,7 @@ var strwh
 			}
 			break
 		}
-		w += cwid(c) * swfac
+		w += cwid(c, font) * swfac
 	}
 	return [w, h]
     }
@@ -303,7 +319,6 @@ function str2svg(str) {
 function set_font(xxx) {
 	if (typeof xxx == "string")
 		xxx = get_font(xxx)
-	cw_tb = xxx.name.slice(0, 4) == 'sans' ? ssw_tb : sw_tb
 	gene.curfont = gene.deffont = xxx
 }
 
@@ -325,6 +340,22 @@ function xy_str(x, y,
 		wh) {		// optional [width, height]
 	if (!wh)
 		wh = str.wh || strwh(str)
+	if (cfmt.trimsvg) {
+	    var wx = wh[0]
+		switch (action) {
+		case 'c':
+			wx = wh[0] / 2
+			break
+		case 'j':
+			wx = w
+			break
+		case 'r':
+			wx = 0
+			break
+		}
+		if (img.wx < x + wx)
+			img.wx = x + wx
+	}
 
 	output += '<text class="' + font_class(gene.deffont)
 	if (action != 'j' && str.length > 5
@@ -335,14 +366,12 @@ function xy_str(x, y,
 	out_sxsy(x, '" y="', y)
 	switch (action) {
 	case 'c':
-		x -= wh[0] / 2;
 		output += '" text-anchor="middle">'
 		break
 	case 'j':
 		output += '" textLength="' + w.toFixed(1) + '">'
 		break
 	case 'r':
-		x -= wh[0];
 		output += '" text-anchor="end">'
 		break
 	default:
@@ -382,6 +411,8 @@ function trim_title(title, is_subtitle) {
 
 // return the width of the music line
 function get_lwidth() {
+	if (img.chg)
+		set_page()
 	return (img.width - img.lm - img.rm
 					- 2)	// for bar thickness at eol
 			/ cfmt.scale
@@ -405,7 +436,7 @@ function write_title(title, is_subtitle) {
 	wh = strwh(title)
 	wh[1] += gene.curfont.pad * 2
 	vskip(wh[1] + h + gene.curfont.pad)
-	h = gene.curfont.pad
+	h = gene.curfont.pad + wh[1] * .22	// + descent
 	if (cfmt.titleleft)
 		xy_str(0, h, title, null, null, wh)
 	else
@@ -675,15 +706,19 @@ function put_history() {
 			head = head.slice(1, -1);
 		vskip(h);
 		wh = strwh(head);
-		xy_str(0, 0, head, null, null, wh);
+		xy_str(0, wh[1] * .22, head, null, null, wh);
 		w = wh[0];
 		str = str.split('\n');
-		xy_str(w, 0, str[0])
+		xy_str(w, wh[1] * .22, str[0])
 		for (j = 1; j < str.length; j++) {
+			if (!str[j]) {			// new paragraph
+				vskip(gene.curfont.size * cfmt.parskipfac)
+				continue
+			}
 			vskip(h);
-			xy_str(w, 0, str[j])
+			xy_str(w, wh[1] * .22, str[j])
 		}
-		vskip(h * .3);
+		vskip(h * cfmt.parskipfac)
 		use_font(gene.curfont)
 	}
 }
@@ -929,7 +964,6 @@ function write_heading() {
 	}
 
 	/* rhythm, composer, origin */
-//	down1 = cfmt.composerspace + gene.curfont.size
 	down1 = down2 = 0
 	if (parse.ckey.k_bagpipe
 	 && !cfmt.infoline
@@ -937,8 +971,8 @@ function write_heading() {
 		rhythm = info.R
 	if (rhythm) {
 		set_font("composer");
-		xy_str(0, -cfmt.composerspace, rhythm);
-		down1 = cfmt.composerspace
+		down1 = cfmt.composerspace + gene.curfont.size + 2
+		xy_str(0, -down1 + gene.curfont.size *.22, rhythm)
 	}
 	area = info.A
 	if (cfmt.writefields.indexOf('C') >= 0)
@@ -949,7 +983,6 @@ function write_heading() {
 		var xcomp, align;
 
 		set_font("composer");
-		vskip(cfmt.composerspace)
 		if (cfmt.aligncomposer < 0) {
 			xcomp = 0;
 			align = ' '
@@ -960,31 +993,26 @@ function write_heading() {
 			xcomp = lwidth;
 			align = 'r'
 		}
-		down2 = down1
 		if (composer || origin) {
-			if (cfmt.aligncomposer >= 0
-			 && down1 != down2)
-				vskip(down1 - down2);
+			down2 = cfmt.composerspace + 2
 			i = 0
 			while (1) {
-				vskip(gene.curfont.size)
+				down2 += gene.curfont.size
 				if (composer)
 					j = composer.indexOf("\n", i)
 				else
 					j = -1
 				if (j < 0) {
-					put_inf2r(xcomp, 0,
+					put_inf2r(xcomp, -down2 + gene.curfont.size *.22,
 						composer ? composer.substring(i) : null,
 						origin,
 						align)
 					break
 				}
-				xy_str(xcomp, 0, composer.slice(i, j), align);
-				down1 += gene.curfont.size;
+				xy_str(xcomp, -down2 + gene.curfont.size *.22,
+					composer.slice(i, j), align);
 				i = j + 1
 			}
-			if (down2 > down1)
-				vskip(down2 - down1)
 		}
 
 		rhythm = rhythm ? null : info.R
@@ -993,26 +1021,25 @@ function write_heading() {
 			/* if only one of rhythm or area then do not use ()'s
 			 * otherwise output 'rhythm (area)' */
 			set_font("info");
-			vskip(gene.curfont.size + cfmt.infospace);
-			put_inf2r(lwidth, 0, rhythm, area, 'r');
-			down1 += gene.curfont.size + cfmt.infospace
+			down2 += cfmt.infospace + gene.curfont.size
+			put_inf2r(lwidth, -down2 + gene.curfont.size *.22,
+				rhythm, area, 'r')
 		}
-//		down2 = 0
-	} else {
-		down2 = cfmt.composerspace
 	}
 
 	/* parts */
 	if (info.P
 	 && cfmt.writefields.indexOf('P') >= 0) {
 		set_font("parts");
-		down1 = cfmt.partsspace + gene.curfont.size - down1
-		if (down1 > 0)
-			down2 += down1
-		if (down2 > .01)
-			vskip(down2);
-		xy_str(0, 0, info.P);
-		down2 = 0
+		i = cfmt.partsspace + gene.curfont.size + gene.curfont.pad
+		if (down1 + i > down2)
+			down2 = down1 + i
+		else
+			down2 += i
+		xy_str(0, -down2 + gene.curfont.size *.22, info.P)
+		down2 += gene.curfont.pad
+	} else if (down1 > down2) {
+		down2 = down1
 	}
 	vskip(down2 + cfmt.musicspace)
 }

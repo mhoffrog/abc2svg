@@ -1,6 +1,6 @@
 // clair.js - module to output Clairnote sheets (https:clairnote.org)
 //
-// Copyright (C) 2019-2021 Jean-Francois Moine
+// Copyright (C) 2019-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -21,6 +21,9 @@
 //
 // Parameters (none)
 //	%%clairnote 1
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.clair = {
 
@@ -381,7 +384,6 @@ abc2svg.clair = {
     }
 } // clair
 
-abc2svg.modules.hooks.push(abc2svg.clair.set_hooks);
-
-// the module is loaded
-abc2svg.modules.clairnote.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.clair = abc2svg.clair.set_hooks

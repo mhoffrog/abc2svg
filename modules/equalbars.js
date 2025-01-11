@@ -1,6 +1,6 @@
 // equalbars.js - module to set equal spaced measure bars
 //
-// Copyright (C) 2018-2022 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -21,6 +21,9 @@
 //
 // Parameters
 //	%%equalbars bool
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.equalbars = {
 
@@ -45,7 +48,7 @@ abc2svg.equalbars = {
     // only the bars of the first voice are treated
     set_sym_glue: function(of, width) {
     var	C = abc2svg.C,
-	s, s2, w, i, n, x, g, t, t0,
+	s, s2, d, w, i, n, x, g, t, t0,
 	bars = [],
 	tsfirst = this.get_tsfirst();
 
@@ -73,14 +76,14 @@ abc2svg.equalbars = {
 	// build an array of the bars
 	t0 = t = s2.time
 	for (s = s2; s.next; s = s.next) {
-		if (s.type == C.BAR && s.seqst) {
+		if (s.type == C.BAR && s.seqst && s.time != t) {
 			bars.push([s, s.time - t]);
 			t = s.time
 		}
 	}
 
-	// push the last bar if it is not the invisible bar after a key change
-	if (!s.invis || (s.prev && s.prev.type != C.KEY))
+	// push the last bar or replace it in the array
+	if (s.time != t)
 		bars.push([s, s.time - t])
 	else
 		bars[bars.length - 1][0] = s	// replace the last bar
@@ -109,7 +112,7 @@ abc2svg.equalbars = {
 	}
 
 	// set the measure parameters
-	x = s2.type == C.GRACE ? s2.extra.x : s2.x;
+	x = s2.type == C.GRACE ? s2.extra.x : (s2.x - s2.wl)
 	if (this.equalbars_d < x)
 		this.equalbars_d = x		// new offset of the first note/rest
 
@@ -118,8 +121,13 @@ abc2svg.equalbars = {
 
 	// loop on the bars
 	for (i = 0; i < n; i++) {
-		do {				// don't shift the 1st note
-			s2.x = d + s2.x - x	// from the bar
+		do {			// don't shift the 1st note from the bar
+			if (s2.type == C.GRACE) {
+				for (g = s2.extra; g; g = g.next)
+					g.x = d + g.x - x
+			} else {
+				s2.x = d + s2.x - x
+			}
 			s2 = s2.ts_next
 		} while (!s2.seqst)
 
@@ -131,7 +139,8 @@ abc2svg.equalbars = {
 			if (s2.type == C.GRACE) {
 				for (g = s2.extra; g; g = g.next)
 					g.x = d + (g.x - x) * f
-			} else if (s2.x) {
+//			} else if (s2.x) {
+			} else {
 				s2.x = d + (s2.x - x) * f
 			}
 		}
@@ -155,7 +164,6 @@ abc2svg.equalbars = {
     }
 } // equalbars
 
-abc2svg.modules.hooks.push(abc2svg.equalbars.set_hooks);
-
-// the module is loaded
-abc2svg.modules.equalbars.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.equalbars = abc2svg.equalbars.set_hooks

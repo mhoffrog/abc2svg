@@ -328,8 +328,8 @@ They are:
 
 - `tomei.js`  
   This script outputs the music as a [MEI](https://music-encoding.org/) file.  
-  Note, only one tune may be translated from ABC to MEI (multi-tunes ABC
-  generates bad MEI).
+  Note, only one tune may be translated from ABC to MEI (multi-tunes ABC files
+  generate bad MEI files).
 
 - `tonotes.js`  
   This script outputs a list of the MIDI events.
@@ -337,12 +337,14 @@ They are:
 - `toodt.js`  
   This script creates an Open Document (ODT+SVG) which can be read by most
   word processors (abiword, libreoffice...).  
-  It runs only with the shell script `abc2svg` and asks for the npm module
-  `jszip` to be installed.  
+  When runs with the shell script `abc2svg`, it asks for the npm module
+  `jszip` to be installed.
+  When run with `abcqjs` on unix-like systems, it creates a temporary
+  directory tree in `/tmp`.  
   The output ODT document may be specified in the command line argument
   after `-o` (default `abc.odt`).  
   Example:  
-  `        abc2svg toodt.js my_file.abc -o my_file.odt`
+  `        abcqjs toodt.js my_file.abc -o my_file.odt`
 
 - `toparam.js`  
   This script just outputs the abc2svg parameters.
@@ -463,7 +465,7 @@ Detailed information about the modules may be found in the [wiki][12].
 Here are the scripts which are used in a web context:
 
 - `abcweb-1.js`  
-  This script replaces the ABC or MEI sequences found in the (X)HTML file
+  This script replaces the ABC sequences found in the (X)HTML file
   by SVG images of the music.  
   The ABC sequences are searched:
   - first inside &lt;script&gt; elements with a type
@@ -540,21 +542,6 @@ Here are the scripts which are used in a web context:
 - `snd-1.js`  
   This script may be used with `abcweb-1.js` or `abcweb1-1.js`
   to play the rendered ABC music.  
-
-### 5. MEI support
-
-As an experimental feature, an extended core `mei2svg-1.js` may be generated.
-This one may handle both the ABC and
-[MEI](https://music-encoding.org/ "Music Encoding Initiative")
-notations.
-
-In browser mode, the script `abcweb-1.js` loads either `abc2svg-1.js` or
-`mei2svg-1.js` after checking if `<mei` exists in the page (see
-[this tune](http://moinejf.free.fr/abc/Czerny_op603_6.html)
-for an example).
-
-In shell mode, the script `abcqjs` also loads the right abc2svg core
-according to the source file extension (`.abc` or `.mei`).
 
 ### 6. Credit
 

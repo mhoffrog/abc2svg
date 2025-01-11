@@ -1,6 +1,6 @@
 // break.js - module to handle the %%break command
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -21,6 +21,9 @@
 //
 // Parameters
 //	%%break measure_nb [":" num "/" den] [" " measure ...]*
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.break = {
 
@@ -125,7 +128,6 @@ abc2svg.break = {
     }
 } // break
 
-abc2svg.modules.hooks.push(abc2svg.break.set_hooks);
-
-// the module is loaded
-abc2svg.modules.break.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.break = abc2svg.break.set_hooks

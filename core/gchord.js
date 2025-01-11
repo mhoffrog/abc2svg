@@ -1,6 +1,6 @@
 // abc2svg - gchord.js - chord symbols
 //
-// Copyright (C) 2014-2022 Jean-Francois Moine
+// Copyright (C) 2014-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -128,13 +128,6 @@ function parse_gchord(type) {
 			if (!c)
 				break
 			switch (c) {
-			case '\\':
-				c = text[++i]
-				if (c == 'n')
-					break
-				gch.text += '\\'
-				if (!c)
-					break
 			default:
 				gch.text += c;
 				i++
@@ -159,6 +152,7 @@ function parse_gchord(type) {
 					continue
 				}
 				break
+			case '\n':		// abcm2ps compatibility
 			case ';':
 				break
 			}
@@ -173,36 +167,45 @@ function parse_gchord(type) {
 }
 
 // transpose a chord symbol
-var	note_names = "CDEFGAB",
-	acc_name = ["bb", "b", "", "#", "##"]
-
-	function gch_tr1(p) {
-	    var	i, o, n, a, ip, b40,
-		tr = curvoice.tr_sco,
+	function gch_tr1(p, tr) {
+	    var	i, o, n, ip,
 		csa = p.split('/')
 
+		tr = abc2svg.b40l5[(tr + 202) % 40]	// transpose in the line of fifth
 		for (i = 0; i < csa.length; i++) {	// main and optional bass
 			p = csa[i];
 			o = p.search(/[A-G]/)
 			if (o < 0)
 				continue		// strange chord symbol!
 			ip = o + 1
-			a = 0
-			while (p[ip] == '#' || p[ip] == '\u266f') {
-				a++;
+
+//	bbb fb cb gb db ab eb bb  f c g d a e b f# c# g# d# a# e# b# f##
+//	 -9 -8 -7 -6 -5 -4 -3 -2 -1 0 1 2 3 4 5  6  7  8  9 10 11 12  13
+			n = "FCGDAEB".indexOf(p[o]) - 1
+			if (p[ip] == '#' || p[ip] == '\u266f') {
+				n += 7
+				ip++
+			} else if (p[ip] == 'b' || p[ip] == '\u266d') {
+				n -= 7
 				ip++
 			}
-			while (p[ip] == 'b' || p[ip] == '\u266d') {
-				a--;
-				ip++
-			}
-			n = note_names.indexOf(p[o]) + 16
-			b40 = (abc2svg.pab40(n, a) + tr + 200) % 40
-			b40 = abc2svg.b40k[b40]
-			csa[i] = p.slice(0, o) +
-					note_names[abc2svg.b40_p[b40]] +
-					acc_name[abc2svg.b40_a[b40] + 2] +
-					p.slice(ip)
+			n += tr					// transpose
+
+//			// remove chords with double sharps/flats
+//			if ((!i && n > 7)			// main chord
+//			 || (i && n > 12))			// bass
+//				n -= 12
+//			else if (i < -7)
+//				n += 12
+
+			csa[i] = p.slice(0, o)
+				+ "FCGDAEB"[(n + 22) % 7]
+				+ (n >= 13 ? '##'
+					: n >= 6 ? '#'
+					: n <= -9 ? 'bb'
+					: n <= -2 ? 'b'
+					: '')
+				+ p.slice(ip)
 		}
 		return csa.join('/')
 	} // gch_tr1
@@ -228,7 +231,7 @@ function csan_add(s) {
 		for (i = 0; i < a_gch.length; i++) {
 			gch = a_gch[i]
 			if (gch.type == 'g')
-				gch.text = gch_tr1(gch.text)
+				gch.text = gch_tr1(gch.text, curvoice.tr_sco)
 		}
 	}
 
@@ -282,8 +285,10 @@ Abc.prototype.gch_build = function(s) {
 		switch (gch.type) {
 		case '@':
 			break
-		case '^':			/* above */
-		case '_':			/* below */
+		default:
+//		case 'g':			// chord symbol
+//		case '^':			/* above */
+//		case '_':			/* below */
 			xspc = wh[0] * GCHPRE
 			if (xspc > 8)
 				xspc = 8;
@@ -298,12 +303,6 @@ Abc.prototype.gch_build = function(s) {
 			gch.x = 6;
 			y_right -= wh[1];
 			gch.y = y_right + wh[1] / 2
-			break
-		default:			// chord symbol
-			xspc = wh[0] * GCHPRE
-			if (xspc > 8)
-				xspc = 8;
-			gch.x = -xspc;
 			break
 		}
 	}
@@ -395,9 +394,9 @@ Abc.prototype.draw_gchord = function(i, s, x, y) {
 	}
 
 	if (an.type != '@') {
-		if (y > 24)
+		if (y >= 0)
 			y_set(s.st, 1, x, w, y + h + pad + 2)
-		else if (y < 0)
+		else
 			y_set(s.st, 0, x, w, y - pad)
 	}
 
@@ -415,7 +414,7 @@ Abc.prototype.draw_gchord = function(i, s, x, y) {
 
 // draw all chord symbols
 function draw_all_chsy() {
-    var	s, san1, an, i, y, w,
+    var	s, san1, an, i, x, y, w,
 	n_an = 0,		// max number of annotations
 	minmax = new Array(nstaff + 1)
 
@@ -436,7 +435,7 @@ function draw_all_chsy() {
 				w = an.text.wh[0]
 				if (w && x + w > realwidth)
 					x = realwidth - w // let the text in the page
-				y = y_get(s.st, 1, x, w) + 2	// y / staff
+				y = y_get(s.st, 1, x, w)	// y / staff
 				if (an.type == 'g' && y < minmax[s.st].yup)
 					y = minmax[s.st].yup
 			} else if (an.pos == C.SL_BELOW
@@ -491,13 +490,16 @@ function draw_all_chsy() {
 		while (--i >= 0) {
 			if (an[i].type == 'g') {
 				an = an[i]
+				x = s.x + an.x
 				w = an.text.wh[0]
+				if (w && x + w > realwidth)
+					x = realwidth - w
 				if (an.pos == C.SL_ABOVE) {
-					y = y_get(s.st, true, s.x, w) + 2
+					y = y_get(s.st, true, x, w)
 					if (y > minmax[s.st].yup)
 						minmax[s.st].yup = y
 				} else if (an.pos == C.SL_BELOW) {
-					y = y_get(s.st, false, s.x, w) - 2
+					y = y_get(s.st, false, x, w) - 2
 					if (y < minmax[s.st].ydn)
 						minmax[s.st].ydn = y
 				}

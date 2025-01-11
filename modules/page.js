@@ -1,6 +1,6 @@
 // page.js - module to generate pages
 //
-// Copyright (C) 2018-2022 Jean-Francois Moine
+// Copyright (C) 2018-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -22,10 +22,14 @@
 // Parameters
 //	%%pageheight <unit>
 
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
+
 abc2svg.page = {
 
     // function called at end of generation
     abc_end: function(of) {
+      if (this.cfmt().pageheight) {
     var page = this.page
 	if (page && page.in_page)
 		abc2svg.page.close_page(page)
@@ -33,13 +37,31 @@ abc2svg.page = {
 		user.img_out = abc2svg.page.user_out
 		abc2svg.page.user_out = null
 	}
+      }
 	of()
     }, // abc_end()
+
+    // output the SVG tag
+    svg_tag: function(w, h, ty) {
+	w = Math.ceil(w)
+	h = Math.ceil(h)
+	abc2svg.page.user_out(
+		'<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
+ xmlns:xlink="http://www.w3.org/1999/xlink"\n\
+ class="'
+		+ ty + '" '
+		+ (user.imagesize != undefined
+			? (user.imagesize)
+			: ('width="' + w + 'px" height="' + h + 'px"')
+		)
+		+ ' viewBox="0 0 ' + w + ' ' + h + '">'
+	)
+    }, // svg_tag()
 
     // generate a header or a footer in page.hf and return its height
     gen_hf: function(page, ty) {
     var	a, i, j, k, x, y, y0, s, str,
-	font = page.abc.get_font(ty),
+	font = page.abc.get_font(ty.substr(0, 6)),
 	cfmt = page.abc.cfmt(),
 	fh = font.size * 1.1,
 	pos = [ '">',
@@ -93,7 +115,9 @@ abc2svg.page = {
 				d = strftime(cfmt.dateformat, d)
 				break
 			case 'F':
-				d = page.abc.parse.fname
+				d = typeof document != "undefined"
+					? window.location.href
+					: page.abc.parse.fname
 				break
 			case 'I':
 				c = str[++i]
@@ -254,6 +278,8 @@ abc2svg.page = {
 	if (page.header) {
 		l = abc.get_font_style().length
 		h = abc2svg.page.gen_hf(page, "header")
+		if (!h && page.pn == 1 && page.header1)
+			h = abc2svg.page.gen_hf(page, "header1")
 		sty = abc.get_font_style().slice(l)		// new style(s)
 		if (cfmt.fullsvg || sty != page.hsty) {
 			page.hsty = sty
@@ -261,24 +287,16 @@ abc2svg.page = {
 		} else {
 			sty = ''
 		}
-		abc2svg.page.user_out(
-			'<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
-	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
-	width="' + cfmt.pagewidth.toFixed(0) +
-			'px" height="' + (ht + h).toFixed(0) +
-			'px">\n' + sty +
+		abc2svg.page.svg_tag(cfmt.pagewidth, ht + h, "header")
+		abc2svg.page.user_out(sty +
 			'<g transform="translate(0,' +
-				page.topmargin.toFixed(1) + ')">' +
+				page.topmargin.toFixed(1) + ')">\n' +
 				page.hf + '</g>\n</svg>')
 		page.hmax -= h;
 		page.hf = ''
 	} else {
-		abc2svg.page.user_out(
-			'<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
-	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
-	width="' + cfmt.pagewidth.toFixed(0) +
-			'px" height="' + ht.toFixed(0) +
-			'px">\n</svg>')
+		abc2svg.page.svg_tag(cfmt.pagewidth, ht, "header")
+		abc2svg.page.user_out('\n</svg>')
 	}
 	if (page.footer) {
 		l = abc.get_font_style().length
@@ -303,14 +321,10 @@ abc2svg.page = {
 	page.in_page = false
 	if (page.footer) {
 		h = page.hmax + page.fh - page.h
-		abc2svg.page.user_out(
-			'<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
-	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
-	width="' + cfmt.pagewidth.toFixed(0) +
-			'px" height="' + h.toFixed(0) +
-			'px">\n' + page.ffsty +
+		abc2svg.page.svg_tag(cfmt.pagewidth, h, "footer")
+		abc2svg.page.user_out(page.ffsty +
 			'<g transform="translate(0,' +
-				(h - page.fh).toFixed(1) + ')">' +
+				(h - page.fh).toFixed(1) + ')">\n' +
 			page.hf + '</g>\n</svg>')
 	}
 	abc2svg.page.user_out('</div>')
@@ -400,8 +414,14 @@ abc2svg.page = {
 		if (!user.img_out || !abc2svg.abc_end)
 			v = 0
 		cfmt.pageheight = v
-		if (!v)
+		if (!v) {
+			if (abc2svg.page.user_out) {
+				user.img_out = abc2svg.page.user_out
+				abc2svg.page.user_out = null
+			}
+			delete this.page
 			return
+		}
 
 		// if first definition, install the hook
 		if (!page || !abc2svg.page.user_out) {
@@ -424,6 +444,10 @@ abc2svg.page = {
 			if (cfmt.footer) {
 				page.footer = cfmt.footer;
 				cfmt.footer = null
+			}
+			if (cfmt.header1) {
+				page.header1 = cfmt.header1
+				cfmt.header1 = null
 			}
 			if (cfmt.header2) {
 				page.header2 = cfmt.header2
@@ -468,6 +492,7 @@ abc2svg.page = {
 		switch (cmd) {
 		case "header":
 		case "footer":
+		case "header1":
 		case "header2":
 		case "footer2":
 			page[cmd] = parm
@@ -507,7 +532,6 @@ abc2svg.page = {
     }
 } // page
 
-abc2svg.modules.hooks.push(abc2svg.page.set_hooks);
-
-// the module is loaded
-abc2svg.modules.pageheight.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.page = abc2svg.page.set_hooks

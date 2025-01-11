@@ -1,6 +1,6 @@
 // diag.js - module to insert guitar chord diagrams
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2024 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -40,6 +40,9 @@
 //	<fingers> = finger numbers ou 'x' (mute) or '0'/'y' (no finger)
 //	barre=<num>-<num> draw a bar between the two string numbers in the first fret
 //				(numbering order 654321 for E,A,D,GBe)
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.diag = {
 
@@ -91,11 +94,11 @@ abc2svg.diag = {
     }, // cd6{}
 
 // function called before tune generation
-// n = number of strings
-    do_diag: function(n) {
-    var	glyphs = this.get_glyphs(),
-	voice_tb = this.get_voice_tb(),
-	decos = this.get_decos()
+    draw_gchord: function(of, i, s, x, y) {
+    var	gch, nm,
+	cfmt = this.cfmt(),
+	n = cfmt.diag,				// number of strings
+	glyphs = this.get_glyphs()
 
 	// create the base decorations if not done yet
 	if (!glyphs.ddot) {
@@ -109,30 +112,30 @@ abc2svg.diag = {
 		if (n == 4) {
 			glyphs.fb4 = '<g id="fb4">\n\
 <path class="stroke" stroke-width="0.4" d="\
-M-6 -34h12m0 6h-12\
+M-6 -24h12m0 6h-12\
 m0 6h12m0 6h-12\
 m0 6h12"/>\n\
 <path class="stroke" stroke-width="0.5" d="\
-M-6 -34v24m4 0v-24\
+M-6 -24v24m4 0v-24\
 m4 0v24m4 0v-24"/>\n\
 </g>'
 			glyphs.nut4 =
 				'<path id="nut4" class="stroke" stroke-width="1.6" d="\
-M-6.2 -34.5h12.4"/>'
+M-6.2 -24.5h12.4"/>'
 		} else {
 			glyphs.fb6 = '<g id="fb6">\n\
 <path class="stroke" stroke-width="0.4" d="\
-M-10 -34h20m0 6h-20\
+M-10 -24h20m0 6h-20\
 m0 6h20m0 6h-20\
 m0 6h20"/>\n\
 <path class="stroke" stroke-width="0.5" d="\
-M-10 -34v24m4 0v-24\
+M-10 -24v24m4 0v-24\
 m4 0v24m4 0v-24\
 m4 0v24m4 0v-24"/>\n\
 </g>'
 			glyphs.nut6 =
 				'<path id="nut6" class="stroke" stroke-width="1.6" d="\
-M-10.2 -34.5h20.4"/>'
+M-10.2 -24.5h20.4"/>'
 		}
 	}
 
@@ -145,16 +148,18 @@ M-10.2 -34.5h20.4"/>'
 				t = t.replace(a[1], a[2])
 		}
 		return t.replace('/', '.')
+			.replace(/\u266f/g,'#')
+			.replace(/\u266d/g,'b')
 	} // ch_cnv()
 
-	// add a decoration and display the diagram
+	// create a glyph of the diagram
 	function diag_add(nm) {			// chord name
-	    var	dc, i, l, x,
-		d = abc2svg.diag["cd" + n][nm]	// definition of the diagram
+	    var	dc, i, l, x, y,
+		d = abc2svg.diag["cd" + n][nm.slice(1)]
+						// definition of the diagram
 
 		if (!d)
 			return		// no diagram of this chord
-		nm = n + nm
 		d = d.split(' ')
 		x = 2 - 2 * n
 		dc = '<g id="' + nm + '">\n\
@@ -164,13 +169,12 @@ M-10.2 -34.5h20.4"/>'
 			dc += '<use xlink:href="#nut' + n + '"/>\n'
 		if (l[0])
 			dc += '<text x="' + (x - 10).toString()
-				+ '" y="' + ((l[1] || 1) * 6 - 35)
+				+ '" y="' + ((l[1] || 1) * 6 - 25)
 				+ '" class="frn">' + l[0] + '</text>\n'
-		decos[nm] = "3 " + nm + " 40 " + (l[0] ? "30" : "10") + " 0"
 		// fingers
 		dc += '<text x="' + (n == 6 ? '-12,-8,-4,0,4,8'
 					: '-8,-4,0,4')
-				+ '" y="-36" class="fng">'
+				+ '" y="-26" class="fng">'
 				+ d[2].replace(/[y0]/g, ' ')
 				+ '</text>\n'
 		// dots
@@ -178,7 +182,7 @@ M-10.2 -34.5h20.4"/>'
 			l = d[0][i]
 			if (l && l != 'x' && l != '0')
 				dc += '<use x="' + (i * 4 + x)
-					+ '" y="' + (l * 6 - 37)
+					+ '" y="' + (l * 6 - 27)
 					+ '" xlink:href="#ddot"/>\n'
 		}
 		// barre
@@ -187,35 +191,35 @@ M-10.2 -34.5h20.4"/>'
 			if (l)
 				dc += '<path id="barre" class="stroke"\
  stroke-width="1.4" d="M' + ((n - l[1]) * 4 + x - 2)
-					+ ' -31h' + ((l[1] - l[2]) * 4 + 4) + '"/>'
+					+ ' -21h' + ((l[1] - l[2]) * 4 + 4) + '"/>'
 		}
 		dc += '</g>'
 		glyphs[nm] = dc
 	} // diag_add()
 
-    var	s, i, gch, nm
+	// --- draw_gchord ---
+	of(i, s, x, y)		// draw the chord symbols and the annotations
 
-	for (s = voice_tb[0].sym; s; s = s.next) {
-		if (!s.a_gch)
-			continue
-		for (i = 0; i < s.a_gch.length; i++) {
-			gch = s.a_gch[i]
-			if (!gch || gch.type != 'g' || gch.capo)
-				continue
-			nm = ch_cnv(gch.text)
-			if (!decos[n + nm])	// if no decoration yet
-				diag_add(nm)
-			this.deco_put(n + nm, s) // insert diag as decoration
-		}
+	if ((s.invis && s.play)	// play sequence: no chord nor annotation
+	 || !n)			// no %%diagram
+		return
+	gch = s.a_gch[i]
+	if (!gch || gch.type != 'g' || gch.capo)
+		return
+	nm = n + ch_cnv(gch.text)	// glyph name
+
+	// build a glyph if not done yet
+	if (!glyphs[nm])
+		diag_add(nm)
+
+	// output the diagram above the chord symbol
+	if (glyphs[nm]) {
+		x = s.x
+		y = this.y_get(s.st, 1, x - 10, 20)
+		this.xygl(x, y + 2, nm)
+		this.y_set(s.st, 1, x - 10, 20, y + 34)
 	}
-    }, // do_diag()
-
-    output_music: function(of) {
-    var	n = this.cfmt().diag
-	if (n)
-		abc2svg.diag.do_diag.call(this, n)
-	of()
-    },
+    }, // draw_gchord()
 
     set_fmt: function(of, cmd, param) {
     var	a, d, n,
@@ -250,12 +254,11 @@ M-10.2 -34.5h20.4"/>'
     },
 
     set_hooks: function(abc) {
-	abc.output_music = abc2svg.diag.output_music.bind(abc, abc.output_music);
+	abc.draw_gchord = abc2svg.diag.draw_gchord.bind(abc,abc.draw_gchord)
 	abc.set_format = abc2svg.diag.set_fmt.bind(abc, abc.set_format)
     }
 } // diag
 
-abc2svg.modules.hooks.push(abc2svg.diag.set_hooks);
-
-// the module is loaded
-abc2svg.modules.diagram.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.diag = abc2svg.diag.set_hooks

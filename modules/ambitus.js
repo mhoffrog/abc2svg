@@ -1,6 +1,6 @@
 // ambitus.js - module to insert an ambitus at start of a voice
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -21,6 +21,9 @@
 //
 // Parameters
 //	%%ambitus 1
+
+if (typeof abc2svg == "undefined")
+    var	abc2svg = {}
 
 abc2svg.ambitus = {
     do_ambitus: function() {
@@ -99,6 +102,27 @@ abc2svg.ambitus = {
 	of(cmd, param)
     },
 
+    set_glue: function(of, w) {
+    var	v, s,
+	voice_tb = this.get_voice_tb()
+
+	of(w)
+	if (this.cfmt().ambitus) {
+		for (v = 0; v < voice_tb.length; v++) {
+			s = voice_tb[v].sym
+			while (!s.time && !s.clef_type)
+				s = s.next
+			if (s && s.nhd) {	// draw the helper lines if any
+				s.x -= 26
+				this.draw_hl(s)
+				s.ymn = 3 * (s.notes[0].pit - 18) - 2
+				s.ymx = 3 * (s.notes[1].pit - 18) + 2
+				s.x += 26
+			}
+		}
+	}
+    }, // set_glue()
+
     set_width: function(of, s) {
 	if (s.clef_type != undefined && s.nhd > 0) {
 		s.wl = 40;
@@ -112,11 +136,11 @@ abc2svg.ambitus = {
 	abc.draw_symbols = abc2svg.ambitus.draw_symbols.bind(abc, abc.draw_symbols);
 	abc.set_pitch = abc2svg.ambitus.set_pitch.bind(abc, abc.set_pitch);
 	abc.set_format = abc2svg.ambitus.set_fmt.bind(abc, abc.set_format);
+	abc.set_sym_glue = abc2svg.ambitus.set_glue.bind(abc, abc.set_sym_glue)
 	abc.set_width = abc2svg.ambitus.set_width.bind(abc, abc.set_width)
     }
 } // ambitus
 
-abc2svg.modules.hooks.push(abc2svg.ambitus.set_hooks);
-
-// the module is loaded
-abc2svg.modules.ambitus.loaded = true
+if (!abc2svg.mhooks)
+	abc2svg.mhooks = {}
+abc2svg.mhooks.ambitus = abc2svg.ambitus.set_hooks

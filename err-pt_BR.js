@@ -82,14 +82,15 @@ user.textrans = {
 	"Cannot have V:* in tune body": "Não pode haver V:* no corpo da música",
 	"Cannot read file '$1'": "Arquivo '$1' não pôde ser aberto ou não existe",
 	"Decoration ignored": "Decoração ignorada",
-	"Decoration without symbol": "Decoração sem símbolo",
+	"Decoration(s) without symbol: $1": "Decoração(ões) sem símbolo: $1",
 	"Double voice in %%score": "Voz duplicada em %%score",
 	"Empty line in tune header - ignored":
 				"Linha em branco no cabeçalho da música - ignorada",
+	"End of file in tune header": "Fim de arquivo em cabeçalho de música",
 	"End of slur without start": "Fim de ligadura sem início",
 	"Erroneous end of voice overlay": "Terminação incorreta de superposição de vozes",
 	"Error in %%pos": "Erro em %%pos",
-	"Error loading the module $1": "Error loading the module $1",
+	"Error loading the module $1": "Erro ao carregar o módulo $1",
 	"Incorrect 1st value in %%repeat": "Primeiro valor incorreto em %%repeat",
 	"Incorrect 2nd value in %%repeat": "Segundo valor incorreto em %%repeat",
 	"Invalid 'r' in tuplet": "'r' inválido em quiáltera",
@@ -111,6 +112,7 @@ user.textrans = {
 				"A transposição de microtons não está codificada",
 	"Misplaced '$1' in %%score": "'$1' deslocado em %%score",
 	"Misplaced dot": "Ponto fora de lugar",
+	"Misplaced P:": "P: fora de lugar",
 	"Mix of old and new transposition syntaxes":
 				"Mistura de sintaxes de transposição antiga e nova",
 	"multi-measure rest, but no measure!":
@@ -127,6 +129,7 @@ user.textrans = {
 	"No end of repeat string": "Cadeia de repetição não terminada",
 	"No end of string in font family":
 			"Cadeia de caracteres incompleta em família de fonte",
+	"No end of the previous %%multicol": "Falta fechar ('end') o %%multicol anterior",
 	"No end of tuplet": "Quiáltera incompleta",
 	"No end of tuplet in this music line":
 				"Falta terminar quiáltera nesta linha de música",

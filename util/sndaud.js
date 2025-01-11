@@ -303,16 +303,16 @@ function Audio5(i_conf) {
 			s = s.ts_prev
 
 		for ( ; s; s = s.ts_next) {
-			if (s.v < nv) {			// if new voice
+			if (s.v > nv) {			// if new voice
 				nv = s.v
 				bk[nv] = 0		// bank 0
-				if (p_v.midictl) {
-					if (p_v.midictl[0])	// MSB
+				if (s.p_v.midictl) {
+					if (s.p_v.midictl[0])	// MSB
 						bk[s.v] = (bk[s.v] & ~0x1fc000)
-								+ (p_v.midictl[0] << 14)
-					if (p_v.midictl[32])	// LSB
+								+ (s.p_v.midictl[0] << 14)
+					if (s.p_v.midictl[32])	// LSB
 						bk[s.v] = (bk[s.v] & ~0x3f80)
-								+ (p_v.midictl[32] << 7)
+								+ (s.p_v.midictl[32] << 7)
 				}
 			}
 			switch (s.subtype) {
@@ -348,7 +348,7 @@ function Audio5(i_conf) {
 			}
 		}
 		nv = (2 << nv) - 1
-		if (!(nv & vb)			// if some voice(s) without instrument
+		if (nv != vb			// if some voice(s) without instrument
 		 && !params[0]) {
 			params[0] = []		// load the piano
 			f(0, sf2par, sf2pre)
@@ -371,14 +371,19 @@ function Audio5(i_conf) {
 
 		// load the soundfont if not done yet
 		} else if (!parser) {
+		    w_instr++
 		    if (conf.sfu.slice(-3) == ".js") {
 			abc2svg.loadjs(conf.sfu,
 				function() {
 					load_res(s)	// load the instruments
+					if (--w_instr == 0)
+						play_start()
 				},
 				function() {
 					errmsg('could not load the sound file '
 						+ conf.sfu)
+					if (--w_instr == 0)
+						play_start()
 				})
 			return
 		    }
@@ -392,14 +397,20 @@ function Audio5(i_conf) {
 					parser.parse()
 					presets = parser.getPresets()
 					load_res(s)	// load the instruments
+					if (--w_instr == 0)
+						play_start()
 				} else {
 					errmsg('could not load the sound file '
 						+ conf.sfu)
+					if (--w_instr == 0)
+						play_start()
 				}
 			}
 			r.onerror = function() {
 					errmsg('could not load the sound file '
 						+ conf.sfu)
+				if (--w_instr == 0)
+					play_start()
 			}
 			r.send()
 			return
@@ -567,7 +578,7 @@ function Audio5(i_conf) {
 
 			src.buffer = buf
 			src.connect(ac.destination)
-			src.noteOn(0)
+			src.start(0)
 		}
 
 		// initialize the audio subsystem if not done yet

@@ -14,6 +14,7 @@ rule cpm
 rule font
   command = fontforge -c 'open("font/abc2svg.sfd").generate("abc2svg.ttf")';$
    fontforge -c 'open("font/abc2svg.sfd").generate("abc2svg.woff")';$
+   fontforge -c 'open("font/abc2svg.sfd").generate("abc2svg.woff2")';$
    echo '// abc2svg music font' > font.js;$
    echo "var musicfont = 'url(\"data:application/octet-stream;base64,\\" >> font.js;$
    base64 abc2svg.ttf | sed 's/$$/\\/' >> font.js;$
@@ -94,10 +95,6 @@ build abc2svg-$MAJOR.js: jsc core/abc2svg.js core/deco.js core/draw.js $
  core/svg.js core/tune.js core/lyrics.js core/gchord.js core/tail.js $
  core/modules.js
 #| package.json
-build mei2svg-$MAJOR.js: jsc core/abc2svg.js core/deco.js core/draw.js $
- font.js core/format.js core/front.js core/music.js core/parse.js core/subs.js $
- core/svg.js core/tune.js core/lyrics.js core/gchord.js core/mei.js core/tail.js $
- core/modules.js | package.json
 
 build ambitus-$MAJOR.js: jscu modules/ambitus.js
 build break-$MAJOR.js: jscu modules/break.js
@@ -154,7 +151,6 @@ build all: phony abc2svg-$MAJOR.js abcdoc-$MAJOR.js $
  roman-$MAJOR.js soloffs-$MAJOR.js sth-$MAJOR.js strtab-$MAJOR.js $
  temper-$MAJOR.js tropt-$MAJOR.js edit-$MAJOR.css edit-$MAJOR.js edit-$MAJOR.xhtml $
  abckbd-$MAJOR.js abckbd2-$MAJOR.js
-# not mei2svg-$MAJOR.js
 
 default all
 
