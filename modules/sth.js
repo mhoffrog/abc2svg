@@ -1,6 +1,6 @@
 // sth.js - module to set the stem heights
 //
-// Copyright (C) 2018 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2019 Jean-Francois Moine - GPL3+
 //
 // This module is loaded when "%%sth" appears in a ABC source.
 //
@@ -15,16 +15,18 @@ abc2svg.sth = {
 // function called after beam calculation
     recal_beam: function(bm, s) {
     var staff_tb = this.get_staff_tb(),
-	st = s.st,
-	s2 = bm.s2
+	y = staff_tb[s.st].y,
+	s2 = bm.s2,
+	y2 = staff_tb[s2.st].y
+
 	if (s.sth)
 		s.ys = s.sth
 	if (s2.sth)
 		s2.ys = s2.sth;
-	bm.a = (s.ys- s2.ys) / (s.xs - s2.xs);
-	bm.b = s.ys - s.xs * bm.a + staff_tb[st].y
+	bm.a = (s.ys + y - s2.ys - y2) / (s.xs - s2.xs);
+	bm.b = s.ys - s.xs * bm.a + y
 	while (1) {
-		s.ys = bm.a * s.xs + bm.b - staff_tb[st].y
+		s.ys = bm.a * s.xs + bm.b - y
 		if (s.stem > 0)
 			s.ymx = s.ys + 2.5
 		else
@@ -81,18 +83,19 @@ abc2svg.sth = {
 
     calculate_beam: function(of, bm, s1) {
     var	done = of(bm, s1)
-	if (done && bm.s2 && s1.sth)
+	if (done && bm.s2 && (s1.sth || bm.s2.sth))
 		abc2svg.sth.recal_beam.call(this, bm, s1)
 	return done
     },
 
     new_note: function(of, grace, tp_fact) {
-    var	NOTE = 8		// constant from the abc2svg core
-    var	s = of(grace, tp_fact),
+    var	C = abc2svg.C,
+	s = of(grace, tp_fact),
 	curvoice = this.get_curvoice()
-	if (curvoice.sth && s && s.type == NOTE) {
+
+	if (curvoice.sth && s && s.type == C.NOTE) {
 		s.sth = curvoice.sth;
-		curvoice.sth = null
+		curvoice.sth = null	// some stem widths in this voice
 	}
 	return s
     },
@@ -112,20 +115,17 @@ abc2svg.sth = {
     set_stems: function(of) {
 	of();
 	abc2svg.sth.set_sth.call(this)
-    }
+    },
 
+    set_hooks: function(abc) {
+	abc.calculate_beam = abc2svg.sth.calculate_beam.bind(abc, abc.calculate_beam);
+	abc.new_note = abc2svg.sth.new_note.bind(abc, abc.new_note);
+	abc.set_format = abc2svg.sth.set_format.bind(abc, abc.set_format);
+	abc.set_stems = abc2svg.sth.set_stems.bind(abc, abc.set_stems)
+    }
 } // sth
 
-abc2svg.modules.hooks.push(
-// export
-	"goto_tune",
-	"parse",
-// hooks
-	[ "calculate_beam", "abc2svg.sth.calculate_beam" ],
-	[ "new_note", "abc2svg.sth.new_note" ],
-	[ "set_format", "abc2svg.sth.set_format" ],
-	[ "set_stems", "abc2svg.sth.set_stems" ]
-);
+abc2svg.modules.hooks.push(abc2svg.sth.set_hooks);
 
 // the module is loaded
 abc2svg.modules.sth.loaded = true

@@ -1,6 +1,6 @@
 // combine.js - module to add a combine chord line
 //
-// Copyright (C) 2018 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2019 Jean-Francois Moine - GPL3+
 //
 // This module is loaded when "%%voicecombine" appears in a ABC source.
 //
@@ -11,19 +11,14 @@ abc2svg.combine = {
 
     // function called at start of the generation when multi-voices
     comb_v: function() {
-    var	NOTE = 8,		// constants from the abc2svg core
-	REST = 10,
-	SL_ABOVE = 0x01,
-	SL_BELOW = 0x02,
-	SL_AUTO = 0x03,
-	SL_DOTTED = 0x08
+    var	C = abc2svg.C
 
     // check if voice combine may occur
     function may_combine(s) {
     var	nhd2,
 	s2 = s.ts_next
 
-	if (!s2 || (s2.type != NOTE && s2.type != REST))
+	if (!s2 || (s2.type != C.NOTE && s2.type != C.REST))
 		return false
 	if (s2.v == s.v
 	 || s2.st != s.st
@@ -38,7 +33,7 @@ abc2svg.combine = {
 //	}
 	if (s.a_gch && s2.a_gch)
 		return false
-	if (s.type == REST) {
+	if (s.type == C.REST) {
 		if (s.type == s2.type && s.invis && !s2.invis)
 			return false
 		return true
@@ -79,11 +74,11 @@ abc2svg.combine = {
 
 	// force the tie directions
 	type = s.notes[0].ti1
-	if ((type & 0x0f) == SL_AUTO)
-		s.notes[0].ti1 = SL_BELOW | (type & ~SL_DOTTED);
+	if ((type & 0x0f) == C.SL_AUTO)
+		s.notes[0].ti1 = C.SL_BELOW | (type & ~C.SL_DOTTED);
 	type = s.notes[nhd].ti1
-	if ((type & 0x0f) == SL_AUTO)
-		s.notes[nhd].ti1 = SL_ABOVE | (type & ~SL_DOTTED)
+	if ((type & 0x0f) == C.SL_AUTO)
+		s.notes[nhd].ti1 = C.SL_ABOVE | (type & ~C.SL_DOTTED)
 } // combine_notes()
 
 // combine 2 voices
@@ -95,11 +90,11 @@ function do_combine(s) {
 		s2 = s.ts_next;
 		nhd2 = s2.nhd
 		if (s.type != s2.type) {	// if note and rest
-			if (s2.type != REST) {
+			if (s2.type != C.REST) {
 				s2 = s;
 				s = s2.ts_next
 			}
-		} else if (s.type == REST) {
+		} else if (s.type == C.REST) {
 			if (s.invis
 			 && !s2.invis)
 				delete s.invis
@@ -127,7 +122,7 @@ function do_combine(s) {
 
 	for (s = this.get_tsfirst(); s; s = s.ts_next) {
 		switch (s.type) {
-		case REST:
+		case C.REST:
 			if (s.combine == undefined || s.combine < 0)
 				continue
 			if (may_combine.call(this, s))
@@ -135,7 +130,7 @@ function do_combine(s) {
 			continue
 		default:
 			continue
-		case NOTE:
+		case C.NOTE:
 			if (s.combine == undefined || s.combine <= 0)
 				continue
 			break
@@ -160,7 +155,7 @@ function do_combine(s) {
 				break
 			do {
 				s2 = s2.next
-			} while (s2.type != NOTE && s2.type != REST)
+			} while (s2.type != C.NOTE && s2.type != C.REST)
 		}
 		if (!s2)
 			continue
@@ -172,7 +167,7 @@ function do_combine(s) {
 				break
 			do {
 				s2 = s2.next
-			} while (s2.type != NOTE && s2.type != REST)
+			} while (s2.type != C.NOTE && s2.type != C.REST)
 		}
 	}
     }, // comb_v()
@@ -209,20 +204,17 @@ function do_combine(s) {
 		}
 	}
 	of(a)
+    },
+
+    set_hooks: function(abc) {
+	abc.do_pscom = abc2svg.combine.do_pscom.bind(abc, abc.do_pscom);
+	abc.new_note = abc2svg.combine.new_note.bind(abc, abc.new_note);
+	abc.set_stem_dir = abc2svg.combine.set_stem_dir.bind(abc, abc.set_stem_dir);
+	abc.set_vp = abc2svg.combine.set_vp.bind(abc, abc.set_vp)
     }
 } // combine
 
-abc2svg.modules.hooks.push(
-// export
-	"set_v_param",
-	"sort_pitch",
-	"unlksym",
-// hooks
-	[ "do_pscom", "abc2svg.combine.do_pscom" ],
-	[ "new_note", "abc2svg.combine.new_note" ],
-	[ "set_stem_dir", "abc2svg.combine.set_stem_dir" ],
-	[ "set_vp", "abc2svg.combine.set_vp" ]
-);
+abc2svg.modules.hooks.push(abc2svg.combine.set_hooks);
 
 // the module is loaded
 abc2svg.modules.voicecombine.loaded = true

@@ -1,6 +1,6 @@
 // abc2svg - toabc.js - convert ABC to ABC
 //
-// Copyright (C) 2016-2018 Jean-Francois Moine
+// Copyright (C) 2016-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -18,30 +18,7 @@
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
 // constants from core/abc2svg.js
-    var	BAR = 0,
-	CLEF = 1,
-	CUSTOS = 2,
-//	FORMAT = 3,
-	GRACE = 4,
-	KEY = 5,
-	METER = 6,
-	MREST = 7,
-	NOTE = 8,
-	PART = 9,
-	REST = 10,
-	SPACE = 11,
-	STAVES = 12,
-	STBRK = 13,
-	TEMPO = 14,
-//	TUPLET = 15,
-	BLOCK = 16,
-	REMARK = 17,
-
-	SL_ABOVE = 0x01,
-	SL_BELOW = 0x02,
-	SL_AUTO = 0x03,
-	SL_HIDDEN = 0x04,
-	SL_DOTTED = 0x08,
+    var	C = abc2svg.C,
 
 	OPEN_BRACE = 0x01,
 	CLOSE_BRACE = 0x02,
@@ -55,9 +32,7 @@
 	CLOSE_BRACE2 = 0x0200,
 	OPEN_BRACKET2 = 0x0400,
 	CLOSE_BRACKET2 = 0x0800,
-	MASTER_VOICE = 0x1000,
-
-	BASE_LEN = 1536
+	MASTER_VOICE = 0x1000
 
     var	deco_l = {			// decorations
 		dot: '.',
@@ -157,9 +132,9 @@ function abc_dump(tsfirst, voice_tb, music_types, info) {
 			ln += s.param
 			break
 		case "sep":
-			ln += s.sk1.toFixed(2) + ' ' +
-				s.l.toFixed(2) + ' ' +
-				s.sk2.toFixed(2)
+			ln += s.sk1.toFixed(1) + ' ' +
+				s.l.toFixed(1) + ' ' +
+				s.sk2.toFixed(1)
 			break
 		case "skip":
 			ln += s.sk
@@ -225,7 +200,7 @@ function abc_dump(tsfirst, voice_tb, music_types, info) {
 
 	function dur_dump(dur, grace) {
 	    var	d = 0,
-		l = grace ? BASE_LEN / 4 : ulen
+		l = grace ? C.BLEN / 4 : ulen
 		if (dur == l)
 			return
 		while (1) {
@@ -344,7 +319,7 @@ break
 				continue
 			for (s = voice_tb[v].sym; s; s = s.next) {
 				switch (s.type) {
-				case BAR:
+				case C.BAR:
 					if (w.length == 0)
 						continue
 					if (++nb < 4)
@@ -363,7 +338,7 @@ break
 //						w[i] += t
 				default:
 					continue
-				case NOTE:
+				case C.NOTE:
 					break
 				}
 				ly = s.a_ly
@@ -441,11 +416,11 @@ break
 			if (s.p_v.uscale)
 				line += note.micro_n
 			else
-				line += dur_dump(BASE_LEN / 4 *
+				line += dur_dump(C.BLEN / 4 *
 							note.micro_n / note.micro_d,
 						true)
 		}
-		p = note.apit
+		p = note.pit
 		if (p >= 23) {
 			line += "abcdefg"[p % 7]
 			if (p >= 30) {
@@ -472,14 +447,14 @@ break
 	} // note_dump()
 
 	function slti_dump(fl, ty) {
-		if (fl & SL_DOTTED)
+		if (fl & C.SL_DOTTED)
 			line += ".";
 		line += ty
 		switch (fl & 0x07) {
-		case SL_ABOVE:
+		case C.SL_ABOVE:
 			line += "'"
 			break
-		case SL_BELOW:
+		case C.SL_BELOW:
 			line += ','
 			break
 		}
@@ -553,7 +528,7 @@ break
 
 		// output the following bars
 		for (s = s.ts_next; s; s = s.ts_next) {
-			if (s.type != BAR)
+			if (s.type != C.BAR)
 				break
 			if (s.time != vti[s.v])
 				continue
@@ -576,7 +551,7 @@ break
 
 		function qdur_dump(dur) {
 		    var	d = 0,
-			l = BASE_LEN
+			l = C.BLEN
 			if (dur == l)
 				ln += "1/1"
 			while (1) {
@@ -677,14 +652,14 @@ break
 			gch_dump(s.a_gch)
 		if (s.a_dd)
 			deco_dump(s.a_dd)
-		if (s.invis && s.type != REST && s.type != SPACE)
+		if (s.invis && s.type != C.REST && s.type != C.SPACE)
 			line += "!invisible!"
 		if (s.color)
 			line += "!" + s.color + "!"
 		if (s.feathered_beam)
 			line += s.feathered_beam > 0 ? "!beam-accel!" : "!beam-rall!"
 		switch (s.type) {
-		case BAR:
+		case C.BAR:
 			if (s.beam_on)
 				line += "!beamon!"
 			if (s.bar_dotted)
@@ -697,12 +672,12 @@ break
 					line += '"' + s.text + '"'
 			}
 			break
-		case CLEF:
+		case C.CLEF:
 			info_out("K: " + clef_dump(s))
 			break
-		case CUSTOS:
+		case C.CUSTOS:
 			break
-		case GRACE:
+		case C.GRACE:
 			line += '{'
 			if (s.sappo)
 				line += '/'
@@ -712,18 +687,18 @@ break
 				line += ' ';
 			line += '}'
 			break
-		case KEY:
+		case C.KEY:
 			info_out(key_dump(s))
 			break
-		case METER:
+		case C.METER:
 			info_out(meter_dump(s))
 			break
-		case MREST:
+		case C.MREST:
 			line += s.invis ? 'X' : 'Z'
 			if (s.nmes != 1)
 				line += s.nmes
 			break
-		case NOTE:
+		case C.NOTE:
 			if (s.beam_br1)
 				line += "!beambr1!"
 			if (s.beam_br2)
@@ -733,7 +708,7 @@ break
 			if (s.xstem)
 				line += "!xstem!"
 			if (s.stemless
-			 && s.notes[0].dur < BASE_LEN)	// head duration
+			 && s.notes[0].dur < C.BLEN)	// head duration
 				line += "!stemless!"
 			if (s.trem22)
 				line += "!trem" + s.ntrem + "!"
@@ -777,36 +752,36 @@ break
 				tmp--
 			}
 			break
-		case PART:
+		case C.PART:
 			info_out('P:' + s.text)
 			break
-		case REST:
+		case C.REST:
 			line += s.invis ? 'x' : 'z';
 			dur_dump(s.dur)
 			break
-		case SPACE:
+		case C.SPACE:
 			line += 'y'
 			if (s.width != 10)
 				line += s.width
 			break
-		case STAVES:
+		case C.STAVES:
 			if (nv == 1)
 				break
 			staves_dump(s)
 			break
-		case STBRK:
+		case C.STBRK:
 			voice_out();
 			abc2svg.print('%%staffbreak ' + s.xmx.toString() +
 				(s.stbrk_forced ? 'f' : ''))
 			break
-		case TEMPO:
+		case C.TEMPO:
 			tempo_dump(s)
 			break
-		case BLOCK:
+		case C.BLOCK:
 			voice_out();
 			block_dump(s)
 			break
-		case REMARK:
+		case C.REMARK:
 			info_out('r:' + s.text)
 			break
 		default:
@@ -821,8 +796,8 @@ break
 
 	abc2svg.print(meter_dump(voice_tb[0].meter));
 
-	ulen = voice_tb[0].ulen < 0 ? BASE_LEN / 4 : voice_tb[0].ulen;
-	abc2svg.print('L:1/' + (BASE_LEN / ulen).toString());
+	ulen = voice_tb[0].ulen < 0 ? C.BLEN / 4 : voice_tb[0].ulen;
+	abc2svg.print('L:1/' + (C.BLEN / ulen).toString());
 
 	header_dump("OABDFGRNPSZH")
 
@@ -833,7 +808,7 @@ break
 
 	if (info.Q) {
 		for (s = tsfirst; s; s = s.ts_next) {
-			if (s.type == TEMPO) {
+			if (s.type == C.TEMPO) {
 				tempo_dump(s);
 				s.del = true
 				break
@@ -850,7 +825,7 @@ break
 			continue
 		line = "";
 		// (all voices are synchronized on %%score)
-		if (s.type != STAVES && s.time > vti[s.v]) {
+		if (s.type != C.STAVES && s.time > vti[s.v]) {
 //fixme: put 'X' if more than one measure
 			line += 'x';
 			dur_dump(s.time - vti[s.v]);

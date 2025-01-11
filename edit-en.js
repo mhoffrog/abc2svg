@@ -4,12 +4,15 @@ function loadtxt() {
 		bad_nb: 'Bad line number',
 		fn: 'File name: ',
 		load: 'Please, load the included file ',
-		play: 'Play',
-		stop: 'Stop',
 	}
 	var text_kv = {
 		a: 'About',
 		b: 'ABC files:',
+		cmpa: 'All',
+		cmpt: 'Tune',
+		cmps: 'Selection',
+		cmpl: 'Loop',
+		cmpc: 'Continue',
 //		df: 'abc2svg features',
 //		dp: 'abc2svg parameters',
 		er: 'Errors',
@@ -20,7 +23,6 @@ function loadtxt() {
 		h: 'Help',
 		ha: 'Help',
 		lg: 'Language',
-		playbutton: 'Play',
 		pr: 'Preferences',
 		saveas: 'Save file',
 		sful: 'Soundfont URL',
@@ -29,6 +31,7 @@ function loadtxt() {
 
 	for (var k in text_kv)
 		document.getElementById(k).innerHTML = text_kv[k];
+	document.getElementById('ctxMenu').title = 'Play';
 
 	document.getElementById("hlp").outerHTML = '<ul id="hlp">\n\
 <li>You may either:\n\
@@ -42,5 +45,11 @@ function loadtxt() {
 	<li>You may change at will the ABC code in the text area.<br/>\n\
 	Rendering is done 2 seconds later.</li>\n\
 	<li>The \'Print\' button of the browser outputs the rendering area.</li>\n\
+<li>You may select a part of the tunes either from the source text area\
+	(click and move), or from the rendered area.<br/>\n\
+	In the latter case, a left click on a music element defines the\
+	start of the selection. A right click defines its end.<br/>\
+	Also, if your browser can play the music, a right click\
+	outside the music displays the play menu.</li>\
 </ul>'
 }

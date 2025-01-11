@@ -2,14 +2,14 @@
 # abc2svg with raw nodeJS
 progdir=`dirname $0`
 
-cat ${progdir}/abc2svg-1.js ${progdir}/cmdline.js > /tmp/toto.js
+cat ${progdir}/abc2svg-1.js > /tmp/toto.js
 case $1 in
 	*.js)
 		cat $1 >> /tmp/toto.js
 		shift
 		;;
 esac
-if ! grep 'abc2svg.abc_init =' $1 > /dev/null; then
+if ! grep 'abc2svg.abc_init =' "$1" > /dev/null; then
 	cat ${progdir}/toxhtml.js >> /tmp/toto.js
 fi
 
@@ -49,7 +49,11 @@ abc2svg.loadjs = function(fn, relay, onerror) {
 // (this file is wrapped)
 global.Abc = Abc
 global.abc2svg = abc2svg
+EOF
 
+cat ${progdir}/cmdline.js >> /tmp/toto.js
+
+cat <<EOF >> /tmp/toto.js
 // main
 	var args = process.argv
 	if (!args[2]) {

@@ -1,6 +1,6 @@
 // abc2svg - subs.js - text output
 //
-// Copyright (C) 2014-2018 Jean-Francois Moine
+// Copyright (C) 2014-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -17,10 +17,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
-/* width of characters according to the encoding */
-/* these are the widths for Times-Roman, extracted from the 'a2ps' package */
+// width of characters according to the font type
+// these tables were created from the font 'Liberation'
 
-var cw_tb = new Float32Array([
+// serif
+  var
+    sw_tb = new Float32Array([
 	.000,.000,.000,.000,.000,.000,.000,.000,	// 00
 	.000,.000,.000,.000,.000,.000,.000,.000,
 	.000,.000,.000,.000,.000,.000,.000,.000,	// 10
@@ -36,8 +38,27 @@ var cw_tb = new Float32Array([
 	.333,.444,.500,.444,.500,.444,.333,.500,	// 60
 	.500,.278,.278,.500,.278,.778,.500,.500,
 	.500,.500,.333,.389,.278,.500,.500,.722,	// 70
-	.500,.500,.444,.480,.200,.480,.541,.500
-])
+	.500,.500,.444,.480,.200,.480,.541,.500]),
+// sans-serif
+    ssw_tb = new Float32Array([
+	.000,.000,.000,.000,.000,.000,.000,.000,	// 00
+	.000,.000,.000,.000,.000,.000,.000,.000,
+	.000,.000,.000,.000,.000,.000,.000,.000,	// 10
+	.000,.000,.000,.000,.000,.000,.000,.000,
+	.278,.278,.355,.556,.556,.889,.667,.191,	// 20
+	.333,.333,.389,.584,.278,.333,.278,.278,
+	.556,.556,.556,.556,.556,.556,.556,.556,	// 30
+	.556,.556,.278,.278,.584,.584,.584,.556,
+       1.015,.667,.667,.722,.722,.667,.611,.778,	// 40
+	.722,.278,.500,.667,.556,.833,.722,.778,
+	.667,.778,.722,.667,.611,.722,.667,.944,	// 50
+	.667,.667,.611,.278,.278,.278,.469,.556,
+	.333,.556,.556,.500,.556,.556,.278,.556,	// 60
+	.556,.222,.222,.500,.222,.833,.556,.556,
+	.556,.556,.333,.500,.278,.556,.500,.722,	// 70
+	.500,.500,.500,.334,.260,.334,.584,.512]),
+
+    cw_tb = sw_tb				// current width table
 
 /* -- return the character width -- */
 function cwid(c) {
@@ -50,9 +71,64 @@ function cwid(c) {
 	}
 	return cw_tb[i]
 }
+// return the character width with the current font
+function cwidf(c) {
+	return cwid(c) * gene.curfont.swfac
+}
 
-// estimate the width and height of a string
-function strwh(str) {
+// estimate the width and height of a string ..
+var strwh = typeof document != "undefined" ?
+
+    // .. by the browser
+    (function(el) {
+	el.style.position = 'absolute';
+	el.style.top = '-1000px';
+	el.style.padding = '0';
+	document.body.appendChild(el)
+
+	return function(str) {
+	    var	c,
+		font = gene.curfont,
+		h = font.size,
+		w = 0,
+		n = str.length,
+		i0 = 0,
+		i = 0
+
+		el.style.font = style_font(font).slice(5);
+
+		while (1) {
+			i = str.indexOf('$', i)
+			if (i < 0)
+				break
+			c = str[i + 1]
+			if (c == '0') {
+				font = gene.deffont
+			} else if (c >= '1' && c <= '9') {
+				font = get_font("u" + c)
+			} else {
+				i++
+				continue
+			}
+			el.innerHTML = str.slice(i0, i);
+			w += el.clientWidth
+			if (font.size > h)
+				h = font.size;
+
+			el.style.font = style_font(font).slice(5);
+			i += 2;
+			i0 = i
+		}
+		el.innerHTML = str.slice(i0);
+		w += el.clientWidth;
+
+		gene.curfont = font
+		return [w, h]
+	}
+    })(document.createElement('div')) :
+
+    // .. by internal tables
+    function(str) {
     var	font = gene.curfont,
 	swfac = font.swfac,
 	h = font.size,
@@ -96,6 +172,7 @@ function strwh(str) {
 function set_font(xxx) {
 	if (typeof xxx == "string")
 		xxx = get_font(xxx);
+	cw_tb = xxx.name.slice(0, 4) == 'sans' ? ssw_tb : sw_tb;
 	gene.curfont = gene.deffont = xxx
 }
 
@@ -105,17 +182,7 @@ function out_str(str) {
 		o_font = gene.curfont,
 		c_font = o_font;
 
-	output += str.replace(/<|>|&.*?;|&|  |\$./g, function(c){
-			switch (c[0]) {
-			case '<': return "&lt;"
-			case '>': return "&gt;"
-			case '&':
-				if (c == '&')
-					 return "&amp;"
-				return c
-			case ' ':
-				return '  '		// space + nbspace
-			case '$':
+	output += str.replace(/\$./g, function(c) {
 				if (c[1] == '0') {
 					n_font = gene.deffont;
 					use_font(n_font)
@@ -133,7 +200,6 @@ function out_str(str) {
 					return c
 				return c + '<tspan\n\tclass="' +
 						font_class(n_font) + '">'
-			}
 		})
 	if (c_font != o_font) {
 		output += "</tspan>";
@@ -145,24 +211,32 @@ function out_str(str) {
 // the action is:
 //	'c' align center
 //	'r' align right
-//	'\t' handle the tabulations - dx is the space between the fields
-//	'j' justify - line_w is the line width
+//	'j' justify - w is the line width
 //	otherwise align left
 function xy_str(x, y, str,
-		 action,
-		 line_w) {
-    var	h = strwh(str)[1];
-	y += h * .2;			// a bit upper for the descent
-	output += '<text class="' + font_class(gene.curfont) + '" x="';
-	out_sxsy(x, '" y="', y)
+		action,		// default: align left
+		w,		// needed for justify
+		wh) {		// optional [width, height]
+	if (!wh)
+		wh = strwh(str);
+
+	output += '<text class="' + font_class(gene.curfont)
+	if (action != 'j' && str.length > 5
+	 && gene.curfont.wadj)
+		output += '" lengthAdjust="' + gene.curfont.wadj +
+			'" textLength="' + wh[0].toFixed(1);
+	output += '" x="';
+	out_sxsy(x, '" y="', y + wh[1] * .2)	// a bit upper for the descent
 	switch (action) {
 	case 'c':
+		x -= wh[0] / 2;
 		output += '" text-anchor="middle">'
 		break
 	case 'j':
-		output += '" textLength="' + line_w.toFixed(2) + '">'
+		output += '" textLength="' + w.toFixed(1) + '">'
 		break
 	case 'r':
+		x -= wh[0];
 		output += '" text-anchor="end">'
 		break
 	default:
@@ -171,24 +245,20 @@ function xy_str(x, y, str,
 	}
 	out_str(str);
 	output += "</text>\n"
-}
 
-// output a string in a box
-function xy_str_b(x, y, str) {
+	if (!w && gene.curfont.box) {
 // not in the SVG documentation,
 // but this works for almost all browsers but firefox
-//	output += '<g style="outline: solid black;\
-// outline-width: 1px">\n';
-//	xy_str(x, y, str, action, line_w);
-//	output += '</g>\n'
-    var	wh = strwh(str);
-
-	output += '<rect class="stroke" x="';
-	out_sxsy(x - 2, '" y="', y + wh[1] + 1);
-	output += '" width="' + (wh[0] + 4).toFixed(2) +
-		'" height="' + (wh[1] + 3).toFixed(2) +
-		'"/>\n';
-	xy_str(x, y, str)
+//		output += '<g style="outline: solid black;\
+//			outline-width: 1px">\n';
+//	//	xy_str(x, y, str, action, w);
+//		output += '</g>\n'
+		output += '<rect class="stroke" x="';
+		out_sxsy(x - 2, '" y="', y + wh[1]);
+		output += '" width="' + (wh[0] + 4).toFixed(1) +
+			'" height="' + (wh[1] + 2).toFixed(1) +
+			'"/>\n'
+	}
 }
 
 /* -- move trailing "The" to front, set to uppercase letters or add xref -- */
@@ -227,7 +297,7 @@ function get_lwidth() {
 
 // header generation functions
 function write_title(title, is_subtitle) {
-    var	font, h
+    var	h, wh
 
 	if (!title)
 		return
@@ -240,11 +310,12 @@ function write_title(title, is_subtitle) {
 		set_font("title");
 		h = cfmt.titlespace
 	}
-	vskip(strwh(title)[1] + h)
+	wh = strwh(title);
+	vskip(wh[1] + h)
 	if (cfmt.titleleft)
-		xy_str(0, 0, title)
+		xy_str(0, 0, title, null, null, wh)
 	else
-		xy_str(get_lwidth() / 2, 0, title, "c")
+		xy_str(get_lwidth() / 2, 0, title, "c", null, wh)
 }
 
 /* -- output a header format '111 (222)' -- */
@@ -261,18 +332,14 @@ function put_inf2r(x, y, str1, str2, action) {
 		xy_str(x, y, str1 + ' (' + str2 + ')', action)
 }
 
-// let vertical room for a text line
-function str_skip(str) {
-	vskip(strwh(str)[1] * cfmt.lineskipfac)
-}
-
 /* -- write a text block (%%begintext / %%text / %%center) -- */
 function write_text(text, action) {
 	if (action == 's')
 		return				// skip
 	set_font("text");
 	set_page();
-	var	strlw = get_lwidth(),
+    var	wh, font,
+	strlw = get_lwidth(),
 		sz = gene.curfont.size,
 		lineskip = sz * cfmt.lineskipfac,
 		parskip = sz * cfmt.parskipfac,
@@ -291,12 +358,16 @@ function write_text(text, action) {
 		default: x = 0; break
 		}
 		j = 0
+		font = gene.curfont
 		while (1) {
 			i = text.indexOf('\n', j)
 			if (i < 0) {
 				str = text.slice(j);
-				str_skip(str);
-				xy_str(x, 0, str, action)
+				wh = strwh(str);
+				gene.curfont = font;
+				vskip(wh[1]  * cfmt.lineskipfac);
+				xy_str(x, 0, str, action, null, wh);
+				font = gene.curfont
 				break
 			}
 			if (i == j) {			// new paragraph
@@ -312,8 +383,11 @@ function write_text(text, action) {
 				p_start()
 			} else {
 				str = text.slice(j, i);
-				str_skip(str);
-				xy_str(x, 0, str, action)
+				wh = strwh(str);
+				gene.curfont = font;
+				vskip(wh[1]  * cfmt.lineskipfac);
+				xy_str(x, 0, str, action, null, wh);
+				font = gene.curfont
 			}
 			j = i + 1
 		}
@@ -331,21 +405,29 @@ function write_text(text, action) {
 				words = text.slice(j, i);
 			words = words.split(/\s+/);
 			w = k = 0
+			font = gene.curfont
 			for (j = 0; j < words.length; j++) {
 				ww = strwh(words[j] + ' ')[0];
 				w += ww
 				if (w >= strlw) {
 					str = words.slice(k, j).join(' ');
-					str_skip(str);
-					xy_str(0, 0, str, action, strlw);
+					gene.curfont = font;
+					wh = strwh(str);
+					gene.curfont = font;
+					vskip(wh[1]  * cfmt.lineskipfac);
+					xy_str(0, 0, str, action, strlw, wh);
+					font = gene.curfont;
 					k = j;
 					w = ww
 				}
 			}
 			if (w != 0) {
 				str = words.slice(k).join(' ');
-				str_skip(str);
-				xy_str(0, 0, str)
+				gene.curfont = font;
+				wh = strwh(str);
+				gene.curfont = font;
+				vskip(wh[1]  * cfmt.lineskipfac);
+				xy_str(0, 0, str, null, null, wh)
 			}
 			vskip(parskip);
 			p_flush()
@@ -397,12 +479,11 @@ function put_words(words) {
 		return i >= p.length && k == 0
 	} // put_wline()
 
-	blk_out();
 	set_font("words")
 
 	/* see if we may have 2 columns */
 	var	middle = get_lwidth() / 2,
-		max2col = (middle - 45.) / (cwid('a') * gene.curfont.swfac);
+		max2col = (middle - 45.) / cwidf('a');
 	n = 0;
 	words = words.split('\n');
 	nw = words.length
@@ -475,7 +556,7 @@ function put_words(words) {
 
 /* -- output history -- */
 function put_history() {
-	var	i, j, c, str, font, h, w, head,
+	var	i, j, c, str, font, h, w, wh, head,
 		names = cfmt.infoname.split("\n"),
 		n = names.length
 
@@ -496,8 +577,9 @@ function put_history() {
 		if (head[0] == '"')
 			head = head.slice(1, -1);
 		vskip(h);
-		xy_str(0, 0, head);
-		w = strwh(head)[0];
+		wh = strwh(head);
+		xy_str(0, 0, head, null, null, wh);
+		w = wh[0];
 		str = str.split('\n');
 		xy_str(w, 0, str[0])
 		for (j = 1; j < str.length; j++) {
@@ -666,6 +748,7 @@ function write_headform(lwidth) {
 			y = ya[align] + sz
 
 			if (c == 'Q') {			/* special case for tempo */
+				set_width(glovar.tempo)
 				if (!glovar.tempo.del) {
 					if (align != 'l') {
 						var w = tempo_width(glovar.tempo)
@@ -742,7 +825,6 @@ function write_heading() {
 	}
 
 	/* rhythm, composer, origin */
-	set_font("composer");
 //	down1 = cfmt.composerspace + gene.curfont.size
 	down1 = down2 = 0
 	if (parse.ckey.k_bagpipe
@@ -750,6 +832,7 @@ function write_heading() {
 	 && cfmt.writefields.indexOf('R') >= 0)
 		rhythm = info.R
 	if (rhythm) {
+		set_font("composer");
 		xy_str(0, -cfmt.composerspace, rhythm);
 		down1 = cfmt.composerspace
 	}
@@ -761,6 +844,7 @@ function write_heading() {
 	if (composer || origin || cfmt.infoline) {
 		var xcomp, align;
 
+		set_font("composer");
 		vskip(cfmt.composerspace)
 		if (cfmt.aligncomposer < 0) {
 			xcomp = 0;

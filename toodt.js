@@ -1,6 +1,6 @@
 // abc2svg - toodt.js - ABC translation to ODT+SVG
 //
-// Copyright (C) 2017-2018 Jean-Francois Moine
+// Copyright (C) 2017-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -31,7 +31,7 @@
 // This module runs only with the nodeJS script 'abc2svg' and asks for
 // the npm module 'jszip' to be installed.
 
-    var	margins, page_size, page_type, page_mid, page_right,
+    var	margins, page_size, page_type, page_left, page_mid, page_right,
 	header, footer, headerfont, footerfont, in_p, t_info, title,
 	style = '',
 	content = '',
@@ -64,8 +64,8 @@ function set_unit(p) {
 	if (typeof p == "string")
 		return p
 	if (page_type[0] == 'L')
-		return (p / 96).toFixed(2) + 'in'
-	return (p / 37.8).toFixed(2) + 'cm'
+		return (p / 96).toFixed(1) + 'in'
+	return (p / 37.8).toFixed(1) + 'cm'
 }
 
 // output a header or a footer
@@ -73,7 +73,7 @@ function gen_hf(type, stype, str) {
     var	c, i, res_left,
 	j = 0,
 	res = '<style:' + type + '>\n\
-<text:p text:style-name="' + stype + '\">'
+<text:p text:style-name="' + stype + '\"><text:tab/>'
 
 	if (str[0] == '"')
 		str = str.slice(1, -1)
@@ -276,7 +276,7 @@ function odt_out() {
  office:version="1.1">\n\
  <office:styles>\n\
   <style:default-style style:family="paragraph">\n\
-   <style:paragraph-properties fo:orphans="2" fo:widows="2"/>\n\
+   <style:paragraph-properties fo:orphans="5" fo:widows="5"/>\n\
    <style:text-properties style:use-window-font-color="true"\
  style:font-name="Liberation Serif" fo:font-size="12pt"/>\n\
   </style:default-style>\n\
@@ -291,6 +291,7 @@ function odt_out() {
  style:parent-style-name="Standard" style:class="extra">\n\
  <style:paragraph-properties>\n\
   <style:tab-stops>\n\
+   <style:tab-stop style:position="' + page_left + '" style:type="left"/>\n\
    <style:tab-stop style:position="' + page_mid + '" style:type="center"/>\n\
    <style:tab-stop style:position="' + page_right + '" style:type="right"/>\n\
   </style:tab-stops>\n\
@@ -301,6 +302,7 @@ function odt_out() {
  style:parent-style-name="Standard" style:class="extra">\n\
  <style:paragraph-properties>\n\
   <style:tab-stops>\n\
+   <style:tab-stop style:position="' + page_left + '" style:type="left"/>\n\
    <style:tab-stop style:position="' + page_mid + '" style:type="center"/>\n\
    <style:tab-stop style:position="' + page_right + '" style:type="right"/>\n\
   </style:tab-stops>\n\
@@ -314,7 +316,7 @@ function odt_out() {
  </style:style>\n\
  <style:page-layout style:name="Standard">\n\
   <style:page-layout-properties ' + margins + '\
- fo:margin-left="1.5cm" fo:margin-right="1.5cm"/>\n\
+ fo:margin-left="0" fo:margin-right="0"/>\n\
  </style:page-layout>\n\
  </office:automatic-styles>\n\
  <office:master-styles>\n\
@@ -347,17 +349,66 @@ abc2svg.abort = function(e) {
 
 // convert a CSS font definition (in pixels) to ODT (in points)
 function def_font(font) {
-    var	ws = '',
-	css_font = abc.style_font(abc.cfmt()[font]),
-	r = css_font.match(/font-family:(.+?); (.*)font-size:(.+)px/)
+    var	css_font = abc.style_font(abc.cfmt()[font])
+			.slice(5)		// remove 'font:'
+			.split(' '),
+	l = css_font.length,
+	fo = 'fo:font-family="' + css_font[--l] + '"',
+	i = css_font[--l].slice(0, -2)
 
-// r[2] may be empty or
-// font-weight:bold, font-style:italic or font-style:oblique
-	if (r[2])
-		ws = r[2].replace(/(font-.+?):(.+?);/g,
-			'fo:$1="$2"')
-	return 'style:font-name="' + r[1] + '" ' + ws +
-		'fo:font-size="' + (r[3] * 72 / 96).toFixed(1) + 'pt"'
+	fo += ' fo:font-size="' +
+		(i * 72 / 96).toFixed(1) + 'pt"'
+	while (--l >= 0) {
+		i = css_font[l]
+		switch (i) {
+		case 'italic':
+		case 'oblique':
+			fo += ' fo:font-style="' + i + '"'
+			break
+		case 'bold':
+			fo += ' fo:font-weight="' + i + '"'
+			break
+		}
+	}
+	return fo
+}
+
+function font_bug(str) {
+    var i, k, l, r, w,
+	j = 0
+
+	while (1) {
+		i = str.indexOf('font:', j)
+		if (i < 0)
+			return str
+		if (str[i - 1] == '"') {
+			j = str.indexOf('"', i)
+		} else {
+			j = str.indexOf('}', i);
+			k = str.indexOf(';', i)
+			if (j < 0 || (k >= 0 && k < j))
+				j = k
+		}
+		w = str.slice(i + 5, j).match(/[^ \t"]+|".+?"/g) // "
+
+		l = w.length;
+		r = 'font-family:' + w[--l] +
+			';font-size:' + w[--l]
+		while (--l >= 0) {
+			switch (w[l]) {
+			case 'italic':
+				r += ';font-style:italic'
+				break
+			case 'oblique':
+				r += ';font-style:oblique'
+				break
+			case 'bold':
+				r += ';font-weight:bold'
+				break
+			}
+		}
+		str = str.replace(str.slice(i, j), r)
+	}
 }
 
 function svg_out(str) {
@@ -378,6 +429,11 @@ function svg_out(str) {
 			footer = r ? gen_hf("footer", "Footer", r) : '';
 			footerfont = def_font("footerfont")
 		}
+
+//fixme: the shorthand 'font:' does not work in the library 'librsvg'
+// used by libreoffice and abiword
+// (https://gitlab.gnome.org/GNOME/librsvg/issues/34)
+		str = font_bug(str)
 
 		// save the image
 		img = 'Pictures/abc' + (++seq).toString() + '.svg';
@@ -467,7 +523,6 @@ abc2svg.abc_init = function(args) {
 	// define some functions in the Abc object
 	abc.tosvg("toodt", "\
 %%fullsvg 1\n\
-%%printmargin 1.5cm\n\
 %%musicfont abc2svg")
 
 	// get the page parameters
@@ -479,17 +534,22 @@ abc2svg.abc_init = function(args) {
 		if (pw > 800) {
 			page_type = 'Letter';
 			page_size = 'fo:page-width="8.5in" fo:page-height="11in"';
-			page_mid = '3.66in';	// with margin = 1.5cm = 0.59in
-			page_right = '7.32in'
+			page_left = set_unit(cfmt.leftmargin);
+			page_mid = '4.25in';
+			page_right = set_unit(816 - cfmt.rightmargin)
 		} else {
 			page_type = 'A4';
 			page_size = 'fo:page-width="21cm" fo:page-height="29.7cm"';
-			page_mid = '9cm';	// with margin 1.5cm
-			page_right = '18cm'
+			page_left = set_unit(cfmt.leftmargin);
+			page_mid = '10.5cm';
+			page_right = set_unit(793.8 - cfmt.rightmargin)
 		}
 
-		// top and bottom margins default = 1cm
-		margins = 'fo:margin-top="' +
+		// if abc2svg page formatting
+		if (abc.page)
+			margins = 'fo:margin-top="0" fo:margin-bottom="0"'
+		else
+		    margins = 'fo:margin-top="' +
 			set_unit(cfmt.topmargin || 37.8) +
 			'" fo:margin-bottom="' +
 			set_unit(cfmt.botmargin || 37.8) + '"';

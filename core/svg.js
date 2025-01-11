@@ -1,6 +1,6 @@
 // abc2svg - svg.js - svg functions
 //
-// Copyright (C) 2014-2018 Jean-Francois Moine
+// Copyright (C) 2014-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -18,9 +18,13 @@
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
 var	output = "",		// output buffer
-	style = '\n.fill {fill: currentColor}\
-\n.stroke {stroke: currentColor; fill: none}\
-\n.music text, .music tspan {fill:currentColor}',
+	style = '\n.fill{fill:currentColor}\
+\n.stroke{stroke:currentColor;fill:none}\
+\n.bW{stroke-width:1}\
+\n.bthW{stroke-width:3}\
+\n.slW{stroke-width:.7}\
+\n.slthW{stroke-width:1.5}\
+\n.sW{stroke-width:.7}',
 	font_style = '',
 	posx = cfmt.leftmargin / cfmt.scale,	// default x offset of the images
 	posy = 0,		// y offset in the block
@@ -45,56 +49,87 @@ var	output = "",		// output buffer
 
 // glyphs in music font
 var tgls = {
+ "mtr ": {x:0, y:0, c:"\u0020"},	// space
   brace: {x:0, y:0, c:"\ue000"},
-  sgno: {x:-6, y:4, c:"\ue047"},
-  coda: {x:-12, y:6, c:"\ue048"},
+  hl: {x:-4, y:0, c:"\ue022"},
+  hl1: {x:-6, y:0, c:"\ue023"},
+//  hl2: {x:-6, y:0, c:"\ue023"},		// (unused)
+  ghl: {x:-4, y:0, c:"\ue024"},
+  lphr: {x:0, y:24, c:"\ue030"},
+  mphr: {x:0, y:24, c:"\ue038"},
+  sphr: {x:0, y:27, c:"\ue039"},
+  rdots: {x:-1, y:0, c:"\ue043"},	// repeat dots
+  dsgn: {x:-4, y:-4, c:"\ue045"},	// D.S.
+  dcap: {x:-4, y:-4, c:"\ue046"},	// D.C.
+  sgno: {x:-6, y:0, c:"\ue047"},	// segno
+  coda: {x:-12, y:-6, c:"\ue048"},
   tclef: {x:-8, y:0, c:"\ue050"},
   cclef: {x:-8, y:0, c:"\ue05c"},
   bclef: {x:-8, y:0, c:"\ue062"},
   pclef: {x:-6, y:0, c:"\ue069"},
+  spclef: {x:-6, y:0, c:"\ue069"},
   stclef: {x:-8, y:0, c:"\ue07a"},
   scclef: {x:-8, y:0, c:"\ue07b"},
   sbclef: {x:-7, y:0, c:"\ue07c"},
-  meter0: {c:"\ue080"},
-  meter1: {c:"\ue081"},
-  meter2: {c:"\ue082"},
-  meter3: {c:"\ue083"},
-  meter4: {c:"\ue084"},
-  meter5: {c:"\ue085"},
-  meter6: {c:"\ue086"},
-  meter7: {c:"\ue087"},
-  meter8: {c:"\ue088"},
-  meter9: {c:"\ue089"},
-  "meter+": {c:"\ue08c"},
-  "meter(": {c:"\ue094"},
-  "meter)": {c:"\ue095"},
-  csig: {x:0, y:0, c:"\ue08a"},
-  ctsig: {x:0, y:0, c:"\ue08b"},
+  oct: {x:0, y:2, c:"\ue07d"},		// 8 for clefs
+  mtr0: {x:0, y:0, c:"\ue080"},		// meters
+  mtr1: {x:0, y:0, c:"\ue081"},
+  mtr2: {x:0, y:0, c:"\ue082"},
+  mtr3: {x:0, y:0, c:"\ue083"},
+  mtr4: {x:0, y:0, c:"\ue084"},
+  mtr5: {x:0, y:0, c:"\ue085"},
+  mtr6: {x:0, y:0, c:"\ue086"},
+  mtr7: {x:0, y:0, c:"\ue087"},
+  mtr8: {x:0, y:0, c:"\ue088"},
+  mtr9: {x:0, y:0, c:"\ue089"},
+  mtrC: {x:0, y:0, c:"\ue08a"},		// common time (4/4)
+//  "mtrC|": {x:0, y:0, c:"\ue08b"},	// cut time (2/2) (unused)
+  "mtr+":  {x:0, y:0, c:"\ue08c"},
+  "mtr(":  {x:0, y:0, c:"\ue094"},
+  "mtr)":  {x:0, y:0, c:"\ue095"},
   HDD: {x:-7, y:0, c:"\ue0a0"},
-  breve: {x:-6, y:0, c:"\ue0a1"},
+  breve: {x:-7, y:0, c:"\ue0a1"},
   HD: {x:-5.2, y:0, c:"\ue0a2"},
   Hd: {x:-3.8, y:0, c:"\ue0a3"},
   hd: {x:-3.7, y:0, c:"\ue0a4"},
-  ghd: {x:2, y:0, c:"\ue0a4", sc:.66},
+  ghd: {x:2, y:0, c:"\ue0a4", sc:.66},	// grace note head
   pshhd: {x:-3.7, y:0, c:"\ue0a9"},
   pfthd: {x:-3.7, y:0, c:"\ue0b3"},
-  x: {x:-3.7, y:0, c:"\ue0a9"},
-  "circle-x": {x:-3.7, y:0, c:"\ue0b3"},
+  x: {x:-3.7, y:0, c:"\ue0a9"},		// 'x' note head
+  "circle-x": {x:-3.7, y:0, c:"\ue0b3"}, // 'circle-x' note head
   srep: {x:-5, y:0, c:"\ue101"},
+  diamond: {x:-4, y:0, c:"\ue1b9"},
+  triangle: {x:-4, y:0, c:"\ue1bb"},
   dot: {x:-2, y:0, c:"\ue1e7"},
- "acc-1": {x:-3, y:0, c:"\ue260"},
-  acc3: {x:-2, y:0, c:"\ue261"},
-  acc1: {x:-3, y:0, c:"\ue262"},
-  acc2: {x:-3, y:0, c:"\ue263"},
- "acc-2": {x:-3, y:0, c:"\ue264"},
- "acc-1_1_4": {x:-3, y:0, c:"\ue280"},
+  flu1: {x:-.3, y:0, c:"\ue240"},	// flags
+  fld1: {x:-.3, y:0, c:"\ue241"},
+  flu2: {x:-.3, y:0, c:"\ue242"},
+  fld2: {x:-.3, y:0, c:"\ue243"},
+  flu3: {x:-.3, y:3.5, c:"\ue244"},
+  fld3: {x:-.3, y:-4, c:"\ue245"},
+  flu4: {x:-.3, y:8, c:"\ue246"},
+  fld4: {x:-.3, y:-9, c:"\ue247"},
+  flu5: {x:-.3, y:12.5, c:"\ue248"},
+  fld5: {x:-.3, y:-14, c:"\ue249"},
+ "acc-1": {x:-1, y:0, c:"\ue260"},	// flat
+  acc3: {x:-1, y:0, c:"\ue261"},	// natural
+  acc1: {x:-2, y:0, c:"\ue262"},	// sharp
+  acc2: {x:-3, y:0, c:"\ue263"},	// double sharp
+ "acc-2": {x:-3, y:0, c:"\ue264"},	// double flat
+ "acc-1_1_4": {x:-2, y:0, c:"\ue280"},	// quarter-tone flat
+ "acc-1_3_4": {x:-3, y:0, c:"\ue281"},	// three-quarter-tones flat
+  acc1_1_4: {x:-1, y:0, c:"\ue282"},	// quarter-tone sharp
+  acc1_3_4: {x:-3, y:0, c:"\ue283"},	// three-quarter-tones sharp
   accent: {x:-3, y:0, c:"\ue4a0"},
+  stc: {x:-1, y:-2, c:"\ue4a2"},	// staccato
+  emb: {x:-4, y:-2, c:"\ue4a4"},
+  wedge: {x:-1, y:0, c:"\ue4a8"},
   marcato: {x:-3, y:0, c:"\ue4ac"},
-  hld: {x:-7, y:0, c:"\ue4c0"},
+  hld: {x:-7, y:0, c:"\ue4c0"},		// fermata
   brth: {x:0, y:0, c:"\ue4ce"},
   r00: {x:-1.5, y:0, c:"\ue4e1"},
   r0: {x:-1.5, y:0, c:"\ue4e2"},
-  r1: {x:-3.5, y:6, c:"\ue4e3"},
+  r1: {x:-3.5, y:-6, c:"\ue4e3"},
   r2: {x:-3.2, y:0, c:"\ue4e4"},
   r4: {x:-3, y:0, c:"\ue4e5"},
   r8: {x:-3, y:0, c:"\ue4e6"},
@@ -105,102 +140,61 @@ var tgls = {
   mrest: {x:-10, y:0, c:"\ue4ee"},
   mrep: {x:-6, y:0, c:"\ue500"},
   mrep2: {x:-9, y:0, c:"\ue501"},
-  turn: {x:-5, y:4, c:"\ue567"},
-  turnx: {x:-5, y:4, c:"\ue569"},
-  umrd: {x:-7, y:2, c:"\ue56c"},
-  lmrd: {x:-7, y:2, c:"\ue56d"},
+  p: {x:-4, y:-6, c:"\ue520"},
+  f: {x:-4, y:-6, c:"\ue522"},
+  pppp: {x:-4, y:-6, c:"\ue529"},
+  ppp: {x:-4, y:-6, c:"\ue52a"},
+  pp: {x:-4, y:-6, c:"\ue52b"},
+  mp: {x:-4, y:-6, c:"\ue52c"},
+  mf: {x:-4, y:-6, c:"\ue52d"},
+  ff: {x:-4, y:-6, c:"\ue52f"},
+  fff: {x:-4, y:-6, c:"\ue530"},
+  ffff: {x:-4, y:-6, c:"\ue531"},
+  sfz: {x:-4, y:-6, c:"\ue539"},
+  trl: {x:-4, y:-4, c:"\ue566"},	// trill
+  turn: {x:-5, y:-4, c:"\ue567"},
+  turnx: {x:-5, y:-4, c:"\ue569"},
+  umrd: {x:-7, y:-2, c:"\ue56c"},
+  lmrd: {x:-7, y:-2, c:"\ue56d"},
+  dplus: {x:-4, y:10, c:"\ue582"},	// plus
+  sld: {x:-8, y:12, c:"\ue5d4"},	// slide
+  grm: {x:-2, y:0, c:"\ue5e2"},		// grace mark
+  dnb: {x:-4, y:0, c:"\ue610"},		// down bow
+  upb: {x:-3, y:0, c:"\ue612"},		// up bow
+  opend: {x:-2, y:0, c:"\ue614"},	// harmonic
+  roll: {x:0, y:0, c:"\ue618"},
+  thumb: {x:0, y:0, c:"\ue624"},
+  snap: {x:-2, y:0, c:"\ue630"},
   ped: {x:-10, y:0, c:"\ue650"},
   pedoff: {x:-5, y:0, c:"\ue655"},
-  longa: {x:-6, y:0, c:"\ue95c"}
+// "mtro.": {x:0, y:0, c:"\ue910"},	// (unused)
+  mtro:   {x:0, y:0, c:"\ue911"},		// tempus perfectum
+// "mtro|": {x:0, y:0, c:"\ue912"},	// (unused)
+// "mtrc.": {x:0, y:0, c:"\ue914"},	// (unused)
+  mtrc:   {x:0, y:0, c:"\ue915"},	// tempus imperfectum
+// "mtrc|": {x:0, y:0, c:"\ue918"},	// (unused)
+ "mtr.":  {x:0, y:0, c:"\ue920"},	// prolatione perfecta
+ "mtr|":  {x:0, y:0, c:"\ue925"},	// (twice as fast)
+  longa: {x:-3.7, y:0, c:"\ue95d"},
+  custos: {x:-4, y:3, c:"\uea02"},
+  ltr: {x:2, y:6, c:"\ueaa4"}		// long trill element
 }
 
 // glyphs to put in <defs>
 var glyphs = {
-  acc1_1_4: '<g id="acc1_1_4">\n\
-	<path d="m0 7.8v-15.4" class="stroke"/>\n\
-	<path class="fill" d="M-1.8 2.7l3.6 -1.1v2.2l-3.6 1.1v-2.2z\n\
-		M-1.8 -3.7l3.6 -1.1v2.2l-3.6 1.1v-2.2"/>\n\
-</g>',
-  acc1_3_4: '<g id="acc1_3_4">\n\
-	<path d="m-2.5 8.7v-15.4M0 7.8v-15.4M2.5 6.9v-15.4" class="stroke"/>\n\
-	<path class="fill" d="m-3.7 3.1l7.4 -2.2v2.2l-7.4 2.2v-2.2z\n\
-		M-3.7 -3.2l7.4 -2.2v2.2l-7.4 2.2v-2.2"/>\n\
-</g>',
- "acc-1_3_4": '<g id="acc-1_3_4">\n\
-    <path class="fill" d="m0.6 -2.7\n\
-	c-5.7 -3.1 -5.7 3.6 0 6.7c-3.9 -4 -4 -7.6 0 -5.8\n\
-	M1 -2.7c5.7 -3.1 5.7 3.6 0 6.7c3.9 -4 4 -7.6 0 -5.8"/>\n\
-    <path d="m1.6 3.5v-13M0 3.5v-13" class="stroke" stroke-width=".6"/>\n\
-</g>',
-  pmsig: '<path id="pmsig" class="stroke" stroke-width="0.8"\n\
-	d="m0 -7a5 5 0 0 1 0 -10a5 5 0 0 1 0 10"/>',
-  pMsig: '<g id="pMsig">\n\
-	<use xlink:href="#pmsig"/>\n\
-	<path class="fill" d="m0 -10a2 2 0 0 1 0 -4a2 2 0 0 1 0 4"/>\n\
-</g>',
-  imsig: '<path id="imsig" class="stroke" stroke-width="0.8"\n\
-	d="m3 -8a5 5 0 1 1 0 -8"/>',
-  iMsig: '<g id="iMsig">\n\
-	<use xlink:href="#imsig"/>\n\
-	<path class="fill" d="m0 -10a2 2 0 0 1 0 -4a2 2 0 0 1 0 4"/>\n\
-</g>',
-  hl: '<path id="hl" class="stroke" stroke-width="1" d="m-6 0h12"/>',
-  hl1: '<path id="hl1" class="stroke" stroke-width="1" d="m-7 0h14"/>',
-  hl2: '<path id="hl2" class="stroke" stroke-width="1" d="m-9 0h18"/>',
-  ghl: '<path id="ghl" class="stroke" d="m-3.5 0h7"/>',
-  rdots: '<g id="rdots" class="fill">\n\
-	<circle cx="0" cy="-9" r="1.2"/>\n\
-	<circle cx="0" cy="-15" r="1.2"/>\n\
-</g>',
-  grm: '<path id="grm" class="fill" d="m-5 -2.5\n\
-	c5 -8.5 5.5 4.5 10 -2 -5 8.5 -5.5 -4.5 -10 2"/>',
-  stc: '<circle id="stc" class="fill" cx="0" cy="-3" r="1.2"/>',
-  sld: '<path id="sld" class="fill" d="m-7.2 4.8\n\
-	c1.8 .7 4.5 -.2 7.2 -4.8 -2.1 5 -5.4 6.8 -7.6 6"/>',
-  emb: '<path id="emb" class="stroke" stroke-width="1.2" stroke-linecap="round"\n\
-	d="m-2.5 -3h5"/>',
-  roll: '<path id="roll" class="fill" d="m-6 0\n\
-	c0.4 -7.3 11.3 -7.3 11.7 0 -1.3 -6 -10.4 -6 -11.7 0"/>',
-  upb: '<path id="upb" class="stroke" d="m-2.6 -9.4\n\
-	l2.6 8.8 2.6 -8.8"/>',
-  dnb: '<g id="dnb">\n\
-	<path d="M-3.2 -2v-7.2m6.4 0v7.2" class="stroke"/>\n\
-	<path d="M-3.2 -6.8v-2.4l6.4 0v2.4" class="fill"/>\n\
-</g>',
-  dplus: '<path id="dplus" class="stroke" stroke-width="1.7"\n\
-	d="m0 -.5v-6m-3 3h6"/>',
-  lphr: '<path id="lphr" class="stroke" stroke-width="1.2"\n\
-	d="m0 0v18"/>',
-  mphr: '<path id="mphr" class="stroke" stroke-width="1.2"\n\
-	d="m0 0v12"/>',
-  sphr: '<path id="sphr" class="stroke" stroke-width="1.2"\n\
-	d="m0 0v6"/>',
-  sfz: '<text id="sfz" x="-5" y="-7" \
-style="font-family:serif; font-style:italic; font-size:14px">\n\
-	s<tspan font-size="16" font-weight="bold">f</tspan>z</text>',
-  trl: '<text id="trl" x="-2" y="-4"\n\
-	style="font-family:serif; font-weight:bold; \
-font-style:italic; font-size:16px">tr</text>',
-  opend: '<circle id="opend" class="stroke"\n\
-	cx="0" cy="-3" r="2.5"/>',
-  snap: '<path id="snap" class="stroke" d="m-3 -6\n\
-	c0 -5 6 -5 6 0 0 5 -6 5 -6 0\n\
-	M0 -5v6"/>',
-  thumb: '<path id="thumb" class="stroke" d="m-2.5 -7\n\
-	c0 -6 5 -6 5 0 0 6 -5 6 -5 0\n\
-	M-2.5 -9v4"/>',
-  wedge: '<path id="wedge" class="fill" d="m0 -1l-1.5 -5h3l-1.5 5"/>',
-  ltr: '<path id="ltr" class="fill"\n\
-	d="m0 -.4c2 -1.5 3.4 -1.9 3.9 .4 0.2 .8 .7 .7 2.1 -.4\n\
-	v0.8c-2 1.5 -3.4 1.9 -3.9 -.4 -.2 -.8 -.7 -.7 -2.1 .4z"/>',
-  custos: '<g id="custos">\n\
-	<path class="fill" d="m-4 0l2 2.5 2 -2.5 2 2.5 2 -2.5\n\
-		-2 -2.5 -2 2.5 -2 -2.5 -2 2.5"/>\n\
-	<path class="stroke" d="m3.5 0l5 -7"/>\n\
-</g>',
-  triangle: '<path id="triangle" class="fill" d="m-3.7 -3.2l7.4 0 -3.7 6.4 -3.7 -6.4"/>',
-  diamond: '<path id="diamond" class="fill" d="m0 3.5l-3.7 -3.5 3.7 -3.5 3.7 3.5z"/>',
-  oct: '<text id="oct" style="font-family:serif; font-size:12px">8</text>'
+}
+
+// convert a meter string to a SmuFL encoded string
+function m_gl(s) {
+	return s.replace(/[Cco]\||[co]\.|./g,
+		function(e) {
+		    var	m = tgls["mtr" + e]
+			if (!m.x && !m.y)
+				return m.c
+			return '<tspan dx="'+ m.x.toFixed(1) +
+				'" dy="' + m.y.toFixed(1) + '">' +
+				m.c + '</tspan>'
+		})
 }
 
 // mark a glyph as used and add it in <defs>
@@ -374,7 +368,7 @@ function delayed_update() {
 	for (st = 0; st <= nstaff; st++) {
 		if (staff_tb[st].sc_out) {
 			output += '<g transform="translate(0,' +
-					(posy - staff_tb[st].y).toFixed(2) +
+					(posy - staff_tb[st].y).toFixed(1) +
 					') scale(' +
 					 staff_tb[st].staffscale.toFixed(2) +
 					')">\n' +
@@ -385,7 +379,7 @@ function delayed_update() {
 		if (!staff_tb[st].output)
 			continue
 		output += '<g transform="translate(0,' +
-				(-staff_tb[st].y).toFixed(2) +
+				(-staff_tb[st].y).toFixed(1) +
 				')">\n' +
 			staff_tb[st].output +
 			'</g>\n';
@@ -409,7 +403,7 @@ function anno_out(s, t, f) {
 		wr = s.wr || 2
 
 	if (s.grace)
-		type = GRACE
+		type = C.GRACE
 
 	f(t || anno_type[type], s.istart, s.iend,
 		s.x - wl - 2, staff_tb[s.st].y + s.ymn + h - 2,
@@ -437,13 +431,13 @@ function out_XYAB(str, x, y, a, b) {
 	y = sy(y);
 	output += str.replace(/X|Y|A|B|F|G/g, function(c) {
 		switch (c) {
-		case 'X': return x.toFixed(2)
-		case 'Y': return y.toFixed(2)
+		case 'X': return x.toFixed(1)
+		case 'Y': return y.toFixed(1)
 		case 'A': return a
 		case 'B': return b
-		case 'F': return a.toFixed(2)
+		case 'F': return a.toFixed(1)
 //		case 'G':
-		default: return b.toFixed(2)
+		default: return b.toFixed(1)
 		}
 		})
 }
@@ -480,7 +474,7 @@ function sx(x) {
 Abc.prototype.sx = sx
 function sy(y) {
 	if (stv_g.g)
-		return y
+		return -y
 	if (stv_g.scale == 1)
 		return posy - y
 	if (stv_g.st < 0)
@@ -509,7 +503,7 @@ Abc.prototype.ah = function(h) {
 function out_sxsy(x, sep, y) {
 	x = sx(x);
 	y = sy(y);
-	output += x.toFixed(2) + sep + y.toFixed(2)
+	output += x.toFixed(1) + sep + y.toFixed(1)
 }
 Abc.prototype.out_sxsy = out_sxsy
 
@@ -527,9 +521,9 @@ function xygl(x, y, gl) {
 	var 	tgl = tgls[gl]
 	if (tgl && !glyphs[gl]) {
 		x += tgl.x * stv_g.scale;
-		y += tgl.y
+		y -= tgl.y
 		if (tgl.sc)
-			out_XYAB('<text transform="translate(X,Y) scale(F)">B</text>\n',
+			out_XYAB('<text transform="translate(X,Y) scale(A)">B</text>\n',
 				x, y, tgl.sc, tgl.c);
 		else
 			out_XYAB('<text x="X" y="Y">A</text>\n', x, y, tgl.c)
@@ -555,17 +549,9 @@ function out_acciac(x, y, dx, dy, up) {
 	out_XYAB('<path class="stroke" d="mX YlF G"/>\n',
 		x, y, dx, -dy)
 }
-// simple /dotted measure bar
-function out_bar(x, y, h, dotted) {
-	output += '<path class="stroke" stroke-width="1" ' +
-		(dotted ? 'stroke-dasharray="5,5" ' : '') +
-		'd="m' + (x + posx).toFixed(2) +
-		' ' + (posy - y).toFixed(2) + 'v' + (-h).toFixed(2) +
-		'"/>\n'
-}
 // tuplet value - the staves are not defined
 function out_bnum(x, y, str) {
-	out_XYAB('<text style="font-family:serif; font-style:italic; font-size:12px"\n\
+	out_XYAB('<text style="font:italic 12px serif"\n\
 	x="X" y="Y" text-anchor="middle">A</text>\n',
 		x, y, str.toString())
 }
@@ -576,7 +562,7 @@ function out_brace(x, y, h) {
 	y = posy - y;
 	h /= 24;
 	output += '<text transform="translate(' +
-				x.toFixed(2) + ',' + y.toFixed(2) +
+				x.toFixed(1) + ',' + y.toFixed(1) +
 			') scale(2.5,' + h.toFixed(2) +
 			')">' + tgls.brace.c + '</text>\n'
 }
@@ -587,9 +573,9 @@ function out_bracket(x, y, h) {
 	y = posy - y - 3;
 	h += 2;
 	output += '<path class="fill"\n\
-	d="m' + x.toFixed(2) + ' ' + y.toFixed(2) + '\n\
+	d="m' + x.toFixed(1) + ' ' + y.toFixed(1) + '\n\
 	c10.5 1 12 -4.5 12 -3.5c0 1 -3.5 5.5 -8.5 5.5\n\
-	v' + h.toFixed(2) + '\n\
+	v' + h.toFixed(1) + '\n\
 	c5 0 8.5 4.5 8.5 5.5c0 1 -1.5 -4.5 -12 -3.5"/>\n'
 }
 // hyphen
@@ -621,28 +607,19 @@ function out_stem(x, y, h, grace,
 	x += dx * stv_g.scale
 	if (stv_g.st < 0)
 		slen /= stv_g.scale;
-	out_XYAB('<path class="stroke" d="mX YvF"/>\n',	// stem
+	out_XYAB('<path class="stroke sW" d="mX YvF"/>\n',	// stem
 		x, y, slen)
 	if (!nflags)
 		return
 
-	output += '<path class="fill"\n\
-	d="';
 	y += h
 	if (h > 0) {				// up
 		if (!straight) {
 			if (!grace) {
-				if (nflags == 1) {
-					out_XYAB('MX Yc0.6 5.6 9.6 9 5.6 18.4\n\
-	1.6 -6 -1.3 -11.6 -5.6 -12.8\n', x, y)
-				} else {
-					while (--nflags >= 0) {
-						out_XYAB('MX Yc0.9 3.7 9.1 6.4 6 12.4\n\
-	1 -5.4 -4.2 -8.4 -6 -8.4\n', x, y);
-						y -= 5.4
-					}
-				}
+				xygl(x, y, "flu" + nflags)
+				return
 			} else {		// grace
+				output += '<path class="fill" d="'
 				if (nflags == 1) {
 					out_XYAB('MX Yc0.6 3.4 5.6 3.8 3 10\n\
 	1.2 -4.4 -1.4 -7 -3 -7\n', x, y)
@@ -655,6 +632,8 @@ function out_stem(x, y, h, grace,
 				}
 			}
 		} else {			// straight
+			output += '<path class="fill" d="'
+//fixme: to do
 			if (!grace) {
 //fixme: check endpoints
 				y += 1
@@ -674,17 +653,10 @@ function out_stem(x, y, h, grace,
 	} else {				// down
 		if (!straight) {
 			if (!grace) {
-				if (nflags == 1) {
-					out_XYAB('MX Yc0.6 -5.6 9.6 -9 5.6 -18.4\n\
-	1.6 6 -1.3 11.6 -5.6 12.8\n', x, y)
-				} else {
-					while (--nflags >= 0) {
-						out_XYAB('MX Yc0.9 -3.7 9.1 -6.4 6 -12.4\n\
-	1 5.4 -4.2 8.4 -6 8.4\n', x, y);
-						y += 5.4
-					}
-				}
+				xygl(x, y, "fld" + nflags)
+				return
 			} else {		// grace
+				output += '<path class="fill" d="'
 				if (nflags == 1) {
 					out_XYAB('MX Yc0.6 -3.4 5.6 -3.8 3 -10\n\
 	1.2 4.4 -1.4 7 -3 7\n', x, y)
@@ -697,6 +669,7 @@ function out_stem(x, y, h, grace,
 				}
 			}
 		} else {			// straight
+			output += '<path class="fill" d="'
 			if (!grace) {
 //fixme: check endpoints
 				y += 1
@@ -711,14 +684,6 @@ function out_stem(x, y, h, grace,
 		}
 	}
 	output += '"/>\n'
-}
-// thick measure bar
-function out_thbar(x, y, h) {
-	x += posx + 1.5;
-	y = posy - y;
-	output += '<path class="stroke" stroke-width="3" d="m' +
-		x.toFixed(2) + ' ' + y.toFixed(2) +
-		'v' + (-h).toFixed(2) + '"/>\n'
 }
 // tremolo
 function out_trem(x, y, ntrem) {
@@ -739,16 +704,16 @@ function out_tubr(x, y, dx, dy, up) {
 	dx /= stv_g.scale;
 	output += '<path class="stroke" d="m';
 	out_sxsy(x, ' ', y);
-	output += 'v' + h.toFixed(2) +
-		'l' + dx.toFixed(2) + ' ' + (-dy).toFixed(2) +
-		'v' + (-h).toFixed(2) + '"/>\n'
+	output += 'v' + h.toFixed(1) +
+		'l' + dx.toFixed(1) + ' ' + (-dy).toFixed(1) +
+		'v' + (-h).toFixed() + '"/>\n'
 }
 // tuplet bracket with number - the staves are not defined
 function out_tubrn(x, y, dx, dy, up, str) {
     var	sw = str.length * 10,
 	h = up ? -3 : 3;
 
-	out_XYAB('<text style="font-family:serif; font-style:italic; font-size:12px"\n\
+	out_XYAB('<text style="font:italic 12px serif"\n\
 	x="X" y="Y" text-anchor="middle">A</text>\n',
 		x + dx / 2, y + dy / 2, str);
 	dx /= stv_g.scale
@@ -756,14 +721,14 @@ function out_tubrn(x, y, dx, dy, up, str) {
 		y += 6;
 	output += '<path class="stroke" d="m';
 	out_sxsy(x, ' ', y);
-	output += 'v' + h.toFixed(2) +
-		'm' + dx.toFixed(2) + ' ' + (-dy).toFixed(2) +
-		'v' + (-h).toFixed(2) + '"/>\n' +
+	output += 'v' + h.toFixed(1) +
+		'm' + dx.toFixed(1) + ' ' + (-dy).toFixed(1) +
+		'v' + (-h).toFixed(1) + '"/>\n' +
 		'<path class="stroke" stroke-dasharray="' +
-		((dx - sw) / 2).toFixed(2) + ' ' + sw.toFixed(2) +
+		((dx - sw) / 2).toFixed(1) + ' ' + sw.toFixed(1) +
 		'" d="m';
 	out_sxsy(x, ' ', y - h);
-	output += 'l' + dx.toFixed(2) + ' ' + (-dy).toFixed(2) + '"/>\n'
+	output += 'l' + dx.toFixed(1) + ' ' + (-dy).toFixed(1) + '"/>\n'
 
 }
 // underscore line
@@ -777,12 +742,12 @@ var deco_str_style = {
 crdc:	{
 		dx: 0,
 		dy: 5,
-		style: 'font-family:serif; font-style:italic; font-size:14px'
+		style: 'font:italic 14px serif'
 	},
 dacs:	{
 		dx: 0,
 		dy: 3,
-		style: 'font-family:serif; font-size:16px',
+		style: 'font:16px serif',
 		anchor: ' text-anchor="middle"'
 	},
 fng:	{
@@ -794,12 +759,12 @@ fng:	{
 pf:	{
 		dx: 0,
 		dy: 5,
-		style: 'font-family:serif; font-weight:bold; font-style:italic; font-size:16px'
+		style: 'font:italic bold 16px serif'
 	},
 '@':	{
 		dx: 0,
 		dy: 5,
-		style: 'font-family:sans-serif; font-size:12px'
+		style: 'font: 12px sans-serif'
 	}
 }
 
@@ -827,10 +792,9 @@ function out_deco_str(x, y, name, str) {
 function out_arp(x, y, val) {
 	g_open(x, y, 270);
 	x = 0;
-	y = -4;
 	val = Math.ceil(val / 6)
 	while (--val >= 0) {
-		xygl(x, y, "ltr");
+		xygl(x, 6, "ltr");
 		x += 6
 	}
 	g_close()
@@ -841,18 +805,18 @@ function out_cresc(x, y, val, defl) {
 	out_XYAB('<path class="stroke"\n\
 	d="mX YlA ', x, y + 5, val)
 	if (defl.nost)
-		output += '-2.2m0 -3.6l' + (-val).toFixed(2) + ' -2.2"/>\n'
+		output += '-2.2m0 -3.6l' + (-val).toFixed(1) + ' -2.2"/>\n'
 	else
-		output += '-4l' + (-val).toFixed(2) + ' -4"/>\n'
+		output += '-4l' + (-val).toFixed(1) + ' -4"/>\n'
 
 }
 function out_dim(x, y, val, defl) {
 	out_XYAB('<path class="stroke"\n\
 	d="mX YlA ', x, y + 5, val)
 	if (defl.noen)
-		output += '-2.2m0 -3.6l' + (-val).toFixed(2) + ' -2.2"/>\n'
+		output += '-2.2m0 -3.6l' + (-val).toFixed(1) + ' -2.2"/>\n'
 	else
-		output += '-4l' + (-val).toFixed(2) + ' -4"/>\n'
+		output += '-4l' + (-val).toFixed(1) + ' -4"/>\n'
 }
 function out_ltr(x, y, val) {
 	y += 4;
@@ -862,10 +826,17 @@ function out_ltr(x, y, val) {
 		x += 6
 	}
 }
+function out_lped(x, y, val, defl) {
+	y += 4;
+	if (!defl.nost)
+		xygl(x, y, "ped");
+	if (!defl.noen)
+		xygl(x + val, y, "pedoff")
+}
 function out_8va(x, y, val, defl) {
 	if (!defl.nost) {
 		out_XYAB('<text x="X" y="Y" \
-style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">8\
+style="font:italic bold 12px serif">8\
 <tspan dy="-4" style="font-size:10px">va</tspan></text>\n',
 			x - 8, y);
 		x += 12;
@@ -874,7 +845,7 @@ style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">8
 		val -= 5
 	}
 	y += 6;
-	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhA"/>\n',
+	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhF"/>\n',
 		x, y, val)
 	if (!defl.noen)
 		out_XYAB('<path class="stroke" d="mX Yv6"/>\n', x + val, y)
@@ -882,7 +853,7 @@ style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">8
 function out_8vb(x, y, val, defl) {
 	if (!defl.nost) {
 		out_XYAB('<text x="X" y="Y" \
-style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">8\
+style="font:italic bold 12px serif">8\
 <tspan dy="-4" style="font-size:10px">vb</tspan></text>\n',
 			x - 8, y);
 		x += 4;
@@ -891,7 +862,7 @@ style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">8
 		val -= 5
 	}
 //	y -= 2;
-	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhA"/>\n',
+	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhF"/>\n',
 		x, y, val)
 	if (!defl.noen)
 		out_XYAB('<path class="stroke" d="mX Yv-6"/>\n', x + val, y)
@@ -899,7 +870,7 @@ style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">8
 function out_15ma(x, y, val, defl) {
 	if (!defl.nost) {
 		out_XYAB('<text x="X" y="Y" \
-style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">15\
+style="font:italic bold 12px serif">15\
 <tspan dy="-4" style="font-size:10px">ma</tspan></text>\n',
 			x - 10, y);
 		x += 20;
@@ -908,7 +879,7 @@ style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">1
 		val -= 5
 	}
 	y += 6;
-	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhA"/>\n',
+	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhF"/>\n',
 		x, y, val)
 	if (!defl.noen)
 		out_XYAB('<path class="stroke" d="mX Yv6"/>\n', x + val, y)
@@ -916,7 +887,7 @@ style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">1
 function out_15mb(x, y, val, defl) {
 	if (!defl.nost) {
 		out_XYAB('<text x="X" y="Y" \
-style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">15\
+style="font:italic bold 12px serif">15\
 <tspan dy="-4" style="font-size:10px">mb</tspan></text>\n',
 			x - 10, y);
 		x += 7;
@@ -925,7 +896,7 @@ style="font-family:serif; font-weight:bold; font-style:italic; font-size:12px">1
 		val -= 5
 	}
 //	y -= 2;
-	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhA"/>\n',
+	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhF"/>\n',
 		x, y, val)
 	if (!defl.noen)
 		out_XYAB('<path class="stroke" d="mX Yv-6"/>\n', x + val, y)
@@ -935,6 +906,7 @@ var deco_val_tb = {
 	cresc:	out_cresc,
 	dim:	out_dim,
 	ltr:	out_ltr,
+	lped:	out_lped,
 	"8va":	out_8va,
 	"8vb":	out_8vb,
 	"15ma":	out_15ma,
@@ -952,7 +924,7 @@ function out_glisq(x2, y2, de) {
 	var	de1 = de.start,
 		x1 = de1.x,
 		y1 = de1.y + staff_tb[de1.st].y,
-		ar = -Math.atan2(y2 - y1, x2 - x1),
+		ar = Math.atan2(y1 - y2, x2 - x1),
 		a = ar / Math.PI * 180,
 		len = (x2 - x1) / Math.cos(ar);
 
@@ -980,7 +952,7 @@ function out_gliss(x2, y2, de) {
 	x1 = de1.s.dots ? 13 + de1.s.xmx : 8;
 	len -= x1 + 8;
 	xypath(x1, 0);
-	output += 'l' + len.toFixed(2) + ' 0" stroke-width="1"/>\n';
+	output += 'h' + len.toFixed(1) + '" stroke-width="1"/>\n';
 	g_close()
 }
 
@@ -1033,13 +1005,13 @@ function svg_flush() {
 		if (musicfont) {
 			if (musicfont.indexOf('(') > 0) {
 				head += '\n\
-.music {font-family: music; font-size: 24px; fill: currentColor}\n\
+.music {font:24px music;fill:currentColor}\n\
 @font-face {\n\
-  font-family: music;\n\
-  src: ' + musicfont + '}';
+  font-family:"music";\n\
+  src:' + musicfont + '}';
 			} else {
 				head += '\n\
-.music {font-family: '+ musicfont +'; font-size: 24px; fill: currentColor}'
+.music {font:24px '+ musicfont +';fill:currentColor}'
 			}
 		}
 		head += '\n</style>\n'
@@ -1067,7 +1039,8 @@ function svg_flush() {
 	font_style = ''
 	if (cfmt.fullsvg) {
 		defined_glyph = {}
-		defined_font = {}
+		for (var i = 0; i < font_tb.length; i++)
+			font_tb[i].used = false
 	} else {
 		musicfont = '';
 		style = '';

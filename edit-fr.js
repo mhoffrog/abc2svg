@@ -4,12 +4,15 @@ function loadtxt() {
 		bad_nb: 'Mauvais numéro de ligne',
 		fn: 'Nom de fichier: ',
 		load: 'SVP, ouvrez le fichier à inclure ',
-		play: 'Jouer',
-		stop: 'Arrêter',
 	}
 	var text_kv = {
 		a: 'A propos',
 		b: 'Fichiers ABC:',
+		cmpa: 'Tout',
+		cmpt: 'Morceau',
+		cmps: 'Selection',
+		cmpl: 'Boucle',
+		cmpc: 'Continuer',
 //		df: 'abc2svg features',
 //		dp: 'abc2svg parameters',
 		er: 'Erreurs',
@@ -20,7 +23,6 @@ function loadtxt() {
 		h: 'Aide',
 		ha: 'Aide',
 		lg: 'Langue',
-		playbutton: 'Jouer',
 		pr: 'Préférences',
 		saveas: 'Sauver le fichier',
 		sful: 'URL police de sons',
@@ -29,6 +31,7 @@ function loadtxt() {
 
 	for (var k in text_kv)
 		document.getElementById(k).innerHTML = text_kv[k];
+	document.getElementById('ctxMenu').title = 'Jouer';
 
 	document.getElementById("hlp").outerHTML = '<ul  id="hlp">\n\
 <li>Vous pouvez, soit:\n\
@@ -42,5 +45,11 @@ function loadtxt() {
 <li>Vous pouvez modifier le code ABC comme vous voulez.<br/>\n\
 	Le rendu se fait 2 secondes après.</li>\n\
 <li>Le bouton \'Imprimer\' de votre browser n\'imprime que la zone de rendu.</li>\n\
+<li>Vous pouvez sélectionner une partie des morceaux, ou bien depuis la zone\
+	d\'édition (click et déplacement), ou bien depuis la zone de rendu.<br/>\
+	Dans le dernier cas, un click gauche sur un élément de musique définit\
+	le début de la sélection. Un click droit définit la fin.<br/>\
+	Si votre navigateur peut jouer la musique, un click droit\
+	en dehors de la musique affiche le menu associé.</li>\
 </ul>';
 }

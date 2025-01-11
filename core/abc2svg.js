@@ -1,6 +1,6 @@
 // abc2svg - abc2svg.js
 //
-// Copyright (C) 2014-2018 Jean-Francois Moine
+// Copyright (C) 2014-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -17,9 +17,52 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
 
+// start of the abc2svg object
+var abc2svg = {
+
+// constants
+    C: {
+	BLEN: 1536,
+
+	// symbol types
+	BAR: 0,
+	CLEF: 1,
+	CUSTOS: 2,
+	GRACE: 4,
+	KEY: 5,
+	METER: 6,
+	MREST: 7,
+	NOTE: 8,
+	PART: 9,
+	REST: 10,
+	SPACE: 11,
+	STAVES: 12,
+	STBRK: 13,
+	TEMPO: 14,
+	BLOCK: 16,
+	REMARK: 17,
+
+	// note heads
+	FULL: 0,
+	EMPTY: 1,
+	OVAL: 2,
+	OVALBARS: 3,
+	SQUARE: 4,
+
+	// slur/tie types (3 + 1 bits)
+	SL_ABOVE: 0x01,
+	SL_BELOW: 0x02,
+	SL_AUTO: 0x03,
+	SL_HIDDEN: 0x04,
+	SL_DOTTED: 0x08		// (modifier bit)
+    },
+
 // start of the Abc object
-abc2svg.Abc = function(user) {
+  Abc: function(user) {
 	"use strict";
+
+    // constants
+    var	C = abc2svg.C;
 
 	// mask some unsafe functions
     var	require = empty_function,
@@ -27,45 +70,10 @@ abc2svg.Abc = function(user) {
 	write = empty_function,
 	XMLHttpRequest = empty_function;
 
-	this.user = user
-
 // -- constants --
-// symbol types
-var	BAR = 0,
-	CLEF = 1,
-	CUSTOS = 2,
-//	FORMAT = 3,
-	GRACE = 4,
-	KEY = 5,
-	METER = 6,
-	MREST = 7,
-	NOTE = 8,
-	PART = 9,
-	REST = 10,
-	SPACE = 11,
-	STAVES = 12,
-	STBRK = 13,
-	TEMPO = 14,
-//	TUPLET = 15,
-	BLOCK = 16,
-	REMARK = 17,
-
-// note heads
-	FULL = 0,
-	EMPTY = 1,
-	OVAL = 2,
-	OVALBARS = 3,
-	SQUARE = 4,
-
-/* slur/tie types (3 + 1 bits) */
-	SL_ABOVE = 0x01,
-	SL_BELOW = 0x02,
-	SL_AUTO = 0x03,
-	SL_HIDDEN = 0x04,
-	SL_DOTTED = 0x08,		/* (modifier bit) */
 
 // staff system
-	OPEN_BRACE = 0x01,
+var	OPEN_BRACE = 0x01,
 	CLOSE_BRACE = 0x02,
 	OPEN_BRACKET = 0x04,
 	CLOSE_BRACKET = 0x08,
@@ -79,7 +87,6 @@ var	BAR = 0,
 	CLOSE_BRACKET2 = 0x0800,
 	MASTER_VOICE = 0x1000,
 
-	BASE_LEN = 1536,
 	IN = 96,		// resolution 96 PPI
 	CM = 37.8,		// 1 inch = 2.54 centimeter
 	YSTEP = 256		/* number of steps for y offsets */
@@ -99,9 +106,10 @@ var errs = {
 	not_ascii: "Not an ASCII character"
 }
 
-var	glovar = {
+    var	self = this,				// needed for modules
+	glovar = {
 		meter: {
-			type: METER,		// meter in tune header
+			type: C.METER,		// meter in tune header
 			wmeasure: 1,		// no M:
 			a_meter: []		// default: none
 		}

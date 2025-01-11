@@ -1,6 +1,6 @@
 // tomidi5.js - audio output using HTML5 MIDI
 //
-// Copyright (C) 2018 Jean-Francois Moine
+// Copyright (C) 2018-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -18,7 +18,7 @@
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
 // Midi5 creation
-// one argument:
+
 // @conf: configuration object - all items are optional:
 //	onend: callback function called at end of playing
 //		(no arguments)
@@ -26,6 +26,10 @@
 //		Arguments:
 //			i: start index of the note in the ABC source
 //			on: true on note start, false on note stop
+
+//  When playing, the following items must/may be set:
+//	speed: (mandatory) must be set to 1
+//	new_speed: (optional) new speed value
 
 // Midi5 methods
 
@@ -35,16 +39,16 @@
 //
 // play() - start playing
 // @start_index -
-// @stop_index: play the notes found in ABC source between
-//		the start and stop indexes
-// @play_event: optional (default: previous generated events)
-//	array of array
+// @stop_index: indexes of the play_event array
+// @play_event: array of array
 //		[0]: index of the note in the ABC source
 //		[1]: time in seconds
-//		[2]: MIDI instrument (MIDI GM number - 1)
-//		[3]: MIDI note pitch (with cents)
-//		[4]: duration
+//		[2]: if >= 0: MIDI instrument (MIDI GM number - 1)
+//			else: MIDI control message
+//		[3]: MIDI note pitch (with cents) / controller
+//		[4]: duration			  / controller value
 //		[5]: volume (0..1 - optional)
+//		[6]: voice number
 //
 // stop() - stop playing
 
@@ -52,38 +56,64 @@ function Midi5(i_conf) {
     var	conf = i_conf,		// configuration
 	onend = conf.onend || function() {},
 	onnote = conf.onnote || function() {},
+	rf,			// get_outputs result function
 
 // MIDI variables
 	op,			// output port
-	instr,			// instrument -> channel
-	ch,			// channel allocation
+	v_i = [],		// voice (channel) to instrument
 
 // -- play the memorized events --
 	evt_idx,		// event index while playing
-	iend,			// source stop index
-	stime			// start playing time in ms
+	iend,			// play array stop index
+	stime,			// start playing time in ms
+	timouts = []		// note start events
 
 // create a note
 // @e[2] = instrument index
 // @e[3] = MIDI key + detune
+// @e[6] = voice (channel) number
 // @t = audio start time (ms)
 // @d = duration adjusted for speed (ms)
     function note_run(e, t, d) {
     var	k = e[3] | 0,
 	i = e[2],
-	c = instr[i]
+	c = e[6] & 0x0f,	//fixme
+	a = (e[3] * 100) % 100	// detune in cents
 
-	if (c == undefined) {
-		c = ch++;
-		instr[i] = c;
+	if (i == 16384) {			// if bank 128
+		c = 9				// channel 10 (percussion)
+	} else if (i != v_i[c]) {		// if program change
+
+		// at channel start, reset all controllers
+//fixme: does not work with fluidsynth
+		if (v_i[c] == undefined)
+			op.send(new Uint8Array([0xb0 + c, 121, 0]));
+
+		v_i[c] = i
 		op.send(new Uint8Array([
 				0xb0 + c, 0, (i >> 14) & 0x7f,	// MSB bank
 				0xb0 + c, 32, (i >> 7) & 0x7f,	// LSB bank
 				0xc0 + c, i & 0x7f		// program
 			]))
 	}
+	if (a && Midi5.ma.sysexEnabled) {	// if microtone
+// fixme: should cache the current microtone values
+		op.send(new Uint8Array([
+			0xf0, 0x7f,	// realtime SysEx
+			0x7f,		// all devices
+			0x08,		// MIDI tuning standard
+			0x02,		// note change
+			i & 0x7f,		// tuning prog number
+			0x01,		// number of notes
+				k,		// key
+				k,		// note
+				a / .78125,	// MSB fract
+				0,		// LSB fract
+			0xf7		// SysEx end
+			]), t);
+	}
 	op.send(new Uint8Array([0x90 + c, k, 127]), t);		// note on
-	op.send(new Uint8Array([0x80 + c, k, 0x40]), t + d - 20) // note off
+	op.send(new Uint8Array([0x80 + c, k, 0]), t + d - 20) // note off
     } // note_run()
 
 // play the next time sequence
@@ -91,18 +121,13 @@ function Midi5(i_conf) {
     var	t, e, e2, maxt, st, d
 
 	// play the next events
-	if (!op) {
+	if (a_e)			// if not stop
+		e = a_e[evt_idx]
+	if (!op || evt_idx >= iend || !e) {
 		onend()
 		return
 	}
 			
-	e = a_e[evt_idx]
-	if (!e
-	 || e[0] > iend) {		// if source ref > source end
-		onend()
-		return
-	}
-
 	// if speed change, shift the start time
 	if (conf.new_speed) {
 		stime = window-performance.now() -
@@ -112,20 +137,26 @@ function Midi5(i_conf) {
 		conf.new_speed = 0
 	}
 
+	timouts = [];
 	t = e[1] / conf.speed * 1000;	// start time
 	maxt = t + 3000			// max time = evt time + 3 seconds
 	while (1) {
 		d = e[4] / conf.speed * 1000
-		if (e[5] != 0)		// if not a rest
+		if (e[2] >= 0) {		// if not a MIDI control message
+		    if (e[5] != 0)		// if not a rest
 			note_run(e, t + stime, d)
 
 		// follow the notes while playing
 			st = t + stime - window.performance.now();
-			setTimeout(onnote, st, e[0], true);
+			timouts.push(setTimeout(onnote, st, e[0], true));
 			setTimeout(onnote, st + d, e[0], false)
+		} else {				// MIDI control
+			op.send(new Uint8Array([0xb0 + (e[6] & 0x0f),
+						e[3], e[4]]), t + stime)
+		}
 
 		e = a_e[++evt_idx]
-		if (!e) {
+		if (!e || evt_idx >= iend) {
 			setTimeout(onend,
 				t + stime - window.performance.now() + d)
 			return
@@ -136,10 +167,30 @@ function Midi5(i_conf) {
 	}
 
 	// delay before next sound generation
-	setTimeout(play_next, (t + stime - window.performance.now())
+	timouts.push(setTimeout(play_next, (t + stime - window.performance.now())
 			- 300,		// wake before end of playing
-			a_e)
+			a_e))
     } // play_next()
+
+    // MIDI output is possible,
+    // return the possible ports in return to get_outputs()
+    function send_outputs(access) {
+    var	o, os,
+	out = [];
+
+	Midi5.ma = access;	// store the MIDI access in the Midi5 function
+
+	if (access && access.outputs.size > 0) {
+		os = access.outputs.values()
+		while (1) {
+			o = os.next()
+			if (!o || o.done)
+				break
+			out.push(o.value.name)
+		}
+	}
+	rf(out)
+    } // send_outputs()
 
 // Midi5 object creation (only one instance)
 
@@ -147,60 +198,87 @@ function Midi5(i_conf) {
     return {
 
 	// get outputs
-	get_outputs: function() {
-//fixme: just the first output port for now...
-		if (Midi5.ma)
-			op = Midi5.ma.outputs.values().next().value
-			if (op)
-				return [op.name]
+	get_outputs: function(f) {
+		if (!navigator.requestMIDIAccess) {
+			f()			// no MIDI
+			return
+		}
+		rf = f;
+
+		// open MIDI with SysEx
+		navigator.requestMIDIAccess({sysex: true}).then(
+			send_outputs,
+			function(msg) {
+
+				// open MIDI without SysEx
+				navigator.requestMIDIAccess().then(
+					send_outputs,
+					function(msg) {
+						rf()
+					}
+				)
+			}
+		)
 	}, // get_outputs()
 
 	// set the output port
 	set_output: function(name) {
-//fixme: todo
-//		if (!Midi5.ma)
-//			return
+	    var o, os
+		if (!Midi5.ma)
+			return
+		os = Midi5.ma.outputs.values()
+		while (1) {
+			o = os.next()
+			if (!o || o.done)
+				break
+			if (o.value.name == name) {
+				op = o.value
+				break
+			}
+		}
 	},
 
 	// play the events
 	play: function(istart, i_iend, a_e) {
-		if (!a_e || !a_e.length) {
+		if (!a_e || istart >= a_e.length) {
 			onend()			// nothing to play
 			return
 		}
 		iend = i_iend;
-		evt_idx = 0
-		while (a_e[evt_idx] && a_e[evt_idx][0] < istart)
-			evt_idx++
-		if (!a_e[evt_idx]) {
-			onend()			// nothing to play
-			return
-		}
+		evt_idx = istart;
+if (0) {
+// temperament
+	op.send(new Uint8Array([
+			0xf0, 0x7f,	// realtime SysEx
+			0x7f,		// all devices
+			0x08,		// MIDI tuning standard
+			0x02,		// note change
+			0x00,		// tuning prog number
+			0x01,		// number of notes
+				0x69,		// key
+				0x69,		// note
+				0x00,		// MSB fract
+				0,		// LSB fract
+			0xf7		// SysEx end
+			]), t);
+}
 
+		v_i = [];		// must do a reset of all channels
 		stime = window.performance.now() + 200	// start time + 0.2s
 			- a_e[evt_idx][1] * conf.speed * 1000;
-		instr = [];
-		ch = 0;
 		play_next(a_e)
 	}, // play()
 
 	// stop playing
 	stop: function() {
 		iend = 0
+		timouts.forEach(function(id) {
+					clearTimeout(id)
+				})
+		play_next()
 //fixme: op.clear() should exist...
 		if (op && op.clear)
 			op.clear()
 	} // stop()
     }
 } // end Midi5
-
-// check MIDI access at script load time
-function onMIDISuccess(access) {
-	Midi5.ma = access	// store the MIDI access in the Midi5 function
-} // onMIDISuccess()
-
-function onMIDIFailure(msg) {
-} // onMIDIFailure()
-
-if (navigator.requestMIDIAccess)
-	navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure)

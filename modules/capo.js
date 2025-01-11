@@ -1,6 +1,6 @@
 // capo.js - module to add a capo chord line
 //
-// Copyright (C) 2018 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2019 Jean-Francois Moine - GPL3+
 //
 // This module is loaded when "%%capo" appears in a ABC source.
 //
@@ -57,20 +57,16 @@ abc2svg.capo = {
 		return
 	}
 	of(cmd, param, lock)
-    }
+    },
 
+    set_hooks: function(abc) {
+	abc.gch_build = abc2svg.capo.gch_build.bind(abc, abc.gch_build);
+	abc.output_music = abc2svg.capo.output_music.bind(abc, abc.output_music);
+	abc.set_format = abc2svg.capo.set_fmt.bind(abc, abc.set_format)
+    }
 } // capo
 
-
-abc2svg.modules.hooks.push(
-// export
-	"gch_tr1",
-	"get_font",
-// hooks
-	[ "set_format", "abc2svg.capo.set_fmt" ],
-	[ "gch_build", "abc2svg.capo.gch_build" ],
-	[ "output_music", "abc2svg.capo.output_music" ]
-)
+abc2svg.modules.hooks.push(abc2svg.capo.set_hooks);
 
 // the module is loaded
 abc2svg.modules.capo.loaded = true

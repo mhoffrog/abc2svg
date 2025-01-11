@@ -1,6 +1,6 @@
 // MIDI.js - module to handle the %%MIDI parameters
 //
-// Copyright (C) 2018 Jean-Francois Moine - GPL3+
+// Copyright (C) 2019 Jean-Francois Moine - GPL3+
 //
 // This module is loaded when "%%MIDI" appears in a ABC source.
 //
@@ -26,8 +26,7 @@ abc2svg.MIDI = {
 	pit = pit % 12;			// in octave
 	p += pits[pit]
 	note = {
-		pit: p,
-		apit: p,
+		pit: p
 	}
 	if (accs[pit])
 		note.acc = accs[pit]
@@ -36,7 +35,7 @@ abc2svg.MIDI = {
 
     // normalize a note for mapping
     function norm(p) {
-    var	a = p.match(/^([_^]*)([A-Ga-g])([,']*)$/)	// '
+    var	a = p.match(/^([_^=]*)([A-Ga-g])([,']*)$/)	// '
 	if (!a)
 		return
 	if (p.match(/[A-Z]/)) {
@@ -49,7 +48,7 @@ abc2svg.MIDI = {
 	return p
     } // norm()
 
-	var	n, v,
+    var	n, v, s,
 	maps = this.get_maps(),
 		a = parm.split(/\s+/)
 
@@ -66,7 +65,7 @@ abc2svg.MIDI = {
 		n = norm(a[2]);
 		v = tonote(a[3]);
 		if (!n || !v) {
-			this.syntax(1, abc.errs.bad_val, "%%MIDI drummap")
+			this.syntax(1, this.errs.bad_val, "%%MIDI drummap")
 			break
 		}
 		if (!maps.MIDIdrum)
@@ -97,7 +96,13 @@ abc2svg.MIDI = {
 			this.syntax(1, "Bad controller value in %%MIDI")
 			return
 		}
-		this.set_v_param("midictl", a[2] + ' ' + a[3])
+		if (this.cfmt().sound != "play")
+			break
+		if (this.parse.state >= 2) {
+			s = this.new_block("midictl");
+			s.ctrl = n;
+			s.val = v
+		}
 		break
 	}
     }, // do_midi()
@@ -114,7 +119,7 @@ abc2svg.MIDI = {
 			break
 		case "midictl=":		// %%MIDI control
 			if (!curvoice.midictl)
-				curvoice.midictl = {}
+				curvoice.midictl = []
 			item = a[i + 1].split(' ');
 			curvoice.midictl[item[0]] = Number(item[1])
 			break
@@ -137,18 +142,15 @@ abc2svg.MIDI = {
     set_vp: function(of, a) {
 	abc2svg.MIDI.set_midi.call(this, a);
 	of(a)
+    },
+
+    set_hooks: function(abc) {
+	abc.do_pscom = abc2svg.MIDI.do_pscom.bind(abc, abc.do_pscom);
+	abc.set_vp = abc2svg.MIDI.set_vp.bind(abc, abc.set_vp)
     }
 } // MIDI
 
-abc2svg.modules.hooks.push(
-// export
-	"errs",
-	"set_v_param",
-	"syntax",
-// hooks
-	[ "do_pscom", "abc2svg.MIDI.do_pscom" ],
-	[ "set_vp", "abc2svg.MIDI.set_vp" ]
-);
+abc2svg.modules.hooks.push(abc2svg.MIDI.set_hooks);
 
 // the module is loaded
 abc2svg.modules.MIDI.loaded = true

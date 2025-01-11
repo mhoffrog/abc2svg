@@ -1,6 +1,6 @@
 // abc2svg - front.js - ABC parsing front-end
 //
-// Copyright (C) 2014-2018 Jean-Francois Moine
+// Copyright (C) 2014-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -179,7 +179,19 @@ function cnv_escape(src) {
 		dst += '\\' + c;
 		j = i + 1
 	}
-	return dst + src.slice(j)
+	// cleanup for XML treatment
+	return (dst + src.slice(j)).replace(/<|>|  |&.*?;|&/g, function(c) {
+			switch (c) {
+			case '<': return "&lt;"
+			case '>': return "&gt;"
+			case '&': return "&amp;"
+			case '  ': return '  '		// space + nbspace
+			case "&lt;":
+			case "&gt;":
+			case "&amp;": return c
+			}
+			return "&amp;" + c.slice(1)
+		})
 }
 
 // ABC include
@@ -213,7 +225,7 @@ function tosvg(in_fname,		// file name
 		file,			// file content
 		bol, eof) {		// beginning/end of file
 	var	i, c, bol, eol, end,
-		ext, select,
+		select,
 		line0, line1,
 		last_info, opt, text, a, b, s,
 		cfmt_sav, info_sav, char_tb_sav, glovar_sav, maps_sav,
@@ -245,8 +257,11 @@ function tosvg(in_fname,		// file name
 
 	// remove the comment at end of text
 	function uncomment(src, do_escape) {
+	    var i
+		if (!src)
+			return src
 		if (src.indexOf('%') >= 0)
-			src = src.replace(/(.*[^\\])%.*/, '$1')
+			src = src.replace(/([^\\])%.*/, '$1')
 				 .replace(/\\%/g, '%');
 		src = src.replace(/\s+$/, '')
 		if (do_escape && src.indexOf('\\') >= 0)
@@ -362,17 +377,13 @@ function tosvg(in_fname,		// file name
 			if (!text || text[0] == '%')
 				continue
 			a = text.split(/\s+/, 2)
-			if (!a[0])
-				a.shift()
 			switch (a[0]) {
 			case "abcm2ps":
 			case "ss-pref":
-				parse.prefix = a[1]
+				parse.prefix = a[1]	// may contain a '%'
 				continue
 			case "abc-include":
-				ext = a[1].match(/.*\.(.*)/)
-				if (ext && ext[1] == "abc")
-					do_include(a[1])
+				do_include(uncomment(a[1]))
 				continue
 			}
 
@@ -387,7 +398,7 @@ function tosvg(in_fname,		// file name
 					parse.eol = eof
 					continue
 				}
-				do_begin_end(b, a[1],
+				self.do_begin_end(b, uncomment(a[1]),
 					file.slice(eol + 1, i).replace(
 						new RegExp('^' + line0 + line1, 'gm'),
 										''));
@@ -402,7 +413,7 @@ function tosvg(in_fname,		// file name
 					syntax(1, "%%select ignored")
 					continue
 				}
-				select = uncomment(text.slice(7), false)
+				select = uncomment(text.slice(7))
 				if (select[0] == '"')
 					select = select.slice(1, -1);
 				if (!select) {
@@ -422,7 +433,7 @@ function tosvg(in_fname,		// file name
 					syntax(1, "%%voice ignored")
 					continue
 				}
-				select = uncomment(text.slice(6), false)
+				select = uncomment(text.slice(6))
 
 				/* if void %%voice, free all voice options */
 				if (!select) {
@@ -477,12 +488,12 @@ function tosvg(in_fname,		// file name
 				parse.eol = bol - 1
 				continue
 			}
-			do_pscom(uncomment(text, true))
+			self.do_pscom(uncomment(text, true))
 			continue
 		}
 
 		// music line (or free text)
-		if (line1 != ':') {
+		if (line1 != ':' || !/[A-Za-z+]/.test(line0)) {
 			last_info = undefined;
 			if (parse.state < 2)
 				continue
@@ -614,7 +625,7 @@ function tosvg(in_fname,		// file name
 			parse_music_line()
 			continue
 		default:
-			if ("ABCDFGHOSZ".indexOf(line0) >= 0) {
+			if ("ABCDFGHNOSZ".indexOf(line0) >= 0) {
 				if (parse.state >= 2) {
 					syntax(1, errs.ignored, line0)
 					continue

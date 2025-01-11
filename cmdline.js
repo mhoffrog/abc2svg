@@ -73,15 +73,17 @@ function do_file(fn) {
 function abc_cmd(cmd, args) {
 	var	arg, parm, fn;
 
+	// initialize the backend
+	abc2svg.abc_init(args)
+
 	// load 'default.abc'
 	try {
 		arg = user.read_file('default.abc');
+		abc2svg.modules.load(arg)
 		abc.tosvg(cmd, arg)
 	} catch (e) {
 	}
 
-	// initialize the backend
-	abc2svg.abc_init(args)
 	while (1) {
 		arg = args.shift()
 		if (!arg)

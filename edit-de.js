@@ -10,6 +10,11 @@ function loadtxt() {
 	var text_kv = {
 		a: 'Über ...',
 		b: 'ABC-Files:',
+		cmpa: 'Alles',
+		cmpt: 'Stück',
+		cmps: 'Auswahl',
+		cmpl: 'Schleife',
+		cmpc: 'Weiter',
 //		df: 'abc2svg features',
 //		dp: 'abc2svg parameters',
 		er: 'Fehler',
@@ -20,7 +25,6 @@ function loadtxt() {
 		h: 'Hilfe',
 		ha: 'Hilfe',
 		lg: 'Sprache',
-    		playbutton: 'Wiedergabe',
 		pr: 'Einstellungen',
 		saveas: 'Speichere File',
 		sful: 'Sound font URL',
@@ -29,6 +33,7 @@ function loadtxt() {
 
 	for (var k in text_kv)
 		document.getElementById(k).innerHTML = text_kv[k];
+  document.getElementById('ctxMenu').title = 'Wiedergabe';
 
 	document.getElementById("hlp").outerHTML = '<ul id="hlp">\n\
 <li>Du kannst entweder:\n\

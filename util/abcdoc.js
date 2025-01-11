@@ -1,7 +1,7 @@
 //#javascript
 // abcdoc-1.js file to include in html pages with abc2svg-1.js
 //
-// Copyright (C) 2014-2018 Jean-Francois Moine
+// Copyright (C) 2014-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -91,6 +91,9 @@ function dom_loaded() {
 
 	var page = document.body.innerHTML
 
+	// accept page formatting
+	abc2svg.abc_end = function() {}
+
 	// load the required modules
 	if (!abc2svg.modules.load(page, dom_loaded))
 		return
@@ -116,7 +119,7 @@ function dom_loaded() {
 
 		// get the end of the ABC sequence
 		// including the %%beginxxx/%%endxxx sequences
-		re_stop.lastIndex = j
+		re_stop.lastIndex = ++j
 		while (1) {
 			res = re_stop.exec(page)
 			if (!res || res[0] == "\n<")
@@ -131,7 +134,7 @@ function dom_loaded() {
 			k = page.length
 		else
 			k = re_stop.lastIndex - 2;
-		tune = page.slice(j + 1, k);
+		tune = page.slice(j, k);
 		new_page += '<pre style="display:inline-block; vertical-align: top">' +
 				clean_txt(tune) +
 				'</pre>\n\
@@ -144,20 +147,21 @@ function dom_loaded() {
 				"\nStack:\n" + e.stack)
 		}
 		if (errtxt) {
-			i = page.indexOf("\n", j + 1);
+			i = page.indexOf("\n", j);
 			i = page.indexOf("\n", i + 1);
 			alert("Errors in\n" +
-				page.slice(j + 1, i) +
+				page.slice(j, i) +
 				"\n...\n\n" + errtxt);
 			errtxt = ""
 		}
+		abc2svg.abc_end();	// close the page if %%pageheight
 		new_page += '</div><br/>\n';
 		i = k
 		if (k >= page.length)
 			break
 		re.lastIndex = i
 	}
-//console.log('result:\n' + new_page)
+
 	try {
 		document.body.innerHTML = new_page + page.slice(i)
 	} catch (e) {

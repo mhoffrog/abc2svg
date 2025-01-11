@@ -61,7 +61,6 @@
 		<li onclick="loadlang('pt_BR')">Português do Brasil</li>
 		</ul>
 	</li>
-	<li class="dropbutton" id="playbutton" style="display: none">Play</li>
 	<li class="dropbutton"><label id="h">Help</label>
 		<ul class="droplinks">
 			<li id="ha" onclick="popshow('help', true)">Help</li>
@@ -91,7 +90,6 @@
 </p>
 <textarea id="source" rows="40" cols="73" wrap="off"
 	style="font: 14px monospace"
-	onselect="seltxt(this)"
 	ondrop="dropped(event)" ondragenter="drag_over(event)"
 	ondragover="drag_over(event)"
 	oninput="src_change()"></textarea>
@@ -103,13 +101,23 @@
 <!-- right - needed for the scrollbars -->
 <div id="dright">
 
+<!-- context menu -->
+<div id="ctxMenu" title="Play">
+	<ul class="droplinks">
+	<li id="cmpa" onclick="play_tune(-1)">All</li>
+	<li id="cmpt" onclick="play_tune(0)">Tune</li>
+	<li id="cmps" onclick="play_tune(1)">Selection</li>
+	<li id="cmpl" onclick="play_tune(2)">Loop</li>
+	<li id="cmpc" onclick="play_tune(3)">Continue</li>
+	</ul>
+</div>
+
 <!-- rendering area -->
 <div id="target">
 <svg xmlns="http://www.w3.org/2000/svg"
 	xmlns:xlink="http://www.w3.org/1999/xlink"
 	xml:space="preserve"
 	width="8.3in" height="2in" viewBox="0 0 595 144">
-<title>(void)</title>
 <text x="250" y="100" font-family="serif" font-size="12">(void)</text>
 </svg>
 </div>
@@ -126,17 +134,7 @@
 <div id="help" class="popup" style="width: 550px">
 <div class="close" onclick="popshow('help')">x</div>
 <ul id="hlp">
-<li>You may either:
-    <ul>
-	<li>directly write ABC code in the text area, or</li>
-	<li>paste ABC code in the text area, or</li>
-	<li>load a local ABC file ('Load a ABC file' button), or</li>
-	<li>drag &amp; drop a local file from your file manager
-		or a selected text to the text area.</li>
-    </ul></li>
-<li>You may change at will the ABC code in the text area.<br/>
-	Rendering is done 2 seconds later.</li>
-<li>The 'Print' button of the browser outputs the rendering area.</li>
+<li>(dynamically loaded)</li>
 </ul>
 </div>
 
@@ -146,6 +144,14 @@
 <p id="abc2svg">abc2svg</p>
 <p>Copyright &#x00A9; 2016-2018 Jean-François Moine</p>
 </div>
+
+<!-- javascript must be enabled -->
+<div id="okjs" class="popup" style="width:50%;background:#ff8080;visibility:visible">
+Please enable Javascript.
+</div>
+<script>
+document.getElementById('okjs').style.visibility = 'hidden'
+</script>
 
 </body>
 </html>

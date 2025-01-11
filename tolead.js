@@ -17,24 +17,23 @@
 // You should have received a copy of the GNU General Public License
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
-var	BASE_LEN = 1536
-
 function lead(tsfirst, voice_tb, music_types, info) {
-	var	s, beat, cur_beat, i,
-		line = '';
+    var	C = abc2svg.C
+	s, beat, cur_beat, i,
+	line = '';
 
 	function get_beat(s) {
 		if (s.a_meter[0].top[0] == 'C' || !s.a_meter[0].bot) {
-			beat = BASE_LEN / 4
+			beat = C.BLEN / 4
 		} else {
-			beat = BASE_LEN / s.a_meter[0].bot[0] |0
+			beat = C.BLEN / s.a_meter[0].bot[0] |0
 			if (isNaN(beat)) {
 				abc2svg.print('** Cannot get the beat')
 				return
 			}
 			if (s.a_meter[0].bot[0] == 8
 			 && s.a_meter[0].top[0] % 3 == 0)
-				beat = BASE_LEN / 8 * 3
+				beat = C.BLEN / 8 * 3
 		}
 	} // get_beat()
 
@@ -52,9 +51,9 @@ function lead(tsfirst, voice_tb, music_types, info) {
 			line += '/ ';
 			cur_beat += beat
 		}
-		switch (music_types[s.type]) {
-		case 'note':
-		case 'rest':
+		switch (s.type) {
+		case C.NOTE:
+		case C.REST:
 			if (s.a_gch) {		// search a chord symbol
 				for (i = 0; i < s.a_gch.length; i++) {
 					if (s.a_gch[i].type == 'g') {
@@ -65,7 +64,7 @@ function lead(tsfirst, voice_tb, music_types, info) {
 				}
 			}
 			break
-		case 'bar':
+		case C.BAR:
 			if (s.eoln) {
 				if (s.bar_type == '::')
 					line += ':|\n|: '
@@ -79,7 +78,7 @@ function lead(tsfirst, voice_tb, music_types, info) {
 			}
 			cur_beat = s.time	// re-synchronize
 			break
-		case 'meter':
+		case C.METER:
 			get_beat(s)
 			break
 		}

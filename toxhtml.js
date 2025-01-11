@@ -1,6 +1,6 @@
 // abc2svg - toxhtml.js - SVG generation
 //
-// Copyright (C) 2014-2018 Jean-Francois Moine
+// Copyright (C) 2014-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -17,8 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
-    var	o_font, c_font, wto,
-	init_done, pw, ml, mr, pkf, lkf
+    var	init_done, pw, ml, mr, pkf, lkf
 
 // replace <>& by XML character references
 function clean_txt(txt) {
@@ -26,9 +25,8 @@ function clean_txt(txt) {
 		switch (c) {
 		case '<': return "&lt;"
 		case '>': return "&gt;"
+		case '&': return "&amp;"
 		}
-		if (c == '&')
-			return "&amp;"
 		return c
 	})
 }
@@ -116,13 +114,13 @@ function set_pstyle() {
 	if (nml != ml) {
 		if (ml == undefined)
 			ml = nml;
-		psty += 'margin-left:' + nml.toFixed(2) + 'px;'
+		psty += 'margin-left:' + nml.toFixed(1) + 'px;'
 	}
 	nmr = cfmt.rightmargin;
 	if (nmr != mr) {
 		if (mr == undefined)
 			mr = nmr;
-		psty += 'margin-right:' + nmr.toFixed(2) + 'px;'
+		psty += 'margin-right:' + nmr.toFixed(1) + 'px;'
 	}
 	nlkf = cfmt.lineskipfac;
 	if (nlkf != lkf) {
@@ -140,137 +138,9 @@ function set_pstyle() {
 	if (npw != pw || nml != ml || nmr != mr) {
 		if (pw == undefined)
 			pw = npw;
-		psty += 'width:' + (npw - nml - nmr).toFixed(2) + 'px;'
+		psty += 'width:' + (npw - nml - nmr).toFixed(1) + 'px;'
 	}
-
 	return psty
-}
-
-function para_start(action, skip) {
-    var	r,
-	cfmt = abc.cfmt(),
-	sc = cfmt.scale,
-	newpage = abc.get_newpage() ? 'newpage ' : '',
-	sty = '<p class="' + newpage,
-	psty = set_pstyle()
-
-	if (o_font.class)
-		sty += o_font.class
-	else
-		sty += 'f' + o_font.fid
-
-	if (skip)
-		psty += 'margin-top:' + skip.toFixed(2) + 'px;'
-
-	switch (action) {
-	case 'c':
-		psty += 'text-align:center;'
-		break
-	case 'r':
-		psty += 'text-align:right;'
-		break
-	case 'j':
-		psty += 'text-align:justify;'
-		break
-	}
-	if (psty)
-		sty += '" style="' + psty
-	return sty + '">'
-} // para_start()
-
-function para_build(str) {
-    var	n_font, txt,
-	 span = ''
-
-	if (c_font != o_font) {
-		span += '<span class="'
-		if (c_font.class)
-			span += c_font.class
-		else
-			span += 'f' + c_font.fid
-		span += '">'
-	}
-	txt = str.replace(/<|>|&.*?;|&|  |\$./g, function(c){
-		switch (c[0]) {
-		case '<': return "&lt;"
-		case '>': return "&gt;"
-		case '&':
-			if (c == '&')
-				 return "&amp;"
-			return c
-		case ' ':
-			return '  '		// space + nbspace
-		case '$':
-			if (c[1] == '0')
-				n_font = o_font
-			else if (c[1] >= '1' && c[1] <= '9')
-				n_font = abc.get_font("u" + c[1])
-			else
-				return c
-			c = ''
-			if (n_font == c_font)
-				return c
-			if (c_font != o_font)
-				c = "</span>";
-			c_font = n_font
-			if (c_font == o_font)
-				return c
-			if (c_font.class)
-				return c + '<span class="' + c_font.class + '">'
-			return c + '<span class="f' + c_font.fid + '">'
-		}
-	})
-	if (c_font != o_font)
-		txt += '</span>'
-	return span + txt
-} // para_build()
-
-// output a text (called from write_text)
-function write_xhtml(text, action) {
-    var i, j, text2, skip
-
-	abc.svg_flush();
-	skip = abc.get_posy()		// handle %%vskip
-
-	// output the XHTML header if not done yet
-	if (!init_done)
-		user.img_out('');
-
-	o_font = c_font = abc.get_font("text")
-	while (1) {
-		i = text.indexOf('\n\n')
-		if (i > 0) {
-			text2 = text.slice(i + 2);
-			text = text.slice(0, i)
-		}
-		text = para_build(text)
-		switch (action) {
-		default:		// left
-//		case 'c':		// center
-//		case 'r':		// right
-			user.img_out(para_start(action, skip) +
-				text.replace(/\n/g, '<br/>\n') + '</p>')
-			break
-		case 'f':		// fill
-		case 'j':		// justify
-			user.img_out(para_start(action, skip) + text + '</p>')
-			break
-		}
-		if (i <= 0)
-			break
-		text = text2;
-		skip = 0
-	}
-} // write_xhtml()
-
-// replacement of Abc write_text()
-function write_text(text, action) {
-	if (action == 's')		// skip
-		return
-	if (!abc.get_multi())
-		write_xhtml(text, action)
-	else
-		wto(text, action)
 }
 
 // entry point from cmdline
@@ -343,6 +213,10 @@ abc2svg.abc_init = function() {
 	div.right {text-align: right}\n\
 }';
 
+		// no margin / header / footer when SVG page formatting
+		if (abc.page)
+			topmargin = botmargin = header = footer = 0;
+
 		abc2svg.print('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"\n\
 	"http://www.w3.org/TR/xhtml1/DTD/xhtml1.dtd">\n\
 <html xmlns="http://www.w3.org/1999/xhtml">\n\
@@ -371,10 +245,8 @@ p span {line-height:' + ((cfmt.lineskipfac * 100) | 0).toString() + '%}\n' +
 		init_done = true;
 
 		// change the output function
-		user.img_out = function(str) { abc2svg.print(str) }
+		user.img_out = abc2svg.print
 	}
-
-	wto = abc.set_xhtml(write_text)		// switch write_text()
 }
 
 abc2svg.abc_end = function() {

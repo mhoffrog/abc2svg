@@ -1,6 +1,6 @@
 // abc2svg - gchord.js - chord symbols
 //
-// Copyright (C) 2014-2018 Jean-Francois Moine
+// Copyright (C) 2014-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -61,9 +61,11 @@ function parse_gchord(type) {
 		iend = parse.bol + line.index + 1
 	}
 
-	if (curvoice.pos.gch == SL_HIDDEN)
+	if (curvoice.pos.gch == C.SL_HIDDEN)
 		return
 
+	if (ann_font.box)
+		h_ann += 3;
 	i = 0;
 	type = 'g'
 	while (1) {
@@ -142,6 +144,7 @@ function parse_gchord(type) {
 					break
 				}
 				if (c == ';') {
+					i++;
 					gch.text += c
 					continue
 				}
@@ -160,65 +163,22 @@ function parse_gchord(type) {
 
 // transpose a chord symbol
 var	note_names = "CDEFGAB",
-	latin_names = [ "Do", "Re", "Mi", "Fa", "Sol", "La", "Si" ],
 	acc_name = ["bb", "b", "", "#", "##"]
 
 	function gch_tr1(p, i2) {
-		var	new_txt, l,
-			n, i1, i3, i4, ix, a, ip, ip2,
-			latin = 0
+	    var	new_txt,
+			n, i1, i3, i4, ix, a, ip, ip2
 
 		/* main chord */
-		switch (p[0]) {
-		case 'A': n = 5; break
-		case 'B': n = 6; break
-		case 'C': n = 0; break
-		case 'D':
-			if (p[1] == 'o') {
-				latin++;
-				n = 0		/* Do */
-				break
-			}
-			n = 1
-			break
-		case 'E': n = 2; break
-		case 'F':
-			if (p[1] == 'a')
-				latin++;	/* Fa */
-			n = 3
-			break
-		case 'G': n = 4; break
-		case 'L':
-			latin++;		/* La */
-			n = 5
-			break
-		case 'M':
-			latin++;		/* Mi */
-			n = 2
-			break
-		case 'R':
-			latin++
-			n = 1			/* Re */
-			break
-		case 'S':
-			latin++
-			if (p[1] == 'o') {
-				latin++;
-				n = 4		/* Sol */
-			} else {
-				n = 6		/* Si */
-			}
-			break
-		case '/':			// bass only
-			latin--
-			break
-		default:
-			return p
+		n = note_names.indexOf(p[0])
+		if (n < 0) {
+			if (p[0] != '/')
+				return p
 		}
 
-		a = 0;
-		ip = latin + 1
-		if (latin >= 0) {		// if some chord
+		ip = 1
+		if (n >= 0) {		// if some chord
+			a = 0
 			while (p[ip] == '#') {
 				a++;
 				ip++
@@ -232,10 +192,7 @@ var	note_names = "CDEFGAB",
 			i3 = cde2fcg[n] + i2 + a * 7;
 			i4 = cgd2cde[(i3 + 16 * 7) % 7];	// note
 			i1 = ((((i3 + 22) / 7) | 0) + 159) % 5;	// accidental
-			new_txt = (latin ? latin_names[i4] : note_names[i4]) +
-					acc_name[i1]
-		} else {
-			new_txt = ''
+			new_txt = note_names[i4] + acc_name[i1]
 		}
 
 		ip2 = p.indexOf('/', ip)	// skip 'm'/'dim'..
@@ -246,7 +203,7 @@ var	note_names = "CDEFGAB",
 		n = note_names.indexOf(p[++ip2])
 		if (n < 0)
 			return new_txt + p.slice(ip);
-//fixme: latin names not treated
+
 		new_txt += p.slice(ip, ip2);
 		a = 0
 		if (p[++ip2] == '#') {
@@ -269,38 +226,29 @@ var	note_names = "CDEFGAB",
 	} // get_tr1
 
 function gch_transp(s) {
-	var	gch, p, j,
+    var	gch,
 		i = 0,
 		i2 = curvoice.ckey.k_sf - curvoice.okey.k_sf
 
-	while (1) {
-		gch = s.a_gch[i++]
-		if (!gch)
-			return
-		if (gch.type != 'g')
-			continue
-		p = gch.text;
-		j = p.indexOf('\t')
-		if (j >= 0) {
-			j++;
-			p = p.slice(0, j) + gch_tr1(p.slice(j), i2)
-		}
-		gch.text = gch_tr1(p, i2)
+	for (i = 0; i < s.a_gch.length; i++) {
+		gch = s.a_gch[i]
+		if (gch.type == 'g')
+			gch.text = gch_tr1(gch.text, i2)
 	}
 }
 
 // -- build the chord indications / annotations --
+// (possible hook)
 function gch_build(s) {
 
 	/* split the chord indications / annotations
 	 * and initialize their vertical offsets */
 	var	gch, wh, xspc, ix,
-		pos = curvoice.pos.gch == SL_BELOW ? -1 : 1,
+		pos = curvoice.pos.gch == C.SL_BELOW ? -1 : 1,
 		y_above = 0,
 		y_below = 0,
 		y_left = 0,
 		y_right = 0,
-		box = cfmt.gchordbox,
 		GCHPRE = .4;		// portion of chord before note
 
 	s.a_gch = a_gch;
@@ -332,17 +280,25 @@ function gch_build(s) {
 					}
 					return "&#x1d12b;"
 				});
+			if (gch.font.box)
+				gch.box = true
 		} else {
 			gch.text = cnv_escape(gch.text);
+			if (gch.font.box)
+				gch.box = true
 			if (gch.type == '@'
-			 && !user.anno_start && !user.anno_stop)
+			 && !user.anno_start && !user.anno_stop) {
+				gch.wh = [0, 0]
 				continue		/* no width */
+			}
 		}
 
 		/* set the offsets and widths */
-		gene.curfont = gch.font;
+		set_font(gch.font);
 		wh = strwh(gch.text);
-		gch.w = wh[0]
+		gch.wh = wh
+		if (gch.box)
+			wh[1] += 4
 		switch (gch.type) {
 		case '@':
 			break
@@ -373,7 +329,6 @@ function gch_build(s) {
 			gch.y = y_right + wh[1] / 2
 			break
 		default:			// chord symbol
-			gch.box = box
 			xspc = wh[0] * GCHPRE
 			if (xspc > 8)
 				xspc = 8;
@@ -381,17 +336,9 @@ function gch_build(s) {
 			if (pos < 0) {		/* below */
 				y_below -= wh[1];
 				gch.y = y_below
-				if (box) {
-					y_below -= 2;
-					gch.y -= 1
-				}
 			} else {
 				y_above -= wh[1];
 				gch.y = y_above
-				if (box) {
-					y_above -= 2;
-					gch.y -= 1
-				}
 			}
 			break
 		}
@@ -423,33 +370,27 @@ function gch_build(s) {
 // -- draw the chord symbols and annotations
 // (the staves are not yet defined)
 // (unscaled delayed output)
+// (possible hook)
 function draw_gchord(s, gchy_min, gchy_max) {
-	var	gch, gch2, text, ix, x, y, y2, i, j, hbox, h
+    var	gch, text, ix, x, y, y2, hbox, h, y_above, y_below,
 
 	// adjust the vertical offset according to the chord symbols
-//fixme: w may be too small
-	var	w = s.a_gch[0].w,
-		y_above = y_get(s.st, 1, s.x - 2, w),
-		y_below = y_get(s.st, 0, s.x - 2, w),
-		yav = (((s.notes[s.nhd].pit + s.notes[0].pit) >> 1) - 18) * 3
+	w = 0,
+		yav = s.dur ?
+			(((s.notes[s.nhd].pit + s.notes[0].pit) >> 1) - 18) * 3 :
+			12		// fixed offset on measure bars
 
 	for (ix = 0; ix < s.a_gch.length; ix++) {
 		gch = s.a_gch[ix]
-		if (gch.type != 'g')
-			continue
-		gch2 = gch		// chord symbol closest to the staff
-		if (gch.y < 0)
-			break
+		if (gch.wh[0] > w)
+			w = gch.wh[0]
 	}
-	if (gch2) {
-		if (gch2.y >= 0) {
-			if (y_above < gchy_max)
-				y_above = gchy_max
-		} else {
-			if (y_below > gchy_min)
-				y_below = gchy_min
-		}
-	}
+	y_above = y_get(s.st, 1, s.x - 2, w);
+	y_below = y_get(s.st, 0, s.x - 2, w)
+	if (y_above < gchy_max)
+		y_above = gchy_max
+	if (y_below > gchy_min)
+		y_below = gchy_min;
 
 	set_dscale(s.st);
 	for (ix = 0; ix < s.a_gch.length; ix++) {
@@ -457,17 +398,18 @@ function draw_gchord(s, gchy_min, gchy_max) {
 		use_font(gch.font);
 		set_font(gch.font);
 		h = gch.font.size;
-		w = gch.w;
+		hbox = gch.box ? 2 : 0;
+		w = gch.wh[0];
 		x = s.x + gch.x;
 		text = gch.text
 		switch (gch.type) {
 		case '_':			/* below */
 			y = gch.y + y_below;
-			y_set(s.st, 0, x, w, y - h * .2 - 2)
+			y_set(s.st, 0, x, w, y - hbox)
 			break
 		case '^':			/* above */
-			y = gch.y + y_above;
-			y_set(s.st, 1, x, w, y + h * .8 + 2)
+			y = gch.y + y_above + hbox;
+			y_set(s.st, 1, x, w, y + h + hbox)
 			break
 		case '<':			/* left */
 /*fixme: what symbol space?*/
@@ -476,66 +418,19 @@ function draw_gchord(s, gchy_min, gchy_max) {
 			y = gch.y + yav - h / 2
 			break
 		case '>':			/* right */
-			x += s.xmx
-			if (s.dots > 0)
+			if (s.xmx)
+				x += s.xmx
+			if (s.dots)
 				x += 1.5 + 3.5 * s.dots;
 			y = gch.y + yav - h / 2
 			break
 		default:			// chord symbol
-			hbox = gch.box ? 3 : 2
 			if (gch.y >= 0) {
-				y = gch.y + y_above;
+				y = gch.y + y_above + hbox;
 				y_set(s.st, true, x, w, y + h + hbox)
 			} else {
 				y = gch.y + y_below;
 				y_set(s.st, false, x, w, y - hbox)
-			}
-			i = text.indexOf('\t')
-
-			// if some TAB: expand the chord symbol
-			if (i >= 0) {
-				x = realwidth
-				for (var next = s.next; next; next = next.next) {
-					switch (next.type) {
-					default:
-						continue
-					case NOTE:
-					case REST:
-					case BAR:
-						x = next.x
-						break
-					}
-					break
-				}
-				j = 2
-				for (;;) {
-					i = text.indexOf('\t', i + 1)
-					if (i < 0)
-						break
-					j++
-				}
-				var expdx = (x - s.x) / j;
-
-				x = s.x;
-				y *= staff_tb[s.st].staffscale
-				if (user.anno_start)
-					user.anno_start("gchord", gch.istart, gch.iend,
-						x - 2, y + h + 2, w + 4, h + 4, s)
-				i = 0;
-				j = i;
-				for (;;) {
-					i = text.indexOf('\t', j)
-					if (i < 0)
-						break
-					xy_str(x, y, text.slice(j, i), 'c');
-					x += expdx;
-					j = i + 1
-				}
-				xy_str(x, y, text.slice(j), 'c')
-				if (user.anno_stop)
-					user.anno_stop("gchord", gch.istart, gch.iend,
-						s.x - 2, y + h + 2, w + 4, h + 4, s)
-				continue
 			}
 			break
 		case '@':			/* absolute */
@@ -553,10 +448,7 @@ function draw_gchord(s, gchy_min, gchy_max) {
 		if (user.anno_start)
 			user.anno_start("annot", gch.istart, gch.iend,
 				x - 2, y + h + 2, w + 4, h + 4, s)
-		if (gch.box)
-			xy_str_b(x, y, text)
-		else
-			xy_str(x, y, text)
+		xy_str(x, y, text, null, null, gch.wh)
 		if (user.anno_stop)
 			user.anno_stop("annot", gch.istart, gch.iend,
 				x - 2, y + h + 2, w + 4, h + 4, s)

@@ -1,6 +1,6 @@
 // psvg.js - small PS to SVG convertor for abc2svg
 
-// Copyright (C) 2014-2018 Jean-Francois Moine
+// Copyright (C) 2014-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -73,8 +73,8 @@ function Psvg(abcobj_r) {
 					_cos = gcur.cos;
 				x = xtmp * _cos - y * _sin;
 				y = xtmp * _sin + y * _cos;
-				svgbuf += " translate(" + x.toFixed(2) + "," +
-						y.toFixed(2) + ")";
+				svgbuf += " translate(" + x.toFixed(1) + "," +
+						y.toFixed(1) + ")";
 				x_rot = gcur.xoffs;
 				y_rot = gcur.yoffs;
 				gcur.xoffs = 0;
@@ -153,8 +153,8 @@ function Psvg(abcobj_r) {
 	setg(1);
 	gcur.px = gcur.cx;
 	gcur.py = gcur.cy;
-	path = '<path d="m' + (gcur.xoffs + gcur.cx).toFixed(2) +
-		' ' + (gcur.yoffs - gcur.cy).toFixed(2) + '\n'
+	path = '<path d="m' + (gcur.xoffs + gcur.cx).toFixed(1) +
+		' ' + (gcur.yoffs - gcur.cy).toFixed(1) + '\n'
     }
 
     function path_end() {
@@ -204,8 +204,8 @@ function Psvg(abcobj_r) {
 				path += 'l'
 			else
 				path += 'm';
-			path += (x1 - gcur.cx).toFixed(2) + " " +
-				(-(y1 - gcur.cy)).toFixed(2)
+			path += (x1 - gcur.cx).toFixed(1) + " " +
+				(-(y1 - gcur.cy)).toFixed(1)
 		} else {
 			gcur.cx = x1;
 			gcur.cy = y1;
@@ -266,9 +266,9 @@ function Psvg(abcobj_r) {
     Psvg.prototype.curveto = function(x1, y1, x2, y2, x, y) {
 	path_def();
 	path += "\tC" + 
-		(gcur.xoffs + x1).toFixed(2) + " " + (gcur.yoffs - y1).toFixed(2) + " " +
-		(gcur.xoffs + x2).toFixed(2) + " " + (gcur.yoffs - y2).toFixed(2) + " " +
-		(gcur.xoffs + x).toFixed(2) + " " + (gcur.yoffs - y).toFixed(2) + "\n";
+		(gcur.xoffs + x1).toFixed(1) + " " + (gcur.yoffs - y1).toFixed(1) + " " +
+		(gcur.xoffs + x2).toFixed(1) + " " + (gcur.yoffs - y2).toFixed(1) + " " +
+		(gcur.xoffs + x).toFixed(1) + " " + (gcur.yoffs - y).toFixed(1) + "\n";
 	gcur.cx = x;
 	gcur.cy = y
     }
@@ -295,12 +295,12 @@ function Psvg(abcobj_r) {
     Psvg.prototype.lineto = function(x, y) {
 	path_def()
 	if (x == gcur.cx)
-		path += "\tv" + (gcur.cy - y).toFixed(2) + "\n"
+		path += "\tv" + (gcur.cy - y).toFixed(1) + "\n"
 	else if (y == gcur.cy)
-		path += "\th" + (x - gcur.cx).toFixed(2) + "\n"
+		path += "\th" + (x - gcur.cx).toFixed(1) + "\n"
 	else
-		path += "\tl" + (x - gcur.cx).toFixed(2) + " " +
-			(gcur.cy - y).toFixed(2) + "\n";
+		path += "\tl" + (x - gcur.cx).toFixed(1) + " " +
+			(gcur.cy - y).toFixed(1) + "\n";
 	gcur.cx = x;
 	gcur.cy = y
     }
@@ -309,8 +309,8 @@ function Psvg(abcobj_r) {
 	gcur.cx = x;
 	gcur.cy = y
 	if (path) {
-		path += "\tM" + (gcur.xoffs + gcur.cx).toFixed(2) + " " +
-				(gcur.yoffs - gcur.cy).toFixed(2) + "\n"
+		path += "\tM" + (gcur.xoffs + gcur.cx).toFixed(1) + " " +
+				(gcur.yoffs - gcur.cy).toFixed(1) + "\n"
 	} else if (g == 2) {
 		svgbuf += "</text>\n";
 		g = 1
@@ -324,9 +324,9 @@ function Psvg(abcobj_r) {
     Psvg.prototype.rcurveto = function(x1, y1, x2, y2, x, y) {
 	path_def();
 	path += "\tc" + 
-		x1.toFixed(2) + " " + (-y1).toFixed(2) + " " +
-		x2.toFixed(2) + " " + (-y2).toFixed(2) + " " +
-		x.toFixed(2) + " " + (-y).toFixed(2) + "\n";
+		x1.toFixed(1) + " " + (-y1).toFixed(1) + " " +
+		x2.toFixed(1) + " " + (-y2).toFixed(1) + " " +
+		x.toFixed(1) + " " + (-y).toFixed(1) + "\n";
 	gcur.cx += x;
 	gcur.cy += y
     }
@@ -334,12 +334,12 @@ function Psvg(abcobj_r) {
     function rlineto(x, y) {
 	path_def()
 	if (x == 0)
-		path += "\tv" + (-y).toFixed(2) + "\n"
+		path += "\tv" + (-y).toFixed(1) + "\n"
 	else if (y == 0)
-		path += "\th" + x.toFixed(2) + "\n"
+		path += "\th" + x.toFixed(1) + "\n"
 	else
-		path += "\tl" + x.toFixed(2) + " " +
-			(-y).toFixed(2) + "\n";
+		path += "\tl" + x.toFixed(1) + " " +
+			(-y).toFixed(1) + "\n";
 	gcur.cx += x;
 	gcur.cy += y
     }
@@ -347,8 +347,8 @@ function Psvg(abcobj_r) {
 
     Psvg.prototype.rmoveto = function(x, y) {
 	if (path) {
-		path += "\tm" + x.toFixed(2) + " " +
-				(-y).toFixed(2) + "\n"
+		path += "\tm" + x.toFixed(1) + " " +
+				(-y).toFixed(1) + "\n"
 	} else if (g == 2) {
 		svgbuf += "</text>\n";
 		g = 1
@@ -467,8 +467,8 @@ function Psvg(abcobj_r) {
 		output_font(true);
 		svgbuf += ">"
 	} else if (g != 2) {
-		svgbuf += '<text x="' + (x + gcur.xoffs).toFixed(2) + '" y="' +
-				(gcur.yoffs - y).toFixed(2) + '">';
+		svgbuf += '<text x="' + (x + gcur.xoffs).toFixed(1) + '" y="' +
+				(gcur.yoffs - y).toFixed(1) + '">';
 		g = 2
 	}
 	svgbuf += s.replace(/<|>|&|  /g, function(c){
@@ -487,7 +487,7 @@ function Psvg(abcobj_r) {
     Psvg.prototype.stroke = function() {
 	path_end()
 	if (gcur.linewidth != 0.7)
-		svgbuf += '" stroke-width="' + gcur.linewidth.toFixed(2);
+		svgbuf += '" stroke-width="' + gcur.linewidth.toFixed(1);
 	svgbuf += '" stroke="currentColor" fill="none"' + gcur.dash + '/>\n'
     }
 
@@ -558,7 +558,7 @@ function pscall(f, x, y, script) {
 	gcur.cx = 0;
 	gcur.cy = 0;
 	wps.parse(script +
-		(x / abcobj.stv_g().scale).toFixed(2) + ' ' + y.toFixed(2) + ' ' + f);
+		(x / abcobj.stv_g().scale).toFixed(1) + ' ' + y.toFixed(1) + ' ' + f);
 	ps_flush(true)			// + setg(0)
 	return true
 }
@@ -583,7 +583,7 @@ Psvg.prototype.psdeco = function(f, x, y, de) {
 	Os.pop();
 	script = '/defl ' + defl + ' def '
 	if (de.lden) {
-		script += x.toFixed(2) + ' ' + y.toFixed(2) + ' ';
+		script += x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
 		de2 = de.start;
 		x = de2.x;
 		y = de2.y + staff_tb[de2.st].y
@@ -741,7 +741,7 @@ systemdict/def{currentdict 2 index 2 index put pop pop}put\n\
 
 } // Psvg()
 
-abc2svg.modules.psvg = {
+abc2svg.psvg = {
 	do_begin_end: function(of, type, opt, text) {
 		if (type != "ps") {
 			of(type, opt, text)
@@ -762,21 +762,16 @@ abc2svg.modules.psvg = {
 		if (!this.psvg)
 			return false
 		return this.psvg.psxygl.call(this.psvg, x, y, gl)
-	}
-}
+	},
 
-abc2svg.modules.hooks.push(
-// export
-	"out_arp",
-	"out_deco_str",
-	"out_deco_val",
-	"out_ltr",
-	"xygl",
-// hooks
-	[ "do_begin_end", "abc2svg.modules.psvg.do_begin_end" ],
-	[ "psdeco", "abc2svg.modules.psvg.psdeco" ],
-	[ "psxygl", "abc2svg.modules.psvg.psxygl" ]
-);
+    set_hooks: function(abc) {
+	abc.do_begin_end = abc2svg.psvg.do_begin_end.bind(abc, abc.do_begin_end);
+	abc.psdeco = abc2svg.psvg.psdeco.bind(abc, abc.psdeco);
+	abc.psxygl = abc2svg.psvg.psxygl.bind(abc, abc.psxygl)
+    }
+} // psvg
+
+abc2svg.modules.hooks.push(abc2svg.psvg.set_hooks);
 
 // the module is loaded
 abc2svg.modules.beginps.loaded = true

@@ -4,12 +4,15 @@ function loadtxt() {
 		bad_nb: 'Número de linha incorreto',
 		fn: 'Nome do arquivo: ',
 		load: 'Por favor, inclua o arquivo ',
-		play: 'Tocar',
-		stop: 'Parar',
 	}
 	var text_kv = {
 		a: 'Sobre',
 		b: 'Arquivos ABC:',
+		cmpa: 'Todo',
+		cmpt: 'Peça',
+		cmps: 'Selecção',
+		cmpl: 'Loop',
+		cmpc: 'Continua',
 //		df: 'abc2svg features',
 //		dp: 'abc2svg parameters',
 		er: 'Erros',
@@ -20,15 +23,16 @@ function loadtxt() {
 		h: 'Ajuda',
 		ha: 'Ajuda',
 		lg: 'Língua',
-    		playbutton: 'Tocar',
+//    		playbutton: 'Tocar',
 		pr: 'Opções',
 		saveas: 'Salvar arquivo',
-		sful: 'Sound font URL',
-		sp: 'Speed'
+		sful: 'Sound font',
+		sp: 'Velocidade'
 	}
 
 	for (var k in text_kv)
 		document.getElementById(k).innerHTML = text_kv[k];
+	document.getElementById('ctxMenu').title = 'Tocar';
 
 	document.getElementById("hlp").outerHTML = '<ul  id="hlp">\n\
 <li>Você pode:\n\
@@ -43,5 +47,11 @@ function loadtxt() {
 <li>Você pode modificar o código ABC à vontade na área de edição.\n\
 	Após 2 segundos, a partitura será gerada.</li>\n\
 <li>A função \'Imprimir\' do seu navegador imprimirá apenas a partitura.</li>\n\
+<li>Você pode selecionar uma parte da música ou da área de edição<br/>\
+	(clicar e mover) ou da área da partitura.<br/>\
+        Nesse último caso, um clique esquerdo num elemento musical\
+        definirá o início da seleção. Um clique direito determinará o seu fim.<br/>\
+        Um clique direito fora da música mostrará o menu de execução,\
+        se o seu navegador for capaz de tocar a música.</li>\
 </ul>';
 }

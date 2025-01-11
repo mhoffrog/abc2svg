@@ -1,6 +1,6 @@
 // toaudio.js - audio generation
 //
-// Copyright (C) 2015-2018 Jean-Francois Moine
+// Copyright (C) 2015-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -20,16 +20,7 @@
 // ToAudio creation
 function ToAudio() {
 
-// constants from Abc
-  var	BAR = 0,
-	CLEF = 1,
-	GRACE = 4,
-	KEY = 5,
-	NOTE = 8,
-	REST = 10,
-	STAVES = 12,
-	TEMPO = 14,
-	BASE_LEN = 1536,
+  var	C = abc2svg.C,
 
 	scale = new Uint8Array([0, 2, 4, 5, 7, 9, 11]),	// note to pitch conversion
 
@@ -41,7 +32,17 @@ function ToAudio() {
 
 // ToAudio
   return {
-// clear the playing events and return the old ones
+
+// clear the playing events and
+// return the old ones as an array of Float32Array:
+//	[0]: index of the note in the ABC source
+//	[1]: time in seconds
+//	[2]: if >= 0: MIDI instrument (MIDI GM number - 1)
+//		else: MIDI control message
+//	[3]: MIDI note pitch (with cents) / controller
+//	[4]: duration			  / controller value
+//	[5]: volume (0..1)
+//	[6]: voice number
     clear: function() {
 	var a_pe = a_e;
 	a_e = null
@@ -54,6 +55,7 @@ function ToAudio() {
 	var	kmaps = [],		// accidentals per voice from key signature
 		cmaps = [],		// current accidental table
 		map,			// map of the current voice - 10 octaves
+		temper,			// temperament
 		i, n, dt, d, v,
 		top_v,			// top voice
 		rep_st_s,		// start of sequence to be repeated
@@ -70,16 +72,32 @@ function ToAudio() {
 	function set_voices() {
 	    var v, p_v, s, mi
 
+		temper = voice_tb[0].temper;	// (set by the module temper.js)
 		transp = new Int8Array(voice_tb.length)
 		for (v = 0; v < voice_tb.length; v++) {
 			p_v = voice_tb[v];
 
 			mi = p_v.instr || 0
 			if (p_v.midictl) {
-				if (p_v.midictl[32])		// bank LSB
-					mi += p_v.midictl[32] * 128
-				if (p_v.midictl[0])		// bank MSB
-					mi += p_v.midictl[0] * 128 * 128
+				p_v.midictl.forEach(function(val, i) {
+					switch(i) {
+					case 0:		// bank MSB
+						mi += val * 128 * 128
+						break
+					case 32:	// bank LSB
+						mi += val * 128
+						break
+					default:	// generate a MIDI control
+						a_e.push(new Float32Array([
+							p_v.sym.istart,
+							1,	// (time)
+							-1,	// MIDI control
+							i,
+							val,
+							1,
+							v]))
+					}
+				})
 			}
 			instr[v] = mi;			// MIDI instrument
 
@@ -100,10 +118,11 @@ function ToAudio() {
 
 	    if (s.k_bagpipe) {
 		// detune for just intonation in A (C is C#, F is F# and G is Gnat)
-		bmap = new Float32Array([100-13.7, -2, 2, 100-15.6, -31.2, 0, 3.9])
-		for (i = 0; i < 7; i++)
-			bmap[i] = (bmap[i] + 150.6) / 100 // 'A' bagpipe = 480Hz
-				// 150.6 = (Math.log2(480/440) - 1)*1200
+//		bmap = new Float32Array([100-13.7, -2, 2, 100-15.6, -31.2, 0, 3.9])
+//		for (i = 0; i < 7; i++)
+//			bmap[i] = (bmap[i] + 150.6) / 100 // 'A' bagpipe = 480Hz
+//				// 150.6 = (Math.log2(480/440) - 1)*1200
+		bmap = new Float32Array([2.37, 1.49, 1.53, 2.35, 1.19, 1.51, 1.55])
 	    } else {
 		bmap = new Float32Array(7)
 		switch (s.k_sf) {
@@ -130,9 +149,8 @@ function ToAudio() {
 
 	// convert ABC pitch to MIDI index
 	function pit2mid(s, i) {
-		var	n, oct,
-			note = s.notes[i];
-			p = note.apit + 19, // pitch from C-1
+		var	note = s.notes[i],
+			p = note.pit + 19,	// pitch from C-1
 			a = note.acc
 
 		if (transp[s.v])
@@ -144,15 +162,20 @@ function ToAudio() {
 				a = (a < 0 ? -note.micro_n : note.micro_n) /
 						note.micro_d * 2;
 			map[p] = a
+		} else {
+			a = map[p]
 		}
-		return ((p / 7) | 0) * 12 + scale[p % 7] + map[p]
+		p = ((p / 7) | 0) * 12 + scale[p % 7] + a
+		if (!temper || a | 0 != a)	// if equal temperament or micro-tone
+			return p
+		return p + temper[p % 12]
 	} // pit2mid()
 
 	// handle the ties
 	function do_tie(s, note, d) {
 		var	n,
 			end_time = s.time + s.dur,
-			pit = note.apit,
+			pit = note.pit,
 			p = pit + 19,
 			a = note.acc
 
@@ -176,13 +199,13 @@ function ToAudio() {
 			}
 			if (s.time != end_time)
 				return d
-			if (s.type == NOTE)
+			if (s.type == C.NOTE)
 				break
 		}
 		n = s.notes.length
 		for (i = 0; i < n; i++) {
 			note = s.notes[i]
-			if (note.apit == pit) {
+			if (note.pit == pit) {
 				d += s.dur / play_factor;
 				note.ti2 = true
 				return note.ti1 ? do_tie(s, note, d) : d
@@ -198,9 +221,9 @@ function ToAudio() {
 
 		// before beat
 		if (s.sappo) {
-			d = BASE_LEN / 16
-		} else if ((!next || next.type != NOTE)
-			&& s.prev && s.prev.type == NOTE) {
+			d = C.BLEN / 16
+		} else if ((!next || next.type != C.NOTE)
+			&& s.prev && s.prev.type == C.NOTE) {
 			d = s.prev.dur / 2
 
 		// on beat
@@ -219,23 +242,28 @@ function ToAudio() {
 				}
 			}
 
-			if (!next.dots)
-				d = next.dur / 2
-			else if (next.dots == 1)
-				d = next.dur / 3
+//			if (!next.dots)
+//				d = next.dur / 2
+//			else if (next.dots == 1)
+//				d = next.dur / 3
+//			else
+//				d = next.dur * 2 / 7;
+			d = next.dur / 12
+			if (d & (d - 1) == 0)
+				d = next.dur / 2	// no dot
 			else
-				d = next.dur * 2 / 7;
+				d = next.dur / 3;
 			next.time += d;
 			next.dur -= d
 		}
 		n = 0
 		for (g = s.extra; g; g = g.next)
-			if (g.type == NOTE)
+			if (g.type == C.NOTE)
 				n++;
 		d /= n * play_factor;
 		t = p_time
 		for (g = s.extra; g; g = g.next) {
-			if (g.type != NOTE)
+			if (g.type != C.NOTE)
 				continue
 			gen_notes(g, t, d);
 			t += d
@@ -248,12 +276,14 @@ function ToAudio() {
 		    var	note = s.notes[i]
 			if (note.ti2)
 				continue
-			a_e.push([
+			a_e.push(new Float32Array([
 				s.istart,
 				t,
 				instr[s.v],
 				pit2mid(s, i),
-				note.ti1 ? do_tie(s, note, d) : d])
+				note.ti1 ? do_tie(s, note, d) : d,
+				1,
+				s.v]))
 		}
 	} // gen_note()
 
@@ -264,15 +294,16 @@ function ToAudio() {
 	if (!a_e) {			// if first call
 		a_e = []
 		abc_time = rep_st_t = p_time = 0;
-		play_factor = BASE_LEN / 4 * 120 / 60	// default: Q:1/4=120
+		play_factor = C.BLEN / 4 * 120 / 60	// default: Q:1/4=120
 	} else if (s.time < abc_time) {
 		abc_time = rep_st_t = s.time
 	}
 
 	// loop on the symbols
 	while (s) {
-		if (s.type == TEMPO
-		 && s.tempo) {
+//		if (s.type == C.TEMPO
+//		 && s.tempo) {
+		if (s.tempo) {				// tempo change
 			d = 0;
 			n = s.tempo_notes.length
 			for (i = 0; i < n; i++)
@@ -293,7 +324,7 @@ function ToAudio() {
 
 		map = cmaps[s.v]
 		switch (s.type) {
-		case BAR:
+		case C.BAR:
 //fixme: does not work if different measures per voice
 			if (s.v != top_v)
 				break
@@ -348,42 +379,64 @@ function ToAudio() {
 				rep_en_s = s
 			}
 			break
-		case CLEF:
+		case C.CLEF:
 			transp[s.v] = (!s.clef_octave || s.clef_oct_transp) ?
 					0 : s.clef_octave
 			break
-		case GRACE:
+		case C.GRACE:
 			if (s.time == 0		// if before beat at start time
 			 && abc_time == 0) {
 				dt = 0
 				if (s.sappo)
-					dt = BASE_LEN / 16
-				else if (!s.next || s.next.type != NOTE)
+					dt = C.BLEN / 16
+				else if (!s.next || s.next.type != C.NOTE)
 					dt = d / 2;
 				abc_time -= dt
 			}
 			gen_grace(s)
 			break
-		case KEY:
+		case C.KEY:
 			key_map(s)
 			break
-		case REST:
-		case NOTE:
+		case C.REST:
+		case C.NOTE:
 			d = s.dur
-			if (s.next && s.next.type == GRACE) {
+			if (s.next && s.next.type == C.GRACE) {
 				dt = 0
 				if (s.next.sappo)
-					dt = BASE_LEN / 16
-				else if (!s.next.next || s.next.next.type != NOTE)
+					dt = C.BLEN / 16
+				else if (!s.next.next || s.next.next.type != C.NOTE)
 					dt = d / 2;
 				s.next.time -= dt;
 				d -= dt
 			}
-			if (s.type == NOTE)
-				gen_notes(s, p_time, d / play_factor)
+			d /= play_factor
+			if (s.type == C.NOTE)
+				gen_notes(s, p_time, d)
+			else
+				a_e.push(new Float32Array([
+					s.istart,
+					p_time,
+					0,
+					0,
+					d,
+					0,
+					s.v]))
 			break
-		case STAVES:
+		case C.STAVES:
 			top_v = s.sy.top_voice
+			break
+		case C.BLOCK:
+			if (s.subtype != "midictl")
+				break
+			a_e.push(new Float32Array([	// generate a MIDI control
+				s.istart,
+				p_time,
+				-1,			// MIDI control
+				s.ctrl,
+				s.val,
+				1,
+				s.v]))
 			break
 		}
 		s = s.ts_next

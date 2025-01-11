@@ -1,6 +1,6 @@
 // clip.js - module to handle the %%clip command
 //
-// Copyright (C) 2018 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2019 Jean-Francois Moine - GPL3+
 //
 // This module is loaded when "%%clip" appears in a ABC source.
 //
@@ -10,7 +10,7 @@
 abc2svg.clip = {
 
     get_clip: function(parm) {
-    var	BASE_LEN = 1536		// constant from the abc2svg core
+    var	C = abc2svg.C
 
 	// get the start/stop points
 	function get_symsel(a) {
@@ -23,10 +23,10 @@ abc2svg.clip = {
 			sq = b[2].charCodeAt(0) - 0x61
 		if (!b[3])
 			return {m: b[1], t: 0, sq: sq}	// on measure bar
-		a = b[3].match(/:(\d)\/(\d)/)
+		a = b[3].match(/:(\d+)\/(\d+)/)
 		if (!a || a[2] < 1)
 			return
-		return {m: b[1], t: a[1] * BASE_LEN / a[2], sq: sq}
+		return {m: b[1], t: a[1] * C.BLEN / a[2], sq: sq}
 	} // get_symsel()
 
 	    var	b, c,
@@ -50,12 +50,8 @@ abc2svg.clip = {
 
     // cut the tune
     do_clip: function() {
-    var	BAR = 0,		// constants from the abc2svg core
-	CLEF = 1,
-	KEY = 5,
-	METER = 6,
-	STAVES = 12
-    var	voice_tb = this.get_voice_tb(),
+    var	C = abc2svg.C
+	voice_tb = this.get_voice_tb(),
 	cfmt = this.cfmt()
 
 	// go to a global (measure + time)
@@ -65,7 +61,7 @@ abc2svg.clip = {
 		if (sel.m <= 1) {	// special case: there is no measure 0/1
 			if (sel.m == 1) {
 				for (s2 = s; s2; s2 = s2.ts_next) {
-					if (s2.type == BAR
+					if (s2.type == C.BAR
 					 && s2.time != 0)
 						break
 				}
@@ -75,7 +71,7 @@ abc2svg.clip = {
 			}
 		} else {
 			for ( ; s; s = s.ts_next) {
-				if (s.type == BAR
+				if (s.type == C.BAR
 				 && s.bar_num >= sel.m)
 					break
 			}
@@ -85,7 +81,7 @@ abc2svg.clip = {
 			if (sel.sq) {
 				seq = sel.sq
 				for (s = s.ts_next; s; s = s.ts_next) {
-					if (s.type == BAR
+					if (s.type == C.BAR
 					 && s.bar_num == sel.m) {
 						if (--seq == 0)
 							break
@@ -126,16 +122,16 @@ abc2svg.clip = {
 			sy = this.get_cur_sy()
 			for (s2 = this.get_tsfirst(); s2 != s; s2 = s2.ts_next) {
 				switch (s2.type) {
-				case CLEF:
+				case C.CLEF:
 					s2.p_v.clef = s2
 					break
-				case KEY:
+				case C.KEY:
 					s2.p_v.key = this.clone(s2.as.u.key)
 					break
-				case METER:
+				case C.METER:
 					s2.p_v.meter = this.clone(s2.as.u.meter)
 					break
-				case STAVES:
+				case C.STAVES:
 					sy = s2.sy;
 					this.set_cur_sy(sy)
 					break
@@ -193,18 +189,15 @@ abc2svg.clip = {
 	of()
 	if (this.cfmt().clip)
 		abc2svg.clip.do_clip.call(this)
+    },
+
+    set_hooks: function(abc) {
+	abc.do_pscom = abc2svg.clip.do_pscom.bind(abc, abc.do_pscom);
+	abc.set_bar_num = abc2svg.clip.set_bar_num.bind(abc, abc.set_bar_num)
     }
 } // clip
 
-abc2svg.modules.hooks.push(
-// export
-	"clone",
-	"errs",
-	"syntax",
-// hooks
-	[ "do_pscom", "abc2svg.clip.do_pscom" ],
-	[ "set_bar_num", "abc2svg.clip.set_bar_num" ]
-);
+abc2svg.modules.hooks.push(abc2svg.clip.set_hooks);
 
 // the module is loaded
 abc2svg.modules.clip.loaded = true

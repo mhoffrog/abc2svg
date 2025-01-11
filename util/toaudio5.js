@@ -1,6 +1,6 @@
 // toaudio5.js - audio output using HTML5 audio
 //
-// Copyright (C) 2015-2018 Jean-Francois Moine
+// Copyright (C) 2015-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -18,17 +18,30 @@
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
 // Audio5 creation
-// one argument:
+
 // @conf: configuration object - all items are optional:
-//	ac: audio context
-//	sfu: soundfont URL (sf2 base64 encoded)
+//	ac: audio context - (default: created on play start)
+//	sfu: soundfont URL (sf2 base64 encoded - default: "Scc1t2")
 //	onend: callback function called at end of playing
 //		(no arguments)
 //	onnote: callback function called on note start/stop playing
 //		Arguments:
 //			i: start index of the note in the ABC source
 //			on: true on note start, false on note stop
+//	instr_load: function to load the sound font of an instrument
+//			(default: js_instr_load)
+//		Arguments:
+//			instr: MIDI instrument number
+//			done: callback function in case of success
+//				Arguments: soundfont in binary format
+//			fail: callback function in case of error
+//				no argument
 //	errmsg: function called on error (default: alert)
+//
+//  When playing, the following items must/may be set:
+//	gain: (mandatory) volume, must be set to [0..1]
+//	speed: (mandatory) must be set to 1
+//	new_speed: (optional) new speed value
 
 // Audio5 methods
 
@@ -37,13 +50,12 @@
 //
 // play() - start playing
 // @start_index -
-// @stop_index: play the notes found in ABC source between
-//		the start and stop indexes
-// @play_event: optional (default: previous generated events)
-//	array of array
+// @stop_index: indexes of the play_event array
+// @play_event: array of array
 //		[0]: index of the note in the ABC source
 //		[1]: time in seconds
-//		[2]: MIDI instrument (MIDI GM number - 1)
+//		[2]: if >= 0: MIDI instrument (MIDI GM number - 1)
+//			else: MIDI control message (not treated here)
 //		[3]: MIDI note pitch (with cents)
 //		[4]: duration
 //		[5]: volume (0..1 - optional)
@@ -70,8 +82,21 @@ function Audio5(i_conf) {
 
 	// -- play the memorized events --
 		evt_idx,		// event index while playing
-		iend,			// source stop index
-		stime			// start playing time
+		iend,			// play array stop index
+		stime,			// start playing time
+		timouts = []		// note start events
+
+	// default sound font load function
+	function js_instr_load(instr, done, fail) {
+		abc2svg.loadjs(conf.sfu + '/' + instr + '.js',
+			function() {
+				 done(b64dcod(abcsf2[instr]))
+			},
+			fail
+		)
+	}
+	if (!conf.instr_load)
+		conf.instr_load = js_instr_load
 
 	// base64 stuff
 	    var b64d = []
@@ -192,20 +217,22 @@ function Audio5(i_conf) {
 	} // sf2_create()
 
 	// load an instrument (.js file)
-	function load_instr(instr) {
+	function load_instr(instr, a_e) {
 		w_instr++;
-		abc2svg.loadjs(conf.sfu + '/' + instr + '.js',
-			function() {
-			    var	parser = new sf2.Parser(b64dcod(abcsf2[instr]));
+		conf.instr_load(instr,
+			function(sf2_bin) {
+			    var	parser = new sf2.Parser(sf2_bin);
 				parser.parse();
 				sf2_create(parser, instr);
-				w_instr--
+				if (--w_instr == 0)
+					play_start(a_e)
 			},
 			function() {
 				errmsg('could not find the instrument ' +
 					((instr / 128) | 0).toString() + '-' +
 					(instr % 128).toString());
-				w_instr--
+				if (--w_instr == 0)
+					play_start(a_e)
 			})
 	} // load_instr()
 
@@ -215,12 +242,12 @@ function Audio5(i_conf) {
 
 		for (i = evt_idx; ; i++) {
 			e = a_e[i]
-			if (!e || e[0] > iend)
+			if (!e || evt_idx >= iend)
 				break
 			instr = e[2]
-			if (!params[instr]) {
+			if (instr >= 0 && !params[instr]) {
 				params[instr] = [];
-				load_instr(instr)
+				load_instr(instr, a_e)
 			}
 		}
 	}
@@ -282,9 +309,9 @@ function Audio5(i_conf) {
 		var	t, e, e2, maxt, st, d;
 
 		// play the next events
-		e = a_e[evt_idx]
-		if (!e
-		 || e[0] > iend) {		// if source ref > source end
+		if (a_e)			// if not stop
+			e = a_e[evt_idx]
+		if (!e || evt_idx >= iend) {
 			onend()
 			return
 		}
@@ -298,22 +325,25 @@ function Audio5(i_conf) {
 			conf.new_speed = 0
 		}
 
+		timouts = [];
 //fixme: better, count the number of events?
 		t = e[1] / conf.speed;		// start time
 		maxt = t + 3			// max time = evt time + 3 seconds
 		while (1) {
 			d = e[4] / conf.speed
-			if (e[5] != 0)		// if not a rest
+			if (e[2] >= 0) {	// if not a MIDI control message
+			    if (e[5] != 0)		// if not a rest
 				note_run(e, t + stime, d)
 
 			// follow the notes while playing
 			    var	i = e[0];
 				st = (t + stime - ac.currentTime) * 1000;
-				setTimeout(onnote, st, i, true);
+				timouts.push(setTimeout(onnote, st, i, true));
 				setTimeout(onnote, st + d * 1000, i, false)
+			}
 
 			e = a_e[++evt_idx]
-			if (!e) {
+			if (!e || evt_idx >= iend) {
 				setTimeout(onend,
 					(t + stime - ac.currentTime + d) * 1000)
 				return
@@ -324,21 +354,21 @@ function Audio5(i_conf) {
 		}
 
 		// delay before next sound generation
-		setTimeout(play_next, (t + stime - ac.currentTime)
+		timouts.push(setTimeout(play_next, (t + stime - ac.currentTime)
 				* 1000 - 300,	// wake before end of playing
-				a_e)
+				a_e))
 	} // play_next()
 
 	// wait for all resources, then start playing
 	function play_start(a_e) {
-		if (iend == 0)		// play stop
-			return
-
-		// wait for instruments
-		if (w_instr != 0) {
-			setTimeout(play_start, 300, a_e)
+		if (iend == 0) {	// play stop
+			onend()
 			return
 		}
+
+		// wait for instruments
+		if (w_instr != 0)
+			return
 
 		// all resources are there
 		gain.connect(ac.destination);
@@ -365,7 +395,7 @@ function Audio5(i_conf) {
 
 	// play the events
 	play: function(istart, i_iend, a_e) {
-		if (!a_e || !a_e.length) {
+		if (!a_e || istart >= a_e.length) {
 			onend()			// nothing to play
 			return
 		}
@@ -382,13 +412,7 @@ function Audio5(i_conf) {
 		}
 
 		iend = i_iend;
-		evt_idx = 0
-		while (a_e[evt_idx] && a_e[evt_idx][0] < istart)
-			evt_idx++
-		if (!a_e[evt_idx]) {
-			onend()			// nothing to play
-			return
-		}
+		evt_idx = istart;
 		load_res(a_e);
 		play_start(a_e)
 	}, // play()
@@ -396,6 +420,10 @@ function Audio5(i_conf) {
 	// stop playing
 	stop: function() {
 		iend = 0
+		timouts.forEach(function(id) {
+					clearTimeout(id)
+				})
+		play_next()
 		if (gain) {
 			gain.disconnect();
 			gain = null

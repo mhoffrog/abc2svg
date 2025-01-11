@@ -1,6 +1,6 @@
 // abc2svg - toabw.js - SVG generation for Abiword
 //
-// Copyright (C) 2018 Jean-Francois Moine
+// Copyright (C) 2018-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -48,8 +48,8 @@ function set_unit(p) {
 	if (typeof p == "string")
 		return p
 	if (page_type[0] == 'L')
-		return (p / 96).toFixed(2) + 'in'
-	return (p / 37.8).toFixed(2) + 'cm'
+		return (p / 96).toFixed(1) + 'in'
+	return (p / 37.8).toFixed(1) + 'cm'
 }
 
 function header_footer(str) {
@@ -243,19 +243,61 @@ abc2svg.abort = function(e) {
 	abc2svg.quit()
 }
 
+function font_bug(str) {
+    var i, k, l, r, w,
+	j = 0
+
+	while (1) {
+		i = str.indexOf('font:', j)
+		if (i < 0)
+			return str
+		if (str[i - 1] == '"') {
+			j = str.indexOf('"', i)
+		} else {
+			j = str.indexOf('}', i);
+			k = str.indexOf(';', i)
+			if (j < 0 || (k >= 0 && k < j))
+				j = k
+		}
+		w = str.slice(i + 5, j).match(/[^ \t"]+|".+?"/g) // "
+
+		l = w.length;
+		r = 'font-family:' + w[--l] +
+			';font-size:' + w[--l]
+		while (--l >= 0) {
+			switch (w[l]) {
+			case 'italic':
+				r += ';font-style:italic'
+				break
+			case 'oblique':
+				r += ';font-style:oblique'
+				break
+			case 'bold':
+				r += ';font-weight:bold'
+				break
+			}
+		}
+		str = str.replace(str.slice(i, j), r)
+	}
+}
+
 function svg_out(str) {
     var	r, w, h,
 	cfmt = abc.cfmt()
 
 	switch (str.slice(0, 4)) {
 	case '<svg':
-		r = str.slice(0, 200).match(/.*width="(.*?)px" height="(.*?)px"/);
-		w = r[1] / 96;
-		h = r[2] / 96;
+//fixme: the shorthand 'font:' does not work in the library 'librsvg'
+// used by libreoffice and abiword
+// (https://gitlab.gnome.org/GNOME/librsvg/issues/34)
+		str = font_bug(str)
 		data += '<d name="g'+ (++seq).toString() +
 			'" mime-type="image/svg+xml" base64="no">\n\
 <![CDATA[' + str + ']]>\n\
 </d>\n';
+		r = str.slice(0, 200).match(/.*width="(.*?)px" height="(.*?)px"/);
+		w = r[1] / 96;
+		h = r[2] / 96;
 		section += '<p style="Normal" xid="'+
 			(seq + 1).toString() + '"><image dataid="g' +
 			seq.toString() + '" xid="' +seq.toString() +
@@ -298,7 +340,7 @@ function svg_out(str) {
 				return ''
 			default:			// size:..px
 				var r = c.match(/size:(.+)px/)
-				return 'size:' + (r[1] * 72 / 96).toFixed(2) + 'pt'
+				return 'size:' + (r[1] * 72 / 96).toFixed(1) + 'pt'
 			}
 		})
 		section += '\n'
@@ -318,8 +360,12 @@ abc2svg.abc_init = function() {
 		page_size = pw > 800 ?
 				'width="8.50" height="11.00" units="in"' :
 				'width="210.00" height="297.00" units="mm"';
-		topmargin = set_unit(cfmt.topmargin || 37.8);
-		botmargin = set_unit(cfmt.botmargin || 37.8);
+		if (abc.page) {
+			topmargin = botmargin = 0
+		} else {
+			topmargin = set_unit(cfmt.topmargin || 37.8);
+			botmargin = set_unit(cfmt.botmargin || 37.8)
+		}
 
 		// output the first generated string
 		svg_out(str);

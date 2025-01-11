@@ -1,7 +1,7 @@
 //#javascript
-// abcemb-1.js file to include in html pages with abc2svg-1.js
+// abcemb2-1.js file to include in html pages with abc2svg-1.js
 //
-// Copyright (C) 2014-2019 Jean-Francois Moine
+// Copyright (C) 2018-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -31,18 +31,18 @@ window.onerror = function(msg, url, line) {
 }
 
 var	errtxt = '',
-	new_page = '',
 	abc,				// (must be global for follow.js)
+	elts,				// ABC HTML elements
+	tunes = '',			// source of the ABC sequences
+	indx = [],			// indexes of the tunes in tunes
+	select,
 	playing,
 	abcplay,
 	playconf = {
 		onend: endplay
 	},
-	page,				// document source
-	a_src = [],			// index: #sequence,
-					//	value: [start_idx, end_idx]
 	a_pe = [],			// index: #sequence, value: playing events
-	glop,				// global sequence for play
+	glop,				// global sequence index for play
 	old_gm,
 	jsdir = document.currentScript ?
 		document.currentScript.src.match(/.*\//) :
@@ -79,7 +79,7 @@ function endplay() {
 }
 
 // function called on click on the music
-function playseq(seq) {
+function playseq(i) {
     var	outputs
 
 	if (!abcplay) {
@@ -90,28 +90,30 @@ function playseq(seq) {
 		abcplay = AbcPlay(playconf);
 	}
 	if (playing) {
-		abcplay.stop();
+		abcplay.stop()
 		return
 	}
 	playing = true
-	if (!a_pe[seq]) {		// if no playing event
-		var abc = new abc2svg.Abc(user);
+	if (!a_pe[i]) {			// if no playing event
+		abc = new abc2svg.Abc(user);
 
 		abcplay.clear();
 		abc.tosvg("play", "%%play")
+		if (select)
+			abc.tosvg('abcemb2', select)
 		try {
-			if (glop)
-				abc.tosvg("abcemb", page, glop[0], glop[1]);
-			abc.tosvg("abcemb" + seq, page, a_src[seq][0], a_src[seq][1])
+			if (glop != undefined)
+				abc.tosvg("abcemb2", tunes, indx[glop], indx[glop + 1]);
+			abc.tosvg("abcemb2-" + i, tunes, indx[i], indx[i + 1])
 		} catch(e) {
 			alert(e.message + '\nabc2svg tosvg bug - stack:\n' + e.stack);
 			playing = false;
 			a_pe[seq] = null
 			return
 		}
-		a_pe[seq] = abcplay.clear()	// keep the playing events
+		a_pe[i] = abcplay.clear()	// keep the playing events
 	}
-	abcplay.play(0, 100000, a_pe[seq])
+	abcplay.play(0, 100000, a_pe[i])
 }
 
 // function called when the page is loaded
@@ -122,6 +124,15 @@ function dom_loaded() {
 	 || !abc2svg.modules) {
 		setTimeout(dom_loaded, 500)
 		return
+	}
+
+	// convert HTML to ABC
+	function toabc(s) {
+		return s.replace(/&gt;/g, '>')
+			.replace(/&lt;/g, '<')
+			.replace(/&amp;/g, '&')
+			.replace(/[ \t]+(%%)/g, '$1')
+			.replace(/[ \t]+(.:)/g, '$1')
 	}
 
 // function to load javascript files
@@ -140,109 +151,70 @@ function dom_loaded() {
 		document.head.appendChild(s)
 	}
 
-	page = document.body.innerHTML;
+	// extract the ABC code
+	elts = document.getElementsByClassName('abc')
+	for (var i = 0; i < elts.length; i++) {
+		var elt = elts[i];
+		indx[i] = tunes.length;
+		tunes += toabc(elt.innerHTML) + '\n'
+	}
+	indx[i] = tunes.length;
+	ready()
+}
+
+function ready() {
+    var	i, j
+
+	// load the required modules
+	if (!abc2svg.modules.load(tunes, ready))
+		return
 
 	// accept page formatting
 	abc2svg.abc_end = function() {}
 
-	// load the required modules
-	if (abc2svg.modules.load(page, render))
-		render()
-}
-
-function render() {
-	page = document.body.innerHTML;
-
-	// search the ABC tunes,
-	// replace them by SVG images with play on click
-	var	i = 0, j, k, res, src,
-		seq = 0,
-		re = /\n%abc|\nX:/g,
-		re_stop = /\nX:|\n<|\n%.begin/g,
-		select = window.location.hash.slice(1);
+	var sel = window.location.hash.slice(1)
+	if (sel)
+		select = '%%select ' + decodeURIComponent(sel);
 
 	abc = new abc2svg.Abc(user)
 
-	// check if a selection
-	if (select) {
-		select = decodeURIComponent(select);
-		select = page.search(select)
-		if (select < 0)
-			select = 0
-	}
+	// generate and replace
+	for (var i = 0; i < elts.length; i++) {
+		new_page = ""
 
-	for (;;) {
+		// set the playing callback
+		j = tunes.indexOf('X:', indx[i])
+		if (j >= 0 && j < indx[i + 1])
+			new_page += '<div onclick="playseq(' + i + ')">\n'
+		else if (glop == undefined)
+			glop = i
 
-		// get the start of a ABC sequence
-		res = re.exec(page)
-		if (!res)
-			break
-		j = re.lastIndex - res[0].length;
-		new_page += page.slice(i, j);
-
-		// get the end of the ABC sequence
-		// including the %%beginxxx/%%endxxx sequences
-		re_stop.lastIndex = ++j
-		while (1) {
-			res = re_stop.exec(page)
-			if (!res || res[0][1] != "%")
-				break
-			k = page.indexOf(res[0].replace("begin", "end"),
-					re_stop.lastIndex)
-			if (k < 0)
-				break
-			re_stop.lastIndex = k
-		}
-		if (!res || k < 0)
-			k = page.length
-		else
-			k = re_stop.lastIndex - 2;
-
-	    // selection
-	    if (!select || page[j] != 'X' || (select >= j && select < k)) {
-
-		// clicking on the music plays this tune
-		if (page[j] == 'X') {
-			new_page += '<div onclick="playseq(' +
-					a_src.length + ')">\n';
-			a_src.push([j, k])
-		} else if (!glop) {
-			glop = [j, k]
+		if (sel) {
+			abc.tosvg('abcemb2', select);
+			sel = ''
 		}
 
 		try {
-			abc.tosvg('abcemb', page, j, k)
+			abc.tosvg('abcemb2', tunes, indx[i], indx[i + 1])
 		} catch (e) {
 			alert("abc2svg javascript error: " + e.message +
 				"\nStack:\n" + e.stack)
 		}
-		abc2svg.abc_end()		// close the page if %%pageheight
 		if (errtxt) {
-			i = page.indexOf("\n", j);
-			i = page.indexOf("\n", i + 1);
-			alert("Errors in\n" +
-				page.slice(j, i) +
-				"\n...\n\n" + errtxt);
+			new_page += '<p style="background:#ff8080">' +
+					errtxt + "</p>\n";
 			errtxt = ""
 		}
-		if (page[j] == 'X')
+		try {
+			elts[i].innerHTML = new_page
+		} catch (e) {
+			alert("abc2svg bad generated SVG: " + e.message +
+				"\nStack:\n" + e.stack)
+		}
+
+		if (j >= 0 && j < indx[i + 1])
 			new_page += '</div>\n'
-	    } // selection
-
-		i = k
-		if (i >= page.length)
-			break
-		if (page[i] == 'X')
-			i--
-		re.lastIndex = i
-	}
-
-	// change the page
-	try {
-		document.body.innerHTML = new_page + page.slice(i)
-	} catch (e) {
-		alert("abc2svg bad generated SVG: " + e.message +
-			"\nStack:\n" + e.stack)
+		abc2svg.abc_end()		// close the page if %%pageheight
 	}
 
 	// prepare for playing

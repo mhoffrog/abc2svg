@@ -1,6 +1,6 @@
 // play-1.js - file to include in html pages with abc2svg-1.js for playing
 //
-// Copyright (C) 2015-2018 Jean-Francois Moine
+// Copyright (C) 2015-2019 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -24,10 +24,6 @@
 
 // AbcPlay methods:
 //
-// get_outputs() - return an array of output devices
-//
-// set_output() - set the output type/port
-//
 // set_sfu() - get/set the soundfont URL
 // @url: URL - undefined = return current value
 //
@@ -39,28 +35,10 @@
 
 function AbcPlay(i_conf) {
     var	conf = i_conf,
+	init = {},
 	audio = ToAudio(),
 	audio5, midi5, current,
 	abcplay = {				// returned object (only instance)
-
-		// get the output type/ports
-		get_outputs: function() {
-		    var o,
-			outputs = []
-
-			if (midi5) {
-				o = midi5.get_outputs()
-				if (o)
-					outputs = o
-			}
-			if (audio5) {
-				o = audio5.get_outputs()
-				if (o)
-					outputs = outputs.concat(o)
-			}
-			return outputs
-		},
-		set_output: set_output,
 		clear: audio.clear,
 		add: audio.add,
 		set_sft: vf,
@@ -89,17 +67,39 @@ function AbcPlay(i_conf) {
 
 	// start playing when no defined output
 	function play(istart, i_iend, a_e) {
-	    var o,
-		os = abcplay.get_outputs()
-		if (os.length == 1) {
-			o = 0
+		init.istart = istart;
+		init.i_iend = i_iend;
+		init.a_e = a_e
+		if (midi5)
+			midi5.get_outputs(play2) // get the MIDI ports
+		else
+			play2()
+	} // play()
+
+	// if set, out contains an array of the MIDI output ports
+	function play2(out) {
+	    var o
+
+		if (!out)
+			out = []
+		o = audio5.get_outputs()	// get the HTML5 audio port
+		if (o)
+			out = out.concat(o)
+		if (out.length == 0) {
+			if (conf.onend)		// no output port
+				conf.onend()
+		}
+		if (out.length == 1) {
+			o = 0			// only one port
 		} else {
-			o = -1
-			var res = window.prompt('Use \n0: ' + os[0] +
-					'\n1: ' + os[1] + '?', '0')
+			o = -1			// ask which port?
+			var pr = "Use"
+			for (var i = 0; i < out.length; i++)
+				pr += "\n " + i + ": " + out[i]
+			var res = window.prompt(pr, '0')
 			if (res) {
 				o = Number(res)
-				if (isNaN(o) || o < 0 || o >= os.length)
+				if (isNaN(o) || o < 0 || o >= out.length)
 					o = -1
 			}
 			if (!res || o < 0) {
@@ -108,20 +108,16 @@ function AbcPlay(i_conf) {
 				return
 			}
 		}
-		set_output(os[o]);
-		abcplay.play(istart, i_iend, a_e)
-	}
 
-	// set the current output changing the play functions
-	function set_output(name) {
-		current = name == 'sf2' ? audio5 : midi5
-		if (!current)
-			return
+		// set the current output changing the play functions
+		current = out[o] == 'sf2' ? audio5 : midi5;
 		abcplay.play = current.play;
 		abcplay.stop = current.stop
 		if (current.set_output)
-			current.set_output(name)
-	} // set_output()
+			current.set_output(out[o]);
+		abcplay.play(init.istart, init.i_iend, init.a_e);
+		init = {}
+	} // play2()
 
 	// set default configuration values
 	conf.gain = 0.7;

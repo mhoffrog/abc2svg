@@ -10,7 +10,7 @@
  *   https://github.com/gree/sf2synth.js
  *
  * Adapted to abc2svg
- * Copyright (C) 2018 Jean-Francois Moine
+ * Copyright (C) 2018-2019 Jean-Francois Moine
  *
  * Licensed under the MIT License.
  */
