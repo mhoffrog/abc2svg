@@ -1,6 +1,21 @@
 // soloffs.js - module to set the X offset of some elements at start of music line
 //
-// Copyright (C) 2018-2019 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2021 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // Parameters
 //	%%soloffs <type>=<offset> [<type>=<offset>]*
@@ -26,7 +41,7 @@ abc2svg.soloffs = {
 //				soloffs[C.BAR] = v
 //				break
 			case 'part':
-				soloffs[C.PART] = v + 10	// see deco.js
+				soloffs[C.PART] = v		// see deco.js
 				break
 			case 'tempo':
 				soloffs[C.TEMPO] = v + 16	// see deco.js
@@ -46,7 +61,6 @@ abc2svg.soloffs = {
 
     set_sym_glue: function(of, width) {
     var	s,
-	C = abc2svg.C,
 	tsfirst = this.get_tsfirst(),
 	soloffs = this.cfmt().soloffs;
 
@@ -54,10 +68,12 @@ abc2svg.soloffs = {
 	if (!soloffs)
 		return
 	for (s = tsfirst; s; s = s.ts_next) {
-		if (s.dur)
+		if (s.time != tsfirst.time)
 			break
 		if (soloffs[s.type] != undefined)
 			s.x = soloffs[s.type]
+		if (s.part && soloffs[abc2svg.C.PART] != undefined)
+			s.part.x = soloffs[abc2svg.C.PART]
 	}
     }, // set_sym_glue()
 

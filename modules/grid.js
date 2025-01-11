@@ -1,17 +1,33 @@
-// grid.js - module to insert a chord grid before or after a tune
+// abc2svg - grid.js - module to insert a chord grid before or after a tune
 //
-// Copyright (C) 2018-2020 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2021 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This module is loaded when "%%grid" appears in a ABC source.
 //
 // Parameters
-//	%%grid <n> [include=<list>] [nomusic] [norepeat] [repbrk]
+//	%%grid <n> [include=<list>] [nomusic] [norepeat] [repbrk] [parts]
 //		<n> = number of columns (1: auto)
 //			> 0: above the tune, < 0: under the tune
 //		<list> = comma separated list of (continuous) measure numbers
 //		'nomusic' displays only the grid
 //		'norepeat' omits the ':' indications
 //		'repbrk' starts a new grid line on start/stop repeat
+//		'parts' displays the parts on the left side of the grid
 //	%%gridfont font_name size (default: 'serif 16')
 
 abc2svg.grid = {
@@ -30,9 +46,13 @@ abc2svg.grid = {
 	grid = cfmt.grid
 
 // generate the grid
-function build_grid(chords, bars, font, wmx) {
-    var	i, k, l, nr, bar, w, hr, x0, x, y, yl,
+function build_grid(s, font) {
+    var	i, k, l, nr, bar, w, hr, x0, x, y, yl, ps,
 	lc = '',
+	chords = s.chords,
+	bars = s.bars,
+	parts = s.parts || [],
+	wmx = s.wmx,
 	cells = [],
 	nc = grid.n
 
@@ -118,7 +138,9 @@ function build_grid(chords, bars, font, wmx) {
 		cells = chords
 	} else {				// with list of mesure numbers
 		bar = bars;
-		bars = []
+		bars = [ ]
+		ps = parts
+		parts = []
 		for (i = 0; i < grid.ls.length; i++) {
 			l = grid.ls[i]
 			if (l.indexOf('-') < 0)
@@ -130,8 +152,10 @@ function build_grid(chords, bars, font, wmx) {
 					break
 				cells.push(chords[k]);
 				bars.push(bar[k])
+				parts.push(ps[k])
 			}
 		}
+		bars.push(bar[k])		// ending bar
 	}
 
 	// get the number of columns
@@ -162,6 +186,7 @@ function build_grid(chords, bars, font, wmx) {
 		if (i == 0
 		 || (grid.repbrk
 		  && (bars[i].slice(-1) == ':' || bars[i][0] == ':'))
+		 || parts[i]
 		 || k >= nc) {
 			y -= hr			// new row
 			yl -= hr
@@ -192,7 +217,7 @@ function build_grid(chords, bars, font, wmx) {
 	}
 	abc.out_svg('"/>\n')
 
-	// show the repeat signs
+	// show the repeat signs and the parts
 	y = -1 + font.size * .7
 	x = x0
 	for (i = 0; i < bars.length; i++) {
@@ -205,11 +230,19 @@ function build_grid(chords, bars, font, wmx) {
 		}
 		if (i == 0
 		 || (grid.repbrk
-		  && (bars[i].slice(-1) == ':' || bars[i][0] == ':'))
+		  && (bar.slice(-1) == ':' || bar[0] == ':'))
+		 || parts[i]
 		 || k >= nc) {
 			y -= hr;			// new row
 			x = x0
 			k = 0
+			if (parts[i]) {
+				w = abc.strwh(parts[i])[0]
+				abc.out_svg('<text class="' + cls + '" x="')
+				abc.out_sxsy(x - 2 - w, '" y="', y)
+				abc.out_svg('" style="font-weight:bold">' +
+					parts[i] + '</text>\n')
+			}
 		}
 		k++
 		if (bar.slice(-1) == ':') {
@@ -251,11 +284,11 @@ function build_grid(chords, bars, font, wmx) {
 
 	// create the grid
 	abc.blk_flush()
-	build_grid(s.chords, s.bars, font, s.wmx)
+	build_grid(s, font)
 	abc.blk_flush()
     }, // block_gen()
 
-    output_music: function(of) {
+    set_stems: function(of) {
     var	C = abc2svg.C,
 	abc = this,
 	tsfirst = abc.get_tsfirst(),
@@ -280,14 +313,16 @@ function build_grid(chords, bars, font, wmx) {
 	    var	s, i, w, bt, rep,
 		bars = [],
 		chords = [],
+		parts = [],
 		chord = [],
 		beat = get_beat(voice_tb[0].meter),
 		wm = voice_tb[0].meter.wmeasure,
 		cur_beat = 0,
 		beat_i = 0,
-		wmx = 0
+		wmx = 0,
+		some_chord = 0
 
-		// scan the first voice of the tune
+		// scan the music symbols
 		bars.push('|')
 		for (s = tsfirst; s; s = s.ts_next) {
 			while (s.time > cur_beat) {
@@ -295,28 +330,54 @@ function build_grid(chords, bars, font, wmx) {
 					beat_i++
 				cur_beat += beat
 			}
+			if (s.part)
+				parts[chords.length] = s.part.text
 			switch (s.type) {
 			case C.NOTE:
 			case C.REST:
-				if (!s.a_gch)
+				if (!s.a_gch || chord[beat_i])
 					break
-
-				// search a chord symbol
+				bt = abc2svg.cs_filter(s.a_gch,
+							abc.cfmt().altchord)
+				if (!bt)
+					break
+				chord[beat_i] = bt
 				for (i = 0; i < s.a_gch.length; i++) {
-					if (s.a_gch[i].type == 'g') {
-						if (!chord[beat_i]) {
-							chord[beat_i] = s.a_gch[i].text
-							abc.set_font(s.a_gch[i].font)
-							w = abc.strwh(chord[beat_i])[0]
-							if (w > wmx)
-								wmx = w
-						}
+					if (s.a_gch[i].type == 'g')
 						break
-					}
 				}
+				abc.set_font(s.a_gch[i].font)
+				w = abc.strwh(bt)[0]
+				if (w > wmx)
+					wmx = w
 				break
 			case C.BAR:
-				bt = grid.norep ? '|' : s.bar_type
+				i = s.bar_num		// check if normal measure bar
+				bt = s.bar_type
+				while (s.ts_next && s.ts_next.time == s.time) {
+					if (s.ts_next.dur)
+						break
+					s = s.ts_next
+					if (s.type == C.METER) {
+						beat = get_beat(s)
+						wm = s.wmeasure
+						continue
+					}
+					if (s.type != C.BAR)
+						continue
+					if (s.bar_type[0] == ':'
+					 && bt[0] != ':')
+						bt = ':' + bt
+					if (s.bar_type.slice(-1) == ':'
+					 && bt.slice(-1) != ':')
+						bt += ':'
+					if (s.bar_num)
+						i = s.bar_num
+					if (s.part)
+						parts[chords.length + 1] = s.part.text
+				}
+				if (grid.norep)
+					bt = '|'
 				if (s.time < wm) {		// if anacrusis
 					if (chord.length) {
 						chords.push(chord)
@@ -325,18 +386,18 @@ function build_grid(chords, bars, font, wmx) {
 						bars[0] = bt
 					}
 				} else {
-					if (!s.bar_num)		// if not normal measure bar
+					if (!i)		// if not normal measure bar
 						break
 					chords.push(chord)
 					bars.push(bt)
 				}
+				if (chord.length)
+					some_chord++
 				chord = []
 				cur_beat = s.time	// synchronize in case of error
 				beat_i = 0
 				if (bt.indexOf(':') >= 0)
 					rep = true	// some repeat
-				while (s.ts_next && s.ts_next.type == C.BAR)
-					s = s.ts_next
 				break
 			case C.METER:
 				beat = get_beat(s)
@@ -349,22 +410,25 @@ function build_grid(chords, bars, font, wmx) {
 			bars.push('')
 			chords.push(chord)
 		}
-		if (!chords.length)
+		if (!some_chord)
 			return			// no chord in this tune
 
 		wmx += abc.strwh(rep ? '    ' : '  ')[0]
 
 		sb.chords = chords
 		sb.bars = bars
+		if (grid.parts && parts.length)
+			sb.parts = parts
 		sb.wmx = wmx
 	} // build_chords
 
-	// -------- output_music --------
+	// -------- set_stems --------
 
 	// create a specific block
 	if (grid) {
 	    var	C = abc2svg.C,
 		tsfirst = this.get_tsfirst(),
+		fmt = tsfirst.fmt,
 		voice_tb = this.get_voice_tb(),
 		p_v = voice_tb[this.get_top_v()],
 		s = {
@@ -409,9 +473,10 @@ function build_grid(chords, bars, font, wmx) {
 			p_v.sym.prev = s
 			p_v.sym = s
 		}
+		s.fmt = s.prev ? s.prev.fmt : fmt
 	}
 	of()
-    }, // output_music()
+    }, // set_stems()
 
     set_fmt: function(of, cmd, parm) {
 	if (cmd == "grid") {
@@ -432,6 +497,8 @@ function build_grid(chords, bars, font, wmx) {
 				grid.norep = true
 			else if (item == "nomusic")
 				grid.nomusic = true
+			else if (item == "parts")
+				grid.parts = true
 			else if (item == "repbrk")
 				grid.repbrk = true
 			else if (item.slice(0, 8) == "include=")
@@ -445,7 +512,7 @@ function build_grid(chords, bars, font, wmx) {
 
     set_hooks: function(abc) {
 	abc.block_gen = abc2svg.grid.block_gen.bind(abc, abc.block_gen)
-	abc.output_music = abc2svg.grid.output_music.bind(abc, abc.output_music);
+	abc.set_stems = abc2svg.grid.set_stems.bind(abc, abc.set_stems)
 	abc.set_format = abc2svg.grid.set_fmt.bind(abc, abc.set_format)
     }
 } // grid

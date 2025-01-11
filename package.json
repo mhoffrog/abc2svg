@@ -1,10 +1,7 @@
 {
   "name": "abc2svg",
-  "version": "1.20.17",
+  "version": "1.21.6",
   "description": "ABC music notation translator",
-  "devDependencies": {
-    "uglify-js": "^2.5.0"
-  },
   "files": [
     "COPYING",
     "COPYING.LESSER",
@@ -50,14 +47,16 @@
     "grid2-1.js",
     "grid3-1.js",
     "json-1.js",
-    "jazzchorg-1.js",
+    "jazzchord-1.js",
     "jianpu-1.js",
     "mdnn-1.js",
+    "nns-1.js",
     "page-1.js",
     "pedline-1.js",
     "perc-1.js",
     "play-1.js",
     "psvg-1.js",
+    "roman-1.js",
     "snd-1.js",
     "soloffs-1.js",
     "sth-1.js",
@@ -68,6 +67,7 @@
     "toabw.js",
     "tohtml.js",
     "tomei.js",
+    "tonotes.js",
     "toodt.js",
     "toparam.js",
     "toxhtml.js"

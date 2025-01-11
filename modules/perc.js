@@ -1,6 +1,21 @@
 // perc.js - module to handle %%percmap
 //
-// Copyright (C) 2018-2020 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2021 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This module is loaded when "%%percmap" appears in a ABC source.
 //
@@ -119,59 +134,16 @@ var prn = {
 	"v":     58
 }
 
-    // convert a ABC note to b40
-    function abc_b40(p) {
-    var	pit,
-	acc = 0,
-	i = 0
+    // convert a drum instrument to a ABC note
+    function toabc(p) {
+    var	i, j, s, pit
 
-	switch (p[0]) {
-	case '^':
-		if (p[++i] == '^') {
-			acc = 2
-			i++
-		} else {
-			acc = 1
-		}
-		break
-	case '=':
-		i++
-		break
-	case '_':
-		if (p[++i] == '_') {
-			acc = -2
-			i++
-		} else {
-			acc = -1
-		}
-		break
-	}
-	pit = 'CDEFGABcdefgab'.indexOf(p[i++]) + 16
-	if (pit < 16)
-		return
-	while (p[i] == "'") {
-		pit += 7
-		i++
-	}
-	while (p[i] == ",") {
-		pit -= 7
-		i++
-	}
-	if (p[i])			// if some extra character
-		return
-	return abc2svg.pab40(pit, acc)
-    } // abc_b40()
+	if (/^[_^]*[A-Ga-g][,']*$/.test(p))	// '
+		return p		// ABC note
 
-    // convert a drum instrument to a pitch
-    function topit(p) {
-    var	i, j, s, b40,
+	// if not a MIDI pitch, try a drum instrument name
 	pit = Number(p)
-
-	if (isNaN(pit)) {		// not a MIDI pitch
-	    b40 = abc_b40(p)		// try a ABC note
-	    if (!b40) {
-
-		// try a drum instrument name
+	if (isNaN(pit)) {
 		p = p.toLowerCase(p);
 		s = p[0];		// get the 1st letters after '-'
 		i = 0
@@ -199,10 +171,10 @@ var prn = {
 				i = p.indexOf('-')
 				if (p[i + 1] != 't')
 					break
-				switch (p[1]) {
+				switch (p[i + 2]) {
 				case 'i':
 				case 'o':
-					pit = prn[s + p[1]]
+					pit = prn[s + p[i + 2]]
 					break
 				}
 				break
@@ -210,56 +182,28 @@ var prn = {
 			if (!pit)
 				return
 		}
-	    }
 	}
-	if (!b40) {
-		p = (pit / 12) | 0		// octave
-		pit = pit % 12;			// in octave
-		b40 = p * 40 + abc2svg.isb40[pit] + 2
+
+	p = ["C","^C","D","_E","E","F","^F","G","^G","A","_B","B"][pit % 12]
+	while (pit < 60) {
+		p += ','
+		pit += 12
 	}
-	return {
-		pit: abc2svg.b40p(b40),
-		acc: abc2svg.b40a(b40)
+	while (pit >= 72) {
+		p += "'"
+		pit -= 12
 	}
-    } // tob40()
+	return p
+    } // toabc()
 
     // do_perc()
-    var	vpr, vpl,
-	maps = this.get_maps(),
-	a = parm.split(/\s+/),
-	n = abc_b40(a[1])			// note as b40
+    var	a = parm.split(/\s+/),
+	p = a[1].replace(/[=_^]/, '')
 
-	if (!n) {
-		this.syntax(1, this.errs.bad_val, "%%percmap")
-		return
-	}
-
-	vpr = {					// print
-		pit: abc2svg.b40p(n),
-		acc: 0
-	}
-
-	vpl = topit(a[2])				// play
-
-	if (!vpl.pit) {
-		this.syntax(1, this.errs.bad_val, "%%percmap")
-		return
-	}
-	a = a[3] ? [a[3]] : null		// head
-	if (!maps.MIDIdrum)
-		maps.MIDIdrum = {}
-	n = n.toString()
-	if (!maps.MIDIdrum[n]) {
-		maps.MIDIdrum[n] =
-			[a, vpr, null, vpl]	// [heads, print, color, play]
-	} else {
-		if (a)
-			maps.MIDIdrum[n][0] = a
-		if (!maps.MIDIdrum[n][1])
-			maps.MIDIdrum[n][1] = vpr
-		maps.MIDIdrum[n][3] = vpl
-	}
-
+	this.do_pscom("map MIDIdrum " + a[1] +
+		" play=" + toabc(a[2]) +
+		" print=" + p +
+		(a[3] ? (" heads=" + a[3]) : ''))
 	this.set_v_param("perc", "MIDIdrum")
     }, // do_perc()
 

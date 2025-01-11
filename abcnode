@@ -1,7 +1,16 @@
 :;# abc2svg with raw nodeJS
-progdir=`dirname $0`
 
-cat ${progdir}/abc2svg-1.js ${progdir}/cmdline.js > /tmp/toto.js
+# search where are the abc2svg scripts
+p=$0
+if [ `dirname $p` = . ]; then
+	p=`which $p`
+fi
+if [ -L $p ]; then
+	p=`realpath $p`
+fi
+p=`dirname $p`
+
+cat ${p}/abc2svg-1.js ${p}/cmdline.js > /tmp/toto.js
 case $1 in
 	*.js)
 		cat $1 >> /tmp/toto.js
@@ -12,11 +21,11 @@ case $1 in
 		;;
 esac
 if [ "x$x" != 'xno' ]; then
-	cat ${progdir}/tohtml.js >> /tmp/toto.js
+	cat ${p}/tohtml.js >> /tmp/toto.js
 fi
 
 cat <<EOF >> /tmp/toto.js
-    var	progdir='${progdir}/'
+    var	path='${p}/'
 
 // interpreter specific functions
 abc2svg.print = function(str) {
@@ -31,7 +40,11 @@ abc2svg.quit = function() {
 abc2svg.readFile = function(fname) {
     var	fs = require("fs");
 
-	return fs.readFileSync(fname).toString()
+	try {
+		return fs.readFileSync(fname).toString()
+	} catch(e) {
+	}
+	return null
 }
 
 abc2svg.get_mtime= function(fn) {
@@ -43,7 +56,7 @@ abc2svg.get_mtime= function(fn) {
 abc2svg.loadjs = function(fn, relay, onerror) {
 	try {
 		var geval = eval;
-		geval(abc2svg.readFile(progdir + fn))
+		geval(abc2svg.readFile(path + fn))
 		if (relay)
 			relay()
 	} catch(e) {
@@ -59,11 +72,15 @@ global.Abc = Abc
 global.abc2svg = abc2svg
 
 // main
-    var	args = process.argv
+    var	args = process.argv,
+	i = '${ABCPATH}'
+	if (i)
+		abc2svg.path = i.split(':')
+
 	args.shift()
 	args.shift()
 	global.user = user;		// (for modules/page.js)
-	abc_cmd("abcnode", process.argv, "nodeJS")
+	abc_cmd("abcnode", args, "nodeJS")
 EOF
 
 node /tmp/toto.js "$@"

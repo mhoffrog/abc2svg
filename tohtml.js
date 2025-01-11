@@ -1,6 +1,6 @@
 // abc2svg - tohtml.js - HTML+SVG generation
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -48,60 +48,62 @@ function get_date() {
 } // get_date()
 
 function header_footer(str) {
-    var	c, i, t,
+    var	c, d, i, t,
 	j = 0,
 	r = ["", "", ""]
 
 	if (str[0] == '"')
 		str = str.slice(1, -1)
-	if (str.indexOf('\t') < 0)		// if no TAB
-		str = '\t' + str		// center
-
-	for (i = 0; i < str.length; i++) {
-		c = str[i]
-		switch (c) {
-		case '\t':
-			if (j < 2)
-				j++		// next column
-			continue
-		case '\\':			// hope '\n'
-			for (j = 0; j < 3; j++)
-				r[j] += '<br/>'
-			j = 0
-			i++
-			continue
-		default:
-			r[j] += c
-			continue
-		case '$':
+	while (1) {
+		i = str.indexOf('$', j)
+		if (i < 0)
 			break
-		}
 		c = str[++i]
 		switch (c) {
 		case 'd':
 			if (!abc2svg.get_mtime)
 				break // cannot know the modification date of the file
-			r[j] += abc2svg.get_mtime(abc.parse.fname)
+			d = abc2svg.get_mtime(abc.parse.fname)
 			break
 		case 'D':
-			r[j] += get_date()
+			d = get_date()
 			break
 		case 'F':
-			r[j] += abc.parse.fname
+			d = abc.parse.fname
 			break
 		case 'I':
-			c = str[++i]
+			str = str.replace('$', '')
+			d = str[i]
 		case 'T':
 			t = abc.info()[c]
-			if (t)
-				r[j] += t.split('\n', 1)[0]
+			d = t ? t.split('\n', 1)[0] : ''
 			break
 		case 'P':
-			r[j] += '\x0c'	// form feed
+			d = '\x0c'	// form feed
 			break
 		case 'V':
-			r[j] += "abc2svg-" + abc2svg.version
+			d = "abc2svg-" + abc2svg.version
 			break
+		default:
+			d = ''
+			break
+		}
+		str = str.replace('$' + c, d)
+		j = i
+	}
+	str = str.split('\n')
+	for (j = 0; j < str.length; j++) {
+		if (j != 0)
+			for (i = 0; i < 3; i++)
+				r[i] += '<br>'
+		t = str[j].split('\t')
+		if (t.length == 1) {
+			r[1] += t[0]
+		} else {
+			for (i = 0; i < 3; i++) {
+				if (t[i])
+					r[i] += t[i]
+			}
 		}
 	}
 	return r
@@ -152,29 +154,33 @@ abc2svg.abc_init = function() {
 
 	// output a header or footer
 	function gen_hf(type, str) {
-	    var	a, i, page,
-		lcr = ["left", "center", "right"]
-
+	    var	i, page,
+		lcr = ["l", "c", "r"],
+//fixme: handle font changes?
 		a = header_footer(clean_txt(str))
+
+		abc2svg.print('<table class="' + type + '" width="100%"><tr>')
 		for (i = 0; i < 3; i++) {
 			str = a[i]
 			if (!str)
-				continue
+				str = '&nbsp;'
+//fixme
 			if (str.indexOf('\x0c') >= 0) {
 				str = str.replace('\x0c', '')
 				page = " page"
 			} else {
 				page = ''
 			}
-			abc2svg.print('<div class="' + type + ' ' + lcr[i] + page +
-				'">' +
-				str + '</div>')
+			abc2svg.print('<td class="' + lcr[i] + page +
+				'" width="33%">' +
+				str + '</td>')
 		}
+		abc2svg.print('</table>')
 	}
 
 	user.page_format = true
 
-	// output the xhtml header
+	// output the html header
 	user.img_out = function(str) {
 		var	header = cfmt.header,
 			footer = cfmt.footer,
@@ -185,9 +191,8 @@ abc2svg.abc_init = function() {
 	.newpage {page-break-before: always}\n\
 	div.nobrk {page-break-inside: avoid}\n\
 }',
-			media_f ='@media screen {\n\
-	div.header {display: none}\n\
-	div.footer {display: none}\n\
+			media_f = '@media screen {\n\
+	.header, .footer, .h-sp, .f-sp {display: none}\n\
 }\n\
 @media print {\n\
 	body {margin:0; padding:0; border:0;\n\
@@ -195,25 +200,33 @@ abc2svg.abc_init = function() {
 		counter-increment: page; }\n\
 	.newpage {page-break-before: always}\n\
 	div.nobrk {page-break-inside: avoid}\n\
-	div.header {\n\
+	.header {\n\
 		position: fixed;\n\
-		top: 0pt;\n\
-		width: 100%;\n\
-		' + abc.style_font(cfmt.headerfont) + '\n\
+		top: ' + cfmt.headerfont.size + 'px;\n\
+		height: ' + (cfmt.headerfont.size * 2) + 'px;\n\
+		' + abc.style_font(cfmt.headerfont) + ';\n\
+		left: ' + cfmt.leftmargin.toFixed(1) + 'px;\n\
+		width: ' + (cfmt.pagewidth - cfmt.leftmargin
+				- cfmt.rightmargin).toFixed(1) + 'px\n\
 	}\n\
-	div.footer {\n\
+	.footer {\n\
 		position: fixed;\n\
-		bottom: 0pt;\n\
-		width: 100%;\n\
-		' + abc.style_font(cfmt.footerfont) + '\n\
+		bottom: 0;\n\
+		height: ' + (cfmt.footerfont.size * 2) + 'px;\n\
+		' + abc.style_font(cfmt.footerfont) + ';\n\
+		left: ' + cfmt.leftmargin.toFixed(1) + 'px;\n\
+		width: ' + (cfmt.pagewidth - cfmt.leftmargin
+				- cfmt.rightmargin).toFixed(1) + 'px\n\
 	}\n\
+	.h-sp, .f-sp {height: '
+			+ (cfmt.headerfont.size * 2) + 'px}\n\
 	div.page:after {\n\
 		counter-increment: page;\n\
 		content: counter(page);\n\
 	}\n\
-	div.left {text-align: left}\n\
-	div.center {text-align: center}\n\
-	div.right {text-align: right}\n\
+	.l {text-align: left}\n\
+	.c {text-align: center}\n\
+	.r {text-align: right}\n\
 }';
 
 		// no margin / header / footer when SVG page formatting
@@ -222,35 +235,44 @@ abc2svg.abc_init = function() {
 
 		abc2svg.print('<!DOCTYPE html>\n\
 <html>\n\
-<head>\n\
 <meta charset="utf-8"/>\n\
 <meta name="generator" content="abc2svg-' + abc2svg.version + '"/>\n\
 <!-- CreationDate: ' + get_date() + '-->\n\
 <style>\n\
 body {width:' + cfmt.pagewidth.toFixed(0) +'px}\n\
+svg {display:block}\n\
 p {' + set_pstyle() + 'margin-top:0}\n\
 p span {line-height:' + ((cfmt.lineskipfac * 100) | 0).toString() + '%}\n' +
 			((header || footer) ? media_f : media_s))
-// works with chrome and --headless
+// important for chrome and --headless (abctopdf)
 		if (abc.page)
 			abc2svg.print('@page{size:' +
 				(cfmt.pagewidth / 96).toFixed(2) + 'in ' +
 				(cfmt.pageheight / 96).toFixed(2) + 'in;margin:0}')
-		else
-			abc2svg.print('@page{margin:' + topmargin + ' 0 ' +
-							botmargin + ' 0}')
+
 		abc2svg.print('</style>\n\
-<title> ' + abc.parse.fname.replace(/.*\//, '') + '</title>\n\
-</head>\n\
+<title> ' + abc.parse.fname.replace(/.*\//, '')
+			+ '</title>\n\
 <body>')
-		if (header)
-			gen_hf("header", header)
-		if (footer)
-			gen_hf("footer", footer)
+		if (header || footer) {
+			if (header)
+				gen_hf("header", header)
+			if (footer)
+				gen_hf("footer", footer)
+
+			abc2svg.print('\
+<table style="margin:0">\n\
+  <thead><tr><td>\n\
+    <div class="h-sp">&nbsp;</div>\n\
+  </td></tr></thead>\n\
+  <tbody><tr><td>')
+			init_done = 2		// with header/footer
+		} else {
+			init_done = 1
+		}
 
 		// output the first generated string
 		abc2svg.print(str)
-		init_done = true
 
 		// change the output function
 		user.img_out = abc2svg.print
@@ -265,6 +287,13 @@ abc2svg.abc_end = function() {
 	if (user.errtxt)
 		abc2svg.print("<pre>" + clean_txt(user.errtxt) + "</pre>")
 	if (font_style)				// if some %%text at the end
-		abc2svg.print('<style>' + font_style + '\n</style>')
-	abc2svg.print("</body>\n</html>")
+		abc2svg.print('<style>\n' + font_style + '\n</style>')
+	if (init_done == 2)			// if with header/footer
+		abc2svg.print('\
+    </td></tr></tbody>\n\
+  <tfoot><tr><td>\n\
+<div class="f-sp">&nbsp;</div>\n\
+  </td></tr></tfoot>\n\
+</table>')
+	abc2svg.print('</html>')
 }

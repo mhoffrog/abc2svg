@@ -1,6 +1,6 @@
 // abc2svg - mei.js - MEI front-end
 //
-// Copyright (C) 2019-2020 Jean-Francois Moine
+// Copyright (C) 2019-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -19,7 +19,7 @@
 
 // convert the xml source into a tree
 function xml2tree(xml) {
-    var	i, j, item, n, no, an,
+    var	i, j, item, n, no,
 	e = 0,
 	stack = [],
 	root = {
@@ -68,27 +68,31 @@ function xml2tree(xml) {
 				error(1, null, 'No start tag "' + item + '"')
 			continue
 		}
-		item = xml.slice(i + 1, e)
-		n = item.match(/(\w+)[\s]*([^]*)/)
+		item = xml.slice(i + 1, e).trim()
 		no = {
-			name: n[1],
+			name: item.match(/[\w-]+/)[0],
 			ix: i
 		}
 		if (!o.children)
 			o.children = []
 		o.children.push(no)
-		if (n[2].slice(-1) != '/') {	// if some content
+		if (item.slice(-1) != '/') {	// if some content
 			stack.push(o)
 			o = no
 		} else {
-			n[2] = n[2].slice(0, -1)
+			item = item.slice(0, -1).trim()
 		}
-		if (!n[2])
+		item = item.replace(/[^\s]*\s*/, '')
+		if (!item)
 			continue
-		n = n[2].match(/[^\s"=]+=?|".*?"/g)	// "
-		for (j = 0; j < n.length; j += 2) {
-			an = n[j].slice(0, -1)
-			no[an] = n[j + 1].slice(1, -1)
+		n = item.match(/=|[^\s"=]+|".*?"/g)	// "
+		for (j = 0; j < n.length; j += 3) {
+			if (n[j + 1] != '='
+			 || !n[j + 2]) {
+				mus.error(1, null, 'Bad key=value in "' + item + '"')
+				break
+			}
+			no[n[j]] = n[j + 2].slice(1, -1)
 		}
 	}
 	return root
@@ -1195,7 +1199,8 @@ return true
 
 	// tie
 	tie: function(tag) {
-	    var	s1 = get_ref(tag),
+	    var	m1, m2, not1, not2,
+		s1 = get_ref(tag),
 		s2 = get_ref(tag, s1),
 		ty = C.SL_AUTO
 
@@ -1209,29 +1214,27 @@ return true
 		case "dashed":
 		case "dotted": ty |= C.SL_DOTTED; break
 		}
-		if (s1.s) {
-			s1.tie_ty = ty
-			if (s2.s) {			// note - note
-				s1.s.tie_s = s2.s
-				s1.tie_n = s2
-				s2.s.ti2 = s1.s
-			} else {			// note - single note
-				s1.s.tie_s = s2
-				s1.tie_n = s2.notes[0]
-				s2.ti2 = s1.s
-			}
-		} else {
-			s1.notes[0].tie_ty = ty
-			if (s2.s) {			// single note - note
-				s1.tie_s = s2.s
-				s1.notes[0].tie_n = s2
-				s2.s.ti2 = s1
-			} else {			// single note - single note
-				s1.tie_s = s2
-				s1.notes[0].tie_n = s2.notes[0]
-				s2.ti2 = s1
-			}
+		if (s1.s) {			// note - note
+			not1 = s1
+			s1 = s1.s
+			not2 = s2
+			s2 = s2.s
+			not1.tie_ty = ty
+			not1.tie_e = not2
+			not2.tie_s = not1
+		} else {			// chord - chord
+			for (m1 = 0; m1 <= s1.nhd; m1++) {
+				not1 = s1.notes[m1]
+				for (m2 = 0; m2 <= s2.nhd; m2++) {
+					not2 = s2.notes[m2]
+					if (not1.pit == not2.pit) {
+						not1.tie_ty = ty
+						not1.tie_e = not2
+						not2.tie_s = not1
+					}
+				}
 		}
+		s1.ti1 = s2.ti2 = true
 	}, // tie()
 
 	trill: function(tag) {

@@ -5,16 +5,16 @@
 // This file is part of abc2svg.
 //
 // abc2svg is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
+// it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // abc2svg is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// GNU Lesser General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
+// You should have received a copy of the GNU Lesser General Public License
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
 // Audio5 creation
@@ -62,6 +62,7 @@ function Audio5(i_conf) {
 	errmsg,
 	ac,			// audio context
 	gain,			// global gain
+	model,			// device model (for iPad|iPhone|iPod)
 
 	// instruments/notes
 	parser,			// SF2 parser
@@ -159,10 +160,10 @@ function Audio5(i_conf) {
 	} // get_instr()
 
 	// sf2_create
-	    var i, j, k, sid, gen, parm, oparm, sample, infos,
-		sampleRate, scale, sm,
+	    var i, j, k, sid, gen, parm, gparm, sample, infos,
+		sampleRate, scale,
 		b = instr >> 7,			// bank
-		p = instr % 0x7f,		// preset
+		p = instr % 128,		// preset
 		pr = presets
 
 		rates[instr] = []
@@ -183,42 +184,46 @@ function Audio5(i_conf) {
 		for (k = 0; k < pr.length; k++) {
 		    if (!pr[k].generator.instrument)
 			continue
-		    oparm = {			// default parameters
-			attack: .001,
-			hold: .001,
-			decay: .001,
-			sustain: 0
-//			release: .001
-		    }
-		    sm = 0			// sampleModes
+		    gparm = null
 
-//		    infos = is[pr[k].generator.instrument.amount].info
 		    infos = get_instr(pr[k].generator.instrument.amount).info
-//console.log('infos '+infos.length)
 		    for (i = 0; i < infos.length; i++) {
 			gen = infos[i].generator
 
+			if (!gparm) {
+				parm = gparm = {	// default parameters
+					attack: .001,
+					hold: .001,
+					decay: .001,
+					sustain: 0
+//					release: .001
+				    }
+			} else {
+				parm = Object.create(gparm) // new parameters
+				if (!gen.sampleID)
+					gparm = parm	// global para,eters
+			}
+
 			if (gen.attackVolEnv)
-				oparm.attack = Math.pow(2,
+				parm.attack = Math.pow(2,
 						gen.attackVolEnv.amount / 1200)
 			if (gen.holdVolEnv)
-				oparm.hold = Math.pow(2,
+				parm.hold = Math.pow(2,
 						gen.holdVolEnv.amount / 1200)
 			if (gen.decayVolEnv)
-				oparm.decay = Math.pow(2,
+				parm.decay = Math.pow(2,
 						gen.decayVolEnv.amount / 1200) / 3
 			if (gen.sustainVolEnv)
-				oparm.sustain = gen.sustainVolEnv.amount / 1000
+				parm.sustain = gen.sustainVolEnv.amount / 1000
 //			if (gen.releaseVolEnv)
-//				oparm.release = Math.pow(2,
+//				parm.release = Math.pow(2,
 //						gen.releaseVolEnv.amount / 1200)
-
-			parm = Object.create(oparm)	// new parameters
-			if (gen.sampleModes)
-				sm = gen.sampleModes.amount
+			if (gen.sampleModes && gen.sampleModes.amount & 1)
+				parm.sm = 1
 
 			if (!gen.sampleID)	// (empty generator!)
 				continue
+
 			sid = gen.sampleID.amount
 			sampleRate = parser.sampleHeader[sid].sampleRate
 			sample = parser.sample[sid]
@@ -237,7 +242,7 @@ function Audio5(i_conf) {
 
 			sample_cp(parm.buffer, sample)
 
-			if (sm & 1) {
+			if (parm.sm) {
 				parm.loopStart = parser.sampleHeader[sid].startLoop /
 					sampleRate
 				parm.loopEnd = parser.sampleHeader[sid].endLoop /
@@ -382,7 +387,7 @@ function Audio5(i_conf) {
 	function note_run(po, s, key, t, d) {
 	    var	g, st,
 		instr = s.instr,
-		k = key | 0
+		k = key | 0,
 		parm = po.params[instr][k],
 		o = po.ac.createBufferSource(),
 		v = s.p_v.vol == undefined ? 1 : s.p_v.vol	// volume (gain)
@@ -447,6 +452,16 @@ function Audio5(i_conf) {
 	if (!conf.sfu)
 		conf.sfu = "Scc1t2"	// set the default soundfont location
 
+	// get the device model
+	if (navigator.userAgentData
+	 && navigator.userAgentData.getHighEntropyValues)
+		navigator.userAgentData.getHighEntropyValues(['model'])
+			.then(function(ua) {
+				model = ua.model
+			})
+	else
+		model = navigator.userAgent
+
     // public methods
     return {
 
@@ -479,7 +494,7 @@ function Audio5(i_conf) {
 			if (!ac) {
 				conf.ac = ac = new (window.AudioContext ||
 							window.webkitAudioContext)
-				if (/iPad|iPhone|iPod/.test(navigator.userAgent))
+				if (/iPad|iPhone|iPod/.test(model))
 					play_unlock()
 			}
 			gain = ac.createGain()

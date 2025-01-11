@@ -6,6 +6,7 @@
 <link href="edit-@MAJOR@.css" rel="stylesheet" type="text/css"/>
 <script src="edit-@MAJOR@.js" type="text/javascript" async="true"></script>
 <script src="abc2svg-@MAJOR@.js" type="text/javascript" async="true"></script>
+<script src="pref.js" type="text/javascript" async="true"></script>
 <title>ABC edit with abc2svg</title>
 
 </head>
@@ -65,7 +66,7 @@
 		<ul class="droplinks">
 			<li id="ha" onclick="popshow('help', true)">Help</li>
 			<li><a id="df" target="_blank"
- href="http://moinejf.free.fr/abcm2ps-doc/features.xhtml">abc2svg features</a>
+ href="http://moinejf.free.fr/abcm2ps-doc/features.html">abc2svg features</a>
 			</li>
 			<li><a id="dp" target="_blank"
  href="http://moinejf.free.fr/abcm2ps-doc/index.html">abc2svg parameters</a>
@@ -94,6 +95,7 @@
 	oninput="src_change()"></textarea>
 <textarea id="src1" rows="40" cols="73" wrap="off"
 	style="font: 14px monospace; display: none"
+	ondrop="drop(event)" ondragenter="drag_enter(event)"
 	oninput="src_change()"></textarea>
 </div>
 
@@ -103,8 +105,9 @@
 <!-- context menu -->
 <div id="ctxMenu" title="Play">
 	<ul class="droplinks">
-<!-- 'All' does not work anymore -->
+<!-- 'All' does not work anymore
 	<li id="cmpa" onclick="play_tune(-1)" style="display:none">All</li>
+ -->
 	<li id="cmpt" onclick="play_tune(0)">Tune</li>
 	<li id="cmps" onclick="play_tune(1)">Selection</li>
 	<li id="cmpl" onclick="play_tune(2)">Loop</li>

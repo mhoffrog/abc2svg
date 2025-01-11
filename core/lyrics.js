@@ -1,6 +1,6 @@
 // abc2svg - lyrics.js - lyrics
 //
-// Copyright (C) 2014-2019 Jean-Francois Moine
+// Copyright (C) 2014-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -33,11 +33,10 @@ function get_sym(p, cont) {
 		}
 	} else {
 		if (curvoice.sym_restart) {		// new music
-			curvoice.sym_start = s = curvoice.sym_restart;
+			curvoice.sym_start = curvoice.sym_restart;
 			curvoice.sym_restart = null
-		} else {
-			s = curvoice.sym_start
 		}
+		s = curvoice.sym_start
 		if (!s)
 			s = curvoice.sym
 		if (!s) {
@@ -72,7 +71,7 @@ function get_sym(p, cont) {
 			if (i < 0) {
 				syntax(1, c == '!' ?
 					"No end of decoration" :
-					"No end of guitar chord");
+					"No end of chord symbol/annotation");
 				i = p.length
 				continue
 			}
@@ -95,7 +94,7 @@ function get_sym(p, cont) {
 		}
 
 		/* store the element in the next note */
-		while (s && (s.type != C.NOTE || s.grace))
+		while (s && s.type != C.NOTE)
 			s = s.next
 		if (!s) {
 			syntax(1, "Too many elements in symbol line")
@@ -106,7 +105,8 @@ function get_sym(p, cont) {
 //		case '*':
 			break
 		case '!':
-			deco_cnv([d.slice(1, -1)], s, s.prev)
+			a_dcn.push(d.slice(1, -1))
+			deco_cnv(s, s.prev)
 			break
 		case '"':
 			parse_gchord(d)
@@ -117,16 +117,16 @@ function get_sym(p, cont) {
 		s = s.next;
 		i++
 	}
-	curvoice.lyric_cont = s
+	curvoice.sym_cont = s
 }
 
 /* -- parse a lyric (vocal) line (w:) -- */
 function get_lyrics(text, cont) {
-    var s, word, p, i, j, ly, dfnt
+    var s, word, p, i, j, ly, dfnt, ln, c, cf
 
 	if (curvoice.ignore)
 		return
-	if (curvoice.pos.voc != C.SL_HIDDEN)
+	if ((curvoice.pos.voc & 0x07) != C.SL_HIDDEN)
 		curvoice.have_ly = true
 
 	// get the starting symbol of the lyrics
@@ -135,6 +135,12 @@ function get_lyrics(text, cont) {
 		if (!s) {
 			syntax(1, "+: lyric without music")
 			return
+		}
+		dfnt = get_font("vocal")
+		if (gene.deffont != dfnt) {	// if vocalfont change
+			if (gene.curfont == gene.deffont)
+				gene.curfont = dfnt
+			gene.deffont = dfnt
 		}
 	} else {
 		set_font("vocal")
@@ -155,14 +161,15 @@ function get_lyrics(text, cont) {
 	}
 
 	/* scan the lyric line */
-	dfnt = gene.curfont			// font at start of line
 	p = text;
 	i = 0
+	cf = gene.curfont
 	while (1) {
 		while (p[i] == ' ' || p[i] == '\t')
 			i++
 		if (!p[i])
 			break
+		ln = 0
 		j = parse.istart + i + 2	// start index
 		switch (p[i]) { 
 		case '|':
@@ -176,20 +183,14 @@ function get_lyrics(text, cont) {
 			i++
 			continue
 		case '-':
-			word = "-\n"
-			break
 		case '_':
-			word = "_\n"
+			word = p[i]
+			ln = 2			// line continuation
 			break
 		case '*':
 			word = ""
 			break
 		default:
-			if (p[i] == '\\'
-			 && i == p.length - 1) {
-				curvoice.lyric_cont = s
-				return
-			}
 			word = "";
 			while (1) {
 				if (!p[i])
@@ -207,12 +208,21 @@ function get_lyrics(text, cont) {
 					i++
 					continue
 				case '-':
-					word += "\n"
+					ln = 1		// start of line
 					break
 				case '\\':
-					word += p[++i];
-					i++
+					if (!p[++i])
+						continue
+					word += p[i++]
 					continue
+				case '$':
+					word += p[i++]
+					c = p[i]
+					if (c == '0')
+						gene.curfont = gene.deffont
+					else if (c >= '1' && c <= '9')
+						gene.curfont = get_font("u" + c)
+					// fall thru
 				default:
 					word += p[i++]
 					continue
@@ -223,30 +233,26 @@ function get_lyrics(text, cont) {
 		}
 
 		/* store the word in the next note */
-		while (s && (s.type != C.NOTE || s.grace))
+		while (s && s.type != C.NOTE)
 			s = s.next
 		if (!s) {
 			syntax(1, "Too many words in lyric line")
 			return
 		}
 		if (word
-		 && s.pos.voc != C.SL_HIDDEN) {
-			if (word.match(/^\$\d/)) {
-				gene.curfont = word[1] == '0' ?
-						dfnt :
-						get_font("u" + word[1])
-				word = word.slice(2)
-			}
+		 && (s.pos.voc & 0x07) != C.SL_HIDDEN) {
 			ly = {
 				t: word,
-				font: gene.curfont,
-				wh: strwh(word),
+				font: cf,
 				istart: j,
 				iend: j + word.length
 			}
+			if (ln)
+				ly.ln = ln
 			if (!s.a_ly)
 				s.a_ly = []
 			s.a_ly[curvoice.lyric_line] = ly
+			cf = gene.curfont
 		}
 		s = s.next;
 		i++
@@ -254,32 +260,62 @@ function get_lyrics(text, cont) {
 	curvoice.lyric_cont = s
 }
 
-// -- set the width needed by the lyrics --
-// (called once per tune)
-function ly_width(s, wlw) {
-	var	ly, sz, swfac, align, xx, w, i, j, k, shift, p,
-		a_ly = s.a_ly;
-
+// install the words under a note
+// (this function is called during the generation)
+function ly_set(s) {
+    var	i, j, ly, d, s1, s2, p, w, spw, xx, sz, shift, dw,
+	s3 = s,				// start of the current time sequence
+	wx = 0,
+	wl = 0,
+	n = 0,
+	dx = 0,
+	a_ly = s.a_ly,
 	align = 0
+
+	// get the available horizontal space before the next lyric words
+	for (s2 = s.ts_next; s2; s2 = s2.ts_next) {
+		if (s2.shrink) {
+			dx += s2.shrink
+			n++			// number of symbols without word
+		}
+		if (s2.bar_type) {		// stop on a bar
+			dx += 3			// and take some of its spacing
+			break
+		}
+		if (!s2.a_ly)
+			continue
+		i = s2.a_ly.length
+		while (--i >= 0) {
+			ly = s2.a_ly[i]
+			if (!ly)
+				continue
+			if (ly.ln != 2)
+				break
+		}
+		if (i >= 0)
+			break
+	}
+
+	// define the offset of the words
 	for (i = 0; i < a_ly.length; i++) {
 		ly = a_ly[i]
 		if (!ly)
 			continue
-		p = ly.t;
-		if (p == "-\n" || p == "_\n") {
+		gene.curfont = ly.font
+		ly.t = p = str2svg(ly.t)
+		if (ly.ln == 2) {
 			ly.shift = 0
 			continue
 		}
-		w = ly.wh[0];
-		swfac = ly.font.swfac;
-		xx = w + 2 * cwid(' ') * swfac
-		if (s.type == C.GRACE) {			// %%graceword
+		spw = cwid(' ') * ly.font.swfac
+		w = p.wh[0] + spw * 1.5
+		if (s.type == C.GRACE) {		// %%graceword
 			shift = s.wl
 		} else if ((p[0] >= '0' && p[0] <= '9' && p.length > 2)
-		 || p[1] == ':'
-		 || p[0] == '(' || p[0] == ')') {
+			|| p[1] == ':'
+			|| p[0] == '(' || p[0] == ')') {
 			if (p[0] == '(') {
-				sz = cwid('(') * swfac
+				sz = spw
 			} else {
 				j = p.indexOf(' ');	// (&nbsp;)
 				set_font(ly.font)
@@ -288,54 +324,55 @@ function ly_width(s, wlw) {
 				else
 					sz = w * .2
 			}
-			shift = (w - sz + 2 * cwid(' ') * swfac) * .4
-			if (shift > 20)
-				shift = 20;
+			w -= sz
+			shift = w * .4
+			if (shift > 14)
+				shift = 14
 			shift += sz
-			if (ly.t[0] >= '0' && ly.t[0] <= '9') {
+			if (p[0] >= '0' && p[0] <= '9') {
 				if (shift > align)
 					align = shift
 			}
 		} else {
-			shift = xx * .4
-			if (shift > 20)
-				shift = 20
+			shift = w * .4
+			if (shift > 14)
+				shift = 14
 		}
 		ly.shift = shift
-		if (wlw < shift)
-			wlw = shift;
-//		if (p[p.length - 1] == "\n")		// if "xx-"
-//			xx -= cwid(' ') * swfac
-		xx -= shift;
-		shift = 2 * cwid(' ') * swfac
-		for (k = s.next; k; k = k.next) {
-			switch (k.type) {
-			case C.NOTE:
-			case C.REST:
-				if (!k.a_ly || !k.a_ly[i])
-					xx -= 9
-				else if (k.a_ly[i].t == "-\n"
-				      || k.a_ly[i].t == "_\n")
-					xx -= shift
-				else
-					break
-				if (xx <= 0)
-					break
-				continue
-			case C.CLEF:
-			case C.METER:
-			case C.KEY:
-				xx -= 10
-				continue
-			default:
-				xx -= 5
-				break
-			}
-			break
-		}
-		if (xx > s.wr)
-			s.wr = xx
+		if (shift > wl)
+			wl = shift		// max left space
+		w -= shift			// right width
+		if (w > wx)
+			wx = w			// max width
 	}
+
+	// set the left space
+	while (!s3.seqst)
+		s3 = s3.ts_prev
+	if (s3.ts_prev && s3.ts_prev.bar_type)
+		wl -= 4			// don't move too much the measure bar
+	if (s3.wl < wl) {
+		s3.shrink += wl - s3.wl
+		s3.wl = wl
+	}
+
+	// if not room enough, shift the following notes to the right
+	dx -= 6
+	if (dx < wx) {
+		dx = (wx - dx) / n
+		s1 = s.ts_next
+		while (1) {
+			if (s1.shrink) {
+				s1.shrink += dx
+				s3.wr += dx	// (needed for end of line)
+				s3 = s1
+			}
+			if (s1 == s2)
+				break
+			s1 = s1.ts_next
+		}
+	}
+
 	if (align > 0) {
 		for (i = 0; i < a_ly.length; i++) {
 			ly = a_ly[i]
@@ -343,14 +380,12 @@ function ly_width(s, wlw) {
 				ly.shift = align
 		}
 	}
-	return wlw
-}
+} // ly_set()
 
 /* -- draw the lyrics under (or above) notes -- */
 /* (the staves are not yet defined) */
-/* !! this routine is tied to ly_width() !! */
 function draw_lyric_line(p_voice, j, y) {
-	var	p, lastx, w, s, s2, ly, lyl,
+	var	p, lastx, w, s, s2, ly, lyl, ln,
 		hyflag, lflag, x0, font, shift
 
 	if (p_voice.hy_st & (1 << j)) {
@@ -383,28 +418,27 @@ function draw_lyric_line(p_voice, j, y) {
 		if (ly.font != gene.curfont)		/* font change */
 			gene.curfont = font = ly.font;
 		p = ly.t;
-		w = ly.wh[0];
+		w = p.wh[0]
 		shift = ly.shift
 		if (hyflag) {
-			if (p == "_\n") {		/* '_' */
-				p = "-\n"
-			} else if (p != "-\n") {	/* not '-' */
+			if (ly.ln == 2 && p == "_") {	// '_'
+				p = "-"
+			} else if (ly.ln != 2) {	// not '-'
 				out_hyph(lastx, y, s.x - shift - lastx);
 				hyflag = false;
 				lastx = s.x + s.wr
 			}
 		}
 		if (lflag
-		 && p != "_\n") {		/* not '_' */
+		 && (ly.ln != 2 || p != "_")) {	// not '_'
 			out_wln(lastx + 3, y, x0 - lastx + 3);
 			lflag = false;
 			lastx = s.x + s.wr
 		}
-		if (p == "-\n"			/* '-' */
-		 || p == "_\n") {		/* '_' */
+		if (ly.ln == 2) {		// '-' or '_'
 			if (x0 == 0 && lastx > s.x - 18)
 				lastx = s.x - 18
-			if (p[0] == '-')
+			if (p == '-')
 				hyflag = true
 			else
 				lflag = true;
@@ -412,10 +446,8 @@ function draw_lyric_line(p_voice, j, y) {
 			continue
 		}
 		x0 = s.x - shift;
-		if (p.slice(-1) == '\n') {
-			p = p.slice(0, -1);	/* '-' at end */
+		if (ly.ln)			// '-' at end
 			hyflag = true
-		}
 		if (user.anno_start || user.anno_stop) {
 			s2 = {
 				st: s.st,
@@ -430,7 +462,7 @@ function draw_lyric_line(p_voice, j, y) {
 			}
 			anno_start(s2, 'lyrics')
 		}
-		xy_str(x0, y, p, null, null, ly.wh);
+		xy_str(x0, y, p)
 		anno_stop(s2, 'lyrics')
 		lastx = x0 + w
 	}
@@ -440,17 +472,17 @@ function draw_lyric_line(p_voice, j, y) {
 		if (x0 < lastx + 10)
 			x0 = lastx + 10;
 		out_hyph(lastx, y, x0 - lastx)
-		if (cfmt.hyphencont)
+		if (p_voice.s_next && p_voice.s_next.fmt.hyphencont)
 			p_voice.hy_st |= (1 << j)
 	}
 
 	/* see if any underscore in the next line */
-	for (p_voice.s_next ; s; s = s.next) {
+	for (p_voice.s_next; s; s = s.next) {
 		if (s.type == C.NOTE) {
 			if (!s.a_ly)
 				break
 			ly = s.a_ly[j]
-			if (ly && ly.t == "_\n") {
+			if (ly && ly.ln && ly.t == "_") {
 				lflag = true;
 				x0 = realwidth - 15
 				if (x0 < lastx + 12)
@@ -472,8 +504,8 @@ function draw_lyrics(p_voice, nly, a_h, y,
 
 	set_font("vocal")
 	if (incr > 0) {				/* under the staff */
-		if (y > -cfmt.vocalspace)
-			y = -cfmt.vocalspace;
+		if (y > -tsfirst.fmt.vocalspace)
+			y = -tsfirst.fmt.vocalspace;
 		y *= sc
 		for (j = 0; j < nly; j++) {
 			y -= a_h[j] * 1.1;
@@ -483,7 +515,7 @@ function draw_lyrics(p_voice, nly, a_h, y,
 	}
 
 	/* above the staff */
-	top = staff_tb[p_voice.st].topbar + cfmt.vocalspace
+	top = staff_tb[p_voice.st].topbar + tsfirst.fmt.vocalspace
 	if (y < top)
 		y = top;
 	y *= sc
@@ -498,7 +530,7 @@ function draw_lyrics(p_voice, nly, a_h, y,
 /* (the staves are not yet defined) */
 function draw_all_lyrics() {
 	var	p_voice, s, v, nly, i, x, y, w, a_ly, ly,
-		lyst_tb = new Array(nstaff+ 1),
+		lyst_tb = new Array(nstaff + 1),
 		nv = voice_tb.length,
 		h_tb = new Array(nv),
 		nly_tb = new Array(nv),
@@ -534,7 +566,7 @@ function draw_all_lyrics() {
 					ly = a_ly[i]
 					if (ly) {
 						x -= ly.shift;
-						w = ly.wh[0]
+						w = ly.t.wh[0]
 						break
 					}
 				}
@@ -551,8 +583,8 @@ function draw_all_lyrics() {
 					if (!ly)
 						continue
 					if (!h_tb[v][i]
-					 || ly.font.size > h_tb[v][i])
-						h_tb[v][i] = ly.font.size
+					 || ly.t.wh[1] > h_tb[v][i])
+						h_tb[v][i] = ly.t.wh[1]
 				}
 			}
 		} else {
@@ -571,7 +603,7 @@ function draw_all_lyrics() {
 		if (nly == 0)
 			continue
 		if (p_voice.pos.voc)
-			above_tb[v] = p_voice.pos.voc == C.SL_ABOVE
+			above_tb[v] = (p_voice.pos.voc & 0x07) == C.SL_ABOVE
 		else if (voice_tb[v + 1]
 /*fixme:%%staves:KO - find an other way..*/
 		      && voice_tb[v + 1].st == st

@@ -1,6 +1,21 @@
 // gamelan.js - module to output Gamelan (indonesian) music sheets
 //
-// Copyright (C) 2020 Jean-Francois Moine - GPL3+
+// Copyright (C) 2020-2021 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This module is loaded when "%%gamelan" appears in a ABC source.
 //
@@ -87,6 +102,7 @@ abc2svg.gamelan = {
 				v: s.v,
 				p_v: s.p_v,
 				st: s.st,
+				fmt: s.fmt,
 				dur: d,
 				dur_orig: d_orig,
 				stem: 1,
@@ -150,7 +166,7 @@ abc2svg.gamelan = {
 
 	function set_sym(p_v) {
 	    var s, s2, note, pit, nn, p, a, m, i,
-		sf = p_v.key.k_sf
+		sf = p_v.key.k_sf,
 		delta = abc2svg.gamelan.cgd2cde[sf + 7] - 2
 
 		p_v.key.k_a_acc = []	// no accidental
@@ -228,7 +244,7 @@ abc2svg.gamelan = {
 			if (s.a_dd) {
 				for (i = 0; i < s.a_dd.length; i++) {
 					if (s.a_dd[i].glyph == "stc") {
-						abc.deco_cnv(["gstc"], s)
+						abc.deco_put("gstc", s)
 						s.a_dd[i] = s.a_dd.pop()
 					}
 				}
@@ -371,6 +387,8 @@ abc2svg.gamelan = {
 	if (cmd == "gamelan") {
 	    var	cfmt = this.cfmt()
 
+		if (!this.get_bool(param))
+			return
 		cfmt.gamelan = true
 		cfmt.staffsep = 20
 		cfmt.sysstaffsep = 14
@@ -401,6 +419,7 @@ abc2svg.gamelan = {
 				if (s.notes[s.nhd].jo > 3)
 					s.ymx += 2
 			}
+			s.ys = s.ymx		// (for tuplets)
 			break
 		}
 	}

@@ -1,6 +1,6 @@
 // edit.js - file used in the abc2svg editor
 //
-// Copyright (C) 2014-2021 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -214,10 +214,11 @@ function render() {
 	render2()
 }
 function render2() {
-    var	content = elt_ref.source.value
+    var	content = elt_ref.source.value,
+	def = (abc2svg.a_inc && abc2svg.a_inc["default.abc"]) || ''
 
 	// load the required modules
-	if (!abc2svg.modules.load(content + elt_ref.src1.value, render2))
+	if (!abc2svg.modules.load(content + elt_ref.src1.value + def, render2))
 		return
 
 	// if page formatting, define a function to get the modification date
@@ -235,6 +236,18 @@ function render2() {
 
 //	document.body.style.cursor = "wait";
 	syms = []
+
+	// insert the file default.abc if loaded
+	if (abc2svg.a_inc && abc2svg.a_inc["default.abc"]) {
+		try {
+			abc.tosvg("default.abc", abc2svg.a_inc["default.abc"])
+		} catch(e) {
+			alert(e.message + '\nabc2svg tosvg bug - stack:\n' + e.stack)
+			return
+		}
+	}
+
+	// render the textarea
 	try {
 		abc.tosvg(abc_fname[0], content)
 	} catch(e) {
@@ -276,8 +289,11 @@ function soffs(r, c) {
 
 // select a source ABC element on error
 function gotoabc(l, c) {
+    var	s = elt_ref.source
+
 	selsrc(0)
-	c = soffs(l, Number(c))
+	if (l >= 0)
+		c = soffs(l, Number(c))
 	s.focus();
 	s.setSelectionRange(c, syms[c] ? syms[c].iend : c + 1)
 }
@@ -289,8 +305,8 @@ function selsvg(evt) {
 
 	play.loop = false;
 
-	evt.stopImmediatePropagation();
-	evt.preventDefault()
+//	evt.stopImmediatePropagation();
+//	evt.preventDefault()
 
 	// remove the context menu if active
 	if (ctxMenu && ctxMenu.style.display == "block") {
@@ -586,8 +602,8 @@ function play_tune(what) {
 		// not reached
 	}
 
-	function gsot(si) {	// go to the first playable symbol of a tune
-		return gnrn(syms[si].p_v.sym)
+	function gsot(si) {		// go to the first symbol of a tune
+		return syms[si].p_v.sym
 	}
 	function get_se(si) {			// get the starting symbol
 	    var	sym = syms[si]
@@ -682,6 +698,7 @@ function play_tune(what) {
 
 // set the version and initialize the playing engine
 function edit_init() {
+    var	a, i, e
 
 	// loop until abc2svg is fully loaded
 	if (typeof abc2svg != "object"
@@ -742,9 +759,9 @@ function edit_init() {
 		'abc2svg-' + abc2svg.version + ' (' + abc2svg.vdate + ')'
 
 	// keep references on the page elements
-	var a = ["diverr", "source", "src1", "s0", "s1", "target"]
-	for (var i = 0; i < a.length; i++) {
-		var e = a[i];
+	a = ["diverr", "source", "src1", "s0", "s1", "target"]
+	for (i = 0; i < a.length; i++) {
+		e = a[i]
 		elt_ref[e] = document.getElementById(e)
 	}
 
@@ -789,13 +806,14 @@ function edit_init() {
 				(play.abcplay.set_vol() * 10).toFixed(2))
 		});
 
-		var e = elt_ref.target;
-		e.oncontextmenu = function(evt) {
+		// display the play menu
+		// This function is called on non left click
+		function show_menu(evt) {
 		    var	x, y,
 			elt = evt.target,
-			cl = elt.getAttribute('class');
+			cl = elt.getAttribute('class')
 
-			evt.stopImmediatePropagation();
+//			evt.stopImmediatePropagation();
 			evt.preventDefault()
 
 			// if right click on an element, select it
@@ -817,8 +835,13 @@ function edit_init() {
 			y = evt.pageY + elt_ref.target.parentNode.scrollTop;
 			ctxMenu.style.left = (x - 30) + "px";
 			ctxMenu.style.top = (y - 10) + "px"
-			return false
-		} // oncontextmenu
+		} // showmenu
+
+		e = elt_ref.target
+		e.onauxclick = show_menu	// right or middle buttons
+		e.oncontextmenu = function(ev) {
+			ev.preventDefault()
+		}
 	}
 	set_pref()	// set the preferences from local storage
 }
@@ -855,9 +878,12 @@ function drop(evt) {
 	// check if file
 	data = evt.dataTransfer.files	// FileList object.
 	if (data.length) {
-		var reader = new FileReader();
+	    var reader = new FileReader(),
+		s = srcidx == 0 ? "source" : "src1"
+
+		elt_ref["s" + srcidx].value = abc_fname[srcidx] = data[0].name
 		reader.onload = function(evt) {
-			elt_ref.source.value = evt.target.result;
+			elt_ref[s].value = evt.target.result
 			src_change()
 		}
 		reader.readAsText(data[0],"UTF-8")

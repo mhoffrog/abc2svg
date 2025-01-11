@@ -1,21 +1,21 @@
 // chord.js - generation of accompaniment
 //
-// Copyright (C) 2020 Jean-Francois Moine and Seymour Shlien
+// Copyright (C) 2020-2021 Jean-Francois Moine and Seymour Shlien
 //
-// This file is part of abc2svg-core.
+// This file is part of abc2svg.
 //
-// abc2svg-core is free software: you can redistribute it and/or modify
+// abc2svg is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// abc2svg-core is distributed in the hope that it will be useful,
+// abc2svg is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with abc2svg-core.  If not, see <http://www.gnu.org/licenses/>.
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
 // -- chord table --
 // index = chord symbol type
@@ -24,7 +24,7 @@
 //	string = list of 2 characters
 //		1st character = note (see abc2svg.letmid)
 //		2nd character = octave ('+', ' ', '-')
-abc2svg.chordnames = {
+abc2svg.ch_names = {
 	'':	["C-E G C+", "E-C G C+", "G-C E G "],
 	m:	["C-e G C+", "e-C G C+", "G-C e G "],
 	'7':	["C-b-E G ", "E-C G b ", "G-E b C+", "b-E G C+"],
@@ -50,7 +50,7 @@ abc2svg.chordnames = {
 	'7sus4': ["C-b-F G ", "F-C G b ", "G-F b C+", "b-C F G "],
 	'7sus9': ["C-b-D G ", "D-C G b ", "G-D b C+", "b-C D G "],
 	'5':	["C-G C+", "G-G C+"]
-} // chordnames
+} // ch_names
 
 abc2svg.midlet = "CdDeEFgGaAbB"		// MIDI pitch -> letter
 abc2svg.letmid = {			// letter -> MIDI pitch
@@ -66,7 +66,7 @@ abc2svg.letmid = {			// letter -> MIDI pitch
 	A: 9,
 	b: 10,
 	B: 11
-} // midsca
+} // letmid
 
 abc2svg.chord = function(first,		// first symbol in time
 			 voice_tb,	// table of the voices
@@ -98,11 +98,23 @@ abc2svg.chord = function(first,		// first symbol in time
 		return r
 	} // chcr()
 
+	// (quite the same as abc2svg.cs_filter() but with otext)
+	function filter(a_cs, sel) {
+	    var	i, cs,
+		tcs = ""
+
+		for (i = 0; i < a_cs.length; i++) {
+			cs = a_cs[i]
+			if (cs.type == 'g')
+				tcs += cs.otext
+		}
+		return tcs.replace(sel ? abc2svg.cs_sel1 : abc2svg.cs_sel0, '')
+	} // filter()
+
 	// generate a chord
-	function gench(sb, gch) {
+	function gench(sb) {
 	    var	r, ch, b, m, n, not,
-		a = gch.otext.
-//			replace(/\$./,'').
+		a = filter(sb.a_gch, cfmt.altchord).
 			match(/([A-G])([#♯b♭]?)([^/]*)\/?(.*)/),
 			// a[1] = note, a[2] = acc, a[3] = type, a[4] = bass
 		s = {
@@ -113,8 +125,9 @@ abc2svg.chord = function(first,		// first symbol in time
 			notes: []
 		}
 
-		if (a)
-			r = abc2svg.letmid[a[1]]	// root
+		if (!a)
+			return
+		r = abc2svg.letmid[a[1]]		// root
 		if (r == undefined) {
 			if (a[1] != "N")
 				return
@@ -181,7 +194,7 @@ abc2svg.chord = function(first,		// first symbol in time
 
 	// set the chordnames defined by %%MIDI chordname
 	if (cfmt.chord.names) {
-		chnm = Object.create(abc2svg.chordnames)
+		chnm = Object.create(abc2svg.ch_names)
 		for (k in cfmt.chord.names) {
 			vch = ""
 			for (i = 0; i < cfmt.chord.names[k].length; i++) {
@@ -194,7 +207,7 @@ abc2svg.chord = function(first,		// first symbol in time
 			chnm[k] = [ vch ]
 		}
 	} else {
-		chnm = abc2svg.chordnames
+		chnm = abc2svg.ch_names
 	}
 
 	// create the chord voice
@@ -207,7 +220,7 @@ abc2svg.chord = function(first,		// first symbol in time
 			time: 0
 		},
 		instr: cfmt.chord.prog || 0,
-		vol: cfmt.chord.vol || .8
+		vol: cfmt.chord.vol || .7
 	}
 	vch.last_sym = vch.sym
 	voice_tb.push(vch)
@@ -247,7 +260,7 @@ abc2svg.chord = function(first,		// first symbol in time
 			if (gch.type != 'g')
 				continue
 			vch.last_sym.dur = s.time - vch.last_sym.time
-			gench(s, gch)
+			gench(s)
 			break
 		}
 	}

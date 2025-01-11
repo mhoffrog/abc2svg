@@ -1,7 +1,22 @@
 // mdnn.js - module to output Modernised Diatonic Numerical Notation
 // (https://medium.com/@info_70544/the-case-for-numerical-music-notation-part-1-introduction-and-history-5f1543ca8a95)
 //
-// Copyright (C) 2020 Jean-Francois Moine - GPL3+
+// Copyright (C) 2020-2021 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This module is loaded when "%%mdnn" appears in a ABC source.
 //
@@ -187,9 +202,7 @@ abc2svg.mdnn = {
 		p = note.pit
 		pit = p + delta
 		nn = ((pit + 77) % 7) + 1	// note number
-		if (!note.a_dcn)
-			note.a_dcn = []
-		note.a_dcn.push('n' + nn)
+		abc.dh_put('n' + nn, s, note)
 
 		// display the note as C5 with stem up
 		note.pit = 23			// 'c'
@@ -198,37 +211,27 @@ abc2svg.mdnn = {
 		// octave
 		nn = (pit / 7) | 0
 		if (nn > prev_oct) {
-			if (prev_oct != -10) {
-				if (!note.a_dcn)
-					note.a_dcn = []
-				note.a_dcn.push('q')
-			}
+			if (prev_oct != -10)
+				abc.dh_put('q', s, note)
 			prev_oct = nn
 		} else if (nn < prev_oct) {
-			if (!note.a_dcn)
-				note.a_dcn = []
-			note.a_dcn.push('c')
+			abc.dh_put('c', s, note)
 			prev_oct = nn
 		}
 
 		// half and whole notes
-		if (s.dur >= C.BLEN / 2) {
-			if (!note.a_dcn)
-				note.a_dcn = []
-			note.a_dcn.push(s.dur >= C.BLEN ? 'w' : 'h')
-		}
+		if (s.dur >= C.BLEN / 2)
+			abc.dh_put(s.dur >= C.BLEN ? 'w' : 'h', s, note)
 
 		// accidentals
 		a = note.acc
 		if (a) {
 			note.acc = 0
-			if (!note.a_dcn)
-				note.a_dcn = []
 			nn = abc2svg.mdnn.cde2fcg[(p + 5 + 16 * 7) % 7] - sf
 			if (a != 3)
 				nn += a * 7
 			nn = ((((nn + 1 + 21) / 7) | 0) + 2 - 3 + 32 * 5) % 5
-			note.a_dcn.push(abc2svg.mdnn.acc_tb[nn])
+			abc.dh_put(abc2svg.mdnn.acc_tb[nn], s, note)
 		}
 
 		// set the slurs and ties up
@@ -249,7 +252,7 @@ abc2svg.mdnn = {
 
   set_fmt: function(of, cmd, param) {
 	if (cmd == "mdnn")
-		this.cfmt().mdnn = true
+		this.cfmt().mdnn = param
 	else
 		of(cmd, param)
   }, // set_fmt()

@@ -1,6 +1,21 @@
 // combine.js - module to add a combine chord line
 //
-// Copyright (C) 2018-2019 Jean-Francois Moine - GPL3+
+// Copyright (C) 2018-2021 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This module is loaded when "%%voicecombine" appears in a ABC source.
 //
@@ -12,7 +27,7 @@ abc2svg.combine = {
     // function called at start of the generation when multi-voices
     comb_v: function() {
     var	C = abc2svg.C,
-	delsym = []		// deleted symbols for slurs and ties
+	sy
 
     // check if voice combine may occur
     function may_combine(s) {
@@ -21,10 +36,10 @@ abc2svg.combine = {
 
 	if (!s2 || (s2.type != C.NOTE && s2.type != C.REST))
 		return false
-	if (s2.v == s.v
-	 || s2.st != s.st
+	if (s2.st != s.st
 	 || s2.time != s.time
-	 || s2.dur != s.dur)
+	 || s2.dur != s.dur
+	 || sy.voices[s2.v].range != sy.voices[s.v].range + 1)	// next voice only
 		return false
 	if (s.combine <= 0
 	 && s2.type != s.type)
@@ -86,9 +101,15 @@ abc2svg.combine = {
 function do_combine(s) {
 	var s2, nhd, nhd2, type
 
-	while (1) {
+		s2 = s.ts_next
+
+		// there may be more voices
+		if (!s.in_tuplet
+		 && s2.combine != undefined && s2.combine >= 0
+		 && may_combine.call(this, s2))
+			do_combine.call(this, s2)
+
 		nhd = s.nhd;
-		s2 = s.ts_next;
 		nhd2 = s2.nhd
 		if (s.type != s2.type) {	// if note and rest
 			if (s2.type != C.REST) {
@@ -101,8 +122,10 @@ function do_combine(s) {
 				delete s.invis
 		} else {
 			combine_notes.call(this, s, s2)
-			if (s2.tie_s)
-				s.tie_s = s2.tie_s
+			if (s2.ti1)
+				s.ti1 = true
+			if (s2.ti2)
+				s.ti2 = true
 		}
 
 		if (s2.sls) {
@@ -122,29 +145,8 @@ function do_combine(s) {
 				Array.prototype.push.apply(s.a_dd, s2.a_dd)
 		}
 
-		// memorize the deleted symbol: it may support slur or tie endings
-		delsym.push({s: s2, r: s});
-
 		this.unlksym(s2)			// remove the next symbol
-
-		// there may be more voices
-		if (s.in_tuplet || !may_combine.call(this, s))
-			break
-	}
 } // do_combine()
-
-    // replace tie endings
-    function tie_repl(s) {
-    var	s1 = s.tie_s,
-	i = delsym.length
-
-	while (--i >= 0) {
-		if (delsym[i].s == s1) {
-			s.tie_s = delsym[i].r
-			break
-		}
-	}
-    } // tie_repl()
 
 	// code of comb_v()
 	var s, s2, g, i, r
@@ -157,6 +159,9 @@ function do_combine(s) {
 			if (may_combine.call(this, s))
 				do_combine.call(this, s)
 			continue
+		case C.STAVES:
+			sy = s.sy
+			// fall thru
 		default:
 			continue
 		case C.NOTE:
@@ -167,11 +172,6 @@ function do_combine(s) {
 
 		if (!s.beam_st)
 			continue
-		if (s.beam_end) {
-			if (may_combine.call(this, s))
-				do_combine.call(this, s)
-			continue
-		}
 
 		s2 = s
 		while (1) {
@@ -198,12 +198,6 @@ function do_combine(s) {
 				s2 = s2.next
 			} while (s2.type != C.NOTE && s2.type != C.REST)
 		}
-	}
-
-	// replace the tie endings
-	for (s = this.get_tsfirst(); s; s = s.ts_next) {
-		if (s.tie_s)
-			tie_repl(s)
 	}
     }, // comb_v()
 

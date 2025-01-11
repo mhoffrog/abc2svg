@@ -1,6 +1,21 @@
 // MIDI.js - module to handle the %%MIDI parameters
 //
-// Copyright (C) 2019-2020 Jean-Francois Moine - GPL3+
+// Copyright (C) 2019-2021 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This module is loaded when "%%MIDI" appears in a ABC source.
 //
@@ -10,6 +25,11 @@
 //	%%MIDI control k v
 //	%%MIDI drummap ABC_note MIDI_pitch
 //	%%MIDI temperamentequal nedo
+//	%%MIDI chordname <chord_type> <list of MIDI pitches>
+//	%%MIDI chordprog <#MIDI program> [octave=<n>]
+//	%%MIDI chordvol <volume>
+//	%%MIDI gchordon
+//	%%MIDI gchordoff
 
 // Using %%MIDI drummap creates a voicemap named "MIDIdrum".
 // This name must be used if some print map is required:
@@ -23,59 +43,6 @@ abc2svg.MIDI = {
 
     // parse %%MIDI commands
     do_midi: function(parm) {
-
-    // convert a ABC note to b40 (string)
-    function abc_b40(p) {
-    var	pit,
-	acc = 0,
-	i = 0
-
-	switch (p[0]) {
-	case '^':
-		if (p[++i] == '^') {
-			acc = 2
-			i++
-		} else {
-			acc = 1
-		}
-		break
-	case '=':
-		i++
-		break
-	case '_':
-		if (p[++i] == '_') {
-			acc = -2
-			i++
-		} else {
-			acc = -1
-		}
-		break
-	}
-	pit = 'CDEFGABcdefgab'.indexOf(p[i++]) + 16
-	if (pit < 16)
-		return
-	while (p[i] == "'") {
-		pit += 7
-		i++
-	}
-	while (p[i] == ",") {
-		pit -= 7
-		i++
-	}
-	return abc2svg.pab40(pit, acc).toString()
-    } // abc_b40()
-
-	function mid_pit(p) {
-	    var	b40,
-		pit = p
-		p = (pit / 12) | 0		// octave
-		pit = pit % 12;			// in octave
-		b40 = p * 40 + abc2svg.isb40[pit] + 2
-		return {
-			pit: abc2svg.b40p(b40),
-			acc: abc2svg.b40a(b40)
-		}
-	}
 
     // build the equal temperament as a b40 float array
     function tb40(qs) {
@@ -166,8 +133,6 @@ abc2svg.MIDI = {
 	case "gchordoff":	// %%MIDI gchordoff
 		if (!cfmt.chord)
 			cfmt.chord = {}
-		if (abc.parse.state == 2)
-			abc.goto_tune()
 		if (abc.parse.state >= 2
 		 && abc.get_curvoice()) {
 			s = abc.new_block("midigch")
@@ -200,18 +165,21 @@ abc2svg.MIDI = {
 		break
 	case "drummap":
 //fixme: should have a 'MIDIdrum' per voice?
-		n = abc_b40(a[2])
 		v = Number(a[3])
-		if (!n || !v) {
+		if (isNaN(v)) {
 			abc.syntax(1, abc.errs.bad_val, "%%MIDI drummap")
 			break
 		}
-		maps = abc.get_maps()
-		if (!maps.MIDIdrum)
-			maps.MIDIdrum = {}
-		if (!maps.MIDIdrum[n])
-			maps.MIDIdrum[n] = []
-		maps.MIDIdrum[n][3] = mid_pit(v)
+		n = ["C","^C","D","_E","E","F","^F","G","^G","A","_B","B"][v % 12]
+		while (v < 60) {
+			n += ','
+			v += 12
+		}
+		while (v > 72) {
+			n += "'"
+			v -= 12
+		}
+		this.do_pscom("map MIDIdrum " + a[2] + " play=" + n)
 		abc.set_v_param("mididrum", "MIDIdrum")
 		break
 	case "program":

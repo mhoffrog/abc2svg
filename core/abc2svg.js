@@ -1,6 +1,6 @@
 // abc2svg - abc2svg.js
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -50,12 +50,16 @@ abc2svg.C = {
 	OVALBARS: 3,
 	SQUARE: 4,
 
-	// slur/tie types (3 + 1 bits)
-	SL_ABOVE: 0x01,
+	// position types
+	SL_ABOVE: 0x01,		// position (3 bits)
 	SL_BELOW: 0x02,
 	SL_AUTO: 0x03,
 	SL_HIDDEN: 0x04,
-	SL_DOTTED: 0x08		// (modifier bit)
+	SL_DOTTED: 0x08,	// modifiers
+	SL_ALI_MSK: 0x70,	// align
+		SL_ALIGN: 0x10,
+		SL_CENTER: 0x20,
+		SL_CLOSE: 0x40
     };
 
 // !! tied to the symbol types in abc2svg.js !!
@@ -174,6 +178,48 @@ abc2svg.ch_alias = {
 	"7sus": "7sus4"
 } // ch_alias
 
+// extract one of the chord symbols
+// With chords as "xxx(yyy)" or "[yyy];xxx"
+// (!sel - default) returns "xxx" and (sel) returns "yyy"
+abc2svg.cs_sel0 = /[\[(].*[\])]/g
+abc2svg.cs_sel1 = /.*[\[(]|[\])].*/g
+abc2svg.cs_filter = function(a_cs, sel) {
+    var	i, cs,
+	tcs = ""
+
+	for (i = 0; i < a_cs.length; i++) {
+		cs = a_cs[i]
+		if (cs.type == 'g')
+			tcs += cs.text
+	}
+	return tcs.replace(sel ? abc2svg.cs_sel1 : abc2svg.cs_sel0, '')
+} // cs_filter()
+
+// font weight
+// reference:
+//	https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight
+abc2svg.ft_w = {
+	thin: 100,
+	extralight: 200,
+	light: 300,
+	regular: 400,
+	medium:  500,
+	semi: 600,
+	demi: 600,
+	semibold: 600,
+	demibold: 600,
+	bold: 700,
+	extrabold: 800,
+	ultrabold: 800,
+	black: 900,
+	heavy: 900
+}
+abc2svg.ft_re = new RegExp('\
+-?Thin|-?Extra Light|-?Light|-?Regular|-?Medium|\
+-?[DS]emi|-?[DS]emi[ -]?Bold|\
+-?Bold|-?Extra[ -]?Bold|-?Ultra[ -]?Bold|-?Black|-?Heavy/',
+	"i")
+
 // simplify a rational number n/d
 abc2svg.rat = function(n, d) {
     var	a, t,
@@ -234,7 +280,7 @@ var	OPEN_BRACE = 0x01,
 
 	IN = 96,		// resolution 96 PPI
 	CM = 37.8,		// 1 inch = 2.54 centimeter
-	YSTEP = 256		/* number of steps for y offsets */
+	YSTEP			// number of steps for y offsets
 
 // error texts
 var errs = {
@@ -282,7 +328,7 @@ function clone(obj, lvl) {
 	var tmp = new obj.constructor
 	for (var k in obj)
 	    if (obj.hasOwnProperty(k)) {
-		if (lvl && typeof obj[k] != "number")
+		if (lvl && typeof obj[k] == "object")
 			tmp[k] = clone(obj[k], lvl - 1)
 		else
 			tmp[k] = obj[k]

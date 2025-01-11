@@ -1,7 +1,21 @@
 // abc2svg - strtab.js - tablature for string instruments
 //
-// Copyright (C) 2020 Jean-Francois Moine
-// License GPL-3
+// Copyright (C) 2020-2022 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This module is loaded by %%strtab.
 // The command %%strtab changes the display of the voice to a tablature.
@@ -70,6 +84,8 @@ abc2svg.strtab = {
 		if (s.type == C.NOTE) {
 			for (m = 0; m <= s.nhd; m++) {
 				not = s.notes[m]
+				if (not.nb < 0)
+					continue
 				x = s.x - 3
 				if (not.nb >= 10)
 					x -= 3
@@ -125,15 +141,19 @@ abc2svg.strtab = {
 
 	// set a string (pitch) and a fret number
 	function set_pit(p_v, s, nt, i) {
-	    var	st = s.st,
-		n = (p_v.diafret ? nt.pit : nt.midi) - p_v.tab[i]
+	    var	st = s.st
 
-		if (p_v.diafret && nt.acc)
-			n += '+'
+		if (i >= 0) {
+			nt.nb = (p_v.diafret ? nt.pit : nt.midi) - p_v.tab[i]
+			if (p_v.diafret && nt.acc)
+				n += '+'
+			nt.pit = i * 2 + 18
+		} else {
+			nt.nb = -1
+			nt.pit = 18
+		}
 		nt.acc = 0
 		nt.invis = true
-		nt.pit = i * 2 + 18
-		nt.nb = n
 		strss[i] = s.time + s.dur
 		if (s.nflags >= -1 && !s.stemless) {
 			if (!lstr[st])
@@ -184,6 +204,8 @@ abc2svg.strtab = {
 			break
 		}
 
+		s.stem = -1			// down stems
+
 		// handle the fret numbers as chord decoration
 		if (!s.nhd && s.a_dd) {
 			i = s.a_dd.length
@@ -202,21 +224,22 @@ abc2svg.strtab = {
 			nt = s.notes[m]
 			if (nt.nb != undefined)
 				continue
-			if (nt.a_dcn) {
-				i = nt.a_dcn.length
+			if (nt.a_dd) {
+				i = nt.a_dd.length
 				while (--i >= 0) {
-					bi = strnum(nt.a_dcn[i])
+					bi = strnum(nt.a_dd[i].name)
 					if (bi >= 0) {
 						set_pit(p_v, s, nt, bi)
-						delete nt.a_dcn
+						delete nt.a_dd
 						continue ls
 					}
 				}
-				delete nt.a_dcn
+				delete nt.a_dd
 			}
 
 			// search the best string
 			bn = 100
+			bi = -1
 			i = p_v.tab.length
 			while (--i >= 0) {
 				if (strss[i] && strss[i] > s.time)
@@ -342,7 +365,6 @@ abc2svg.strtab = {
 			a.splice(i, 1)
 			i--
 			ok = true
-			p_v.pos.stm = abc2svg.C.SL_BELOW
 			break
 		case "strings=":
 			strs = a[++i]
@@ -377,6 +399,8 @@ abc2svg.strtab = {
 			tab = p_v.diafret ?
 				[10, 14, 17] :		// dulcimer
 				[40, 45, 50, 55, 59, 64] // guitar strings
+		} else {
+			tab = p_v.tab
 		}
 	}
 	if (ok) {

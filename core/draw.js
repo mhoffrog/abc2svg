@@ -1,6 +1,6 @@
 // abc2svg - draw.js - draw functions
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -81,7 +81,7 @@ function sym_dup(s) {
 	s.notes = clone(s.notes)
 	for (m = 0; m <= s.nhd; m++) {
 		note = s.notes[m] = clone(s.notes[m])
-		delete note.a_dcn
+		delete note.a_dd
 	}
 	return s
 }
@@ -214,7 +214,7 @@ Abc.prototype.calculate_beam = function(bm, s1) {
 	}
 
 	// have flat beams on grace notes when asked
-	if (s.grace && cfmt.flatbeams)
+	if (s.grace && s1.fmt.flatbeams)
 		a = 0
 
 	// if a note inside the beam is the closest to the beam, the beam is flat
@@ -227,9 +227,12 @@ Abc.prototype.calculate_beam = function(bm, s1) {
 	if (a == undefined)
 		a = (s2.ys + staff_tb[s2.st].y - y) / (s2.xs - s1.xs)
 
-	if (a != 0)
-		a = cfmt.beamslope * a /
-			(cfmt.beamslope + Math.abs(a)) // max steepness for beam
+	if (a != 0) {
+		a = s1.fmt.beamslope * a /
+			(s1.fmt.beamslope + Math.abs(a)) // max steepness for beam
+		if (a > -.04 && a < .04)
+			a = 0				// slope too low
+	}
 
 	// pivot around the middle of the beam
 	b = (y + s2.ys + staff_tb[s2.st].y) / 2 - a * (s2.xs + s1.xs) / 2
@@ -626,8 +629,6 @@ function draw_beams(bm) {
 
 /* -- draw the left side of the staves -- */
 function draw_lstaff(x) {
-//	if (cfmt.alignbars)
-//		return
     var	i, j, yb, h, fl,
 		nst = cur_sy.nstaff,
 		l = 0
@@ -728,7 +729,7 @@ function draw_meter(s) {
 
 /* -- draw an accidental -- */
 function draw_acc(x, y, a) {
-	if (typeof a != "number") {		// if microtone
+	if (typeof a == "object") {		// if microtone
 	    var	c,
 		n = a[0],
 		d = a[1]
@@ -786,7 +787,8 @@ Abc.prototype.draw_hl = function(s) {
 	p_staff = staff_tb[st]
 
 	// check if any helper line
-	if (!p_staff.hll)
+	if (!p_staff.hll
+	 || s.invis)
 		return			// no helper line (no line)
 	for (i = 0; i <= s.nhd; i++) {
 		note = s.notes[i]
@@ -860,8 +862,6 @@ var	sharp_cl = new Int8Array([24, 9, 15, 21, 6, 12, 18]),
 	flat2 = new Int8Array([-12, 9, -12, 9, -12, 9])
 
 Abc.prototype.draw_keysig = function(x, s) {
-	if (s.k_none || s.k_play)
-		return
 	var	old_sf = s.k_old_sf,
 		st = s.st,
 		staffb = staff_tb[st].y,
@@ -879,7 +879,7 @@ Abc.prototype.draw_keysig = function(x, s) {
 	if (!s.k_a_acc) {
 
 		/* put neutrals if 'accidental cancel' */
-		if (cfmt.cancelkey || s.k_sf == 0) {
+		if (s.fmt.cancelkey || s.k_sf == 0) {
 
 			/* when flats to sharps, or sharps to flats, */
 			if (s.k_sf == 0
@@ -916,7 +916,7 @@ Abc.prototype.draw_keysig = function(x, s) {
 				shift += p_seq[i];
 				x += 5.5
 			}
-			if (cfmt.cancelkey && i < old_sf) {
+			if (s.fmt.cancelkey && i < old_sf) {
 				x += 2
 				for (; i < old_sf; i++) {
 					xygl(x, staffb + shift, "acc3");
@@ -935,7 +935,7 @@ Abc.prototype.draw_keysig = function(x, s) {
 				shift += p_seq[-i];
 				x += 5.5
 			}
-			if (cfmt.cancelkey && i > old_sf) {
+			if (s.fmt.cancelkey && i > old_sf) {
 				x += 2
 				for (; i > old_sf; i--) {
 					xygl(x, staffb + shift, "acc3");
@@ -960,6 +960,10 @@ Abc.prototype.draw_keysig = function(x, s) {
 			acc = s.k_a_acc[i];
 			shift = (s.k_y_clef	// clef shift
 				+ acc.pit - 18) * 3
+			while (shift < -3)		// let the accidentals inside the staff
+				shift += 21
+			while (shift > 27)
+				shift -= 21
 			if (i != 0
 			 && (shift > last_shift + 18
 			  || shift < last_shift - 18))
@@ -969,32 +973,15 @@ Abc.prototype.draw_keysig = function(x, s) {
 			last_acc = acc.acc;
 			s2.x = x
 			s2.notes[0].pit = shift / 3 + 18;
-			self.draw_hl(s2)
+// is this useful?
+//			s2.head = C.FULL
+//			s2.notes[0].shhd = 0
+//			self.draw_hl(s2)
 			last_shift = shift;
 			draw_acc(x, staffb + shift, acc.acc)
 			x += 5.5
 		}
 	}
-}
-
-/* -- convert the standard measure bars -- */
-function bar_cnv(bar_type) {
-	switch (bar_type) {
-	case "[":
-	case "[]":
-		return ""			/* invisible */
-	case "|:":
-	case "|::":
-	case "|:::":
-		return "[" + bar_type		/* |::: -> [|::: */
-	case ":|":
-	case "::|":
-	case ":::|":
-		return bar_type + "]"		/* :..| -> :..|] */
-	case "::":
-		return cfmt.dblrepbar		/* :: -> double repeat bar */
-	}
-	return bar_type
 }
 
 // output the measure repeat number
@@ -1008,6 +995,37 @@ function nrep_out(x, y, n) {
 	}
 } // nrep_out()
 
+// if rest alone in the measure or measure repeat,
+// change the head and center
+function center_rest(s) {
+    var	s2, x
+	
+	if (s.dur < C.BLEN * 2)
+		s.nflags = -2		// semibreve / whole
+	else if (s.dur < C.BLEN * 4)
+		s.nflags = -3
+	else
+		s.nflags = -4
+	s.dots = 0
+
+	/* don't use next/prev: there is no bar in voice overlay */
+	s2 = s.ts_next
+	while (s2.time != s.time + s.dur
+	    && s2.ts_next)
+		s2 = s2.ts_next
+	x = s2.x - s2.wl
+	s2 = s
+	while (!s2.seqst)
+		s2 = s2.ts_prev
+	s2 = s2.ts_prev
+	x = (x + s2.x + s2.wr) / 2
+
+	/* center the associated decorations */
+	if (s.a_dd)
+		deco_update(s, x - s.x)
+	s.x = x
+} // center_rest()
+
 /* -- draw a rest -- */
 /* (the staves are defined) */
 var rest_tb = [
@@ -1016,46 +1034,13 @@ var rest_tb = [
 	"r2", "r1", "r0", "r00"]
 
 function draw_rest(s) {
-    var	s2, i, j, x, y, yb, bx,
-	p_staff = staff_tb[s.st]
+    var	s2, i, j, y, bx,
+	p_staff = staff_tb[s.st],
+	yb = p_staff.y,			// bottom of staff
+	x = s.x
 
-	// if rest alone in the measure or measure repeat,
-	// change the head and center
-	if (s.dur_orig == s.p_v.meter.wmeasure
-	 || (s.rep_nb && s.rep_nb >= 0)) {
-		if (s.dur < C.BLEN * 2)
-			s.nflags = -2		// semibreve / whole
-		else if (s.dur < C.BLEN * 4)
-			s.nflags = -3
-		else
-			s.nflags = -4;
-		s.dots = 0;
-
-		/* don't use next/prev: there is no bar in voice overlay */
-		s2 = s.ts_next
-		while (s2.time != s.time + s.dur
-		    && s2.ts_next)
-			s2 = s2.ts_next
-		x = s2.x - s2.wl
-		s2 = s
-		while (!s2.seqst)
-			s2 = s2.ts_prev;
-		s2 = s2.ts_prev;
-		x = (x + s2.x + s2.wr) / 2
-
-		/* center the associated decorations */
-		if (s.a_dd)
-			deco_update(s, x - s.x);
-		s.x = x
-	} else {
-		x = s.x
-		if (s.notes[0].shhd)
-			x += s.notes[0].shhd * stv_g.scale
-	}
-	if (s.invis)
-		return
-
-	yb = p_staff.y			// bottom of staff
+	if (s.notes[0].shhd)
+		x += s.notes[0].shhd * stv_g.scale
 
 	if (s.rep_nb) {
 		set_sscale(s.st);
@@ -1069,8 +1054,8 @@ function draw_rest(s) {
 		} else {
 			xygl(x, yb, "mrep")
 			if (s.rep_nb > 2 && s.v == cur_sy.top_voice
-			 && cfmt.measrepnb > 0
-			 && !(s.rep_nb % cfmt.measrepnb))
+			 && s.fmt.measrepnb > 0
+			 && !(s.rep_nb % s.fmt.measrepnb))
 				nrep_out(x, yb + p_staff.topbar, s.rep_nb)
 		}
 		anno_a.push(s)
@@ -1094,39 +1079,6 @@ function draw_rest(s) {
 	if (!s.notes[0].invis)		// if not head replacement
 		xygl(x, y + yb, rest_tb[i])
 
-	/* output ledger line(s) when greater than minim */
-	if (i >= 6) {
-		j = y / 6
-		switch (i) {
-		default:
-			switch (p_staff.stafflines[j + 1]) {
-			case '|':
-			case '[':
-				break
-			default:
-				set_hl(p_staff, j + 1, x, -7, 7)
-				break
-			}
-			if (i == 9) {			/* longa */
-				y -= 6;
-				j--
-			}
-			break
-		case 7:					/* semibreve */
-			y += 6;
-			j++
-		case 6:					/* minim */
-			break
-		}
-		switch (p_staff.stafflines[j]) {
-		case '|':
-		case '[':
-			break
-		default:
-			set_hl(p_staff, j, x, -7, 7)
-			break
-		}
-	}
 	if (s.dots) {
 		x += 8;
 		y += yb + 3
@@ -1141,62 +1093,47 @@ function draw_rest(s) {
 	anno_a.push(s)
 }
 
-/* -- draw grace notes -- */
-/* (the staves are defined) */
-function draw_gracenotes(s) {
-    var	yy, x0, y0, x1, y1, x2, y2, x3, y3, bet1, bet2, slur,
-	dy1, dy2, g, last, note,
-	bm = {}
+// -- draw a multi-measure rest --
+// (the staves are defined)
+function draw_mrest(s) {
+    var	x1, x2,
+	p_st = staff_tb[s.st],
+	y = p_st.y + (p_st.topbar + p_st.botbar) / 2,
+	p = s.nmes.toString()
 
-	/* draw the notes */
-//	bm.s2 = undefined			/* (draw flags) */
-	for (g = s.extra; g; g = g.next) {
-		if (g.beam_st && !g.beam_end) {
-			if (self.calculate_beam(bm, g))
-				draw_beams(bm)
-		}
-		anno_start(g);
-		draw_note(g, !bm.s2)
-		if (g == bm.s2)
-			bm.s2 = null			/* (draw flags again) */
-		anno_a.push(s)
-		if (g.sls || g.sl2)
-			slur = true
+	if (!s.next) {
+		error(1, s, "Lack of bar after multi-measure rest")
+		return
+	}
+	set_scale(s)
+	x1 = s.prev.x + 20
+	x2 = s.next.x - 20
+	s.x = (x1 + x2) / 2
+	anno_start(s)
+	out_XYAB('<path d="mX Y', x1 + .6, y - 2.7)
+	output += 'v2.7h-1.4v-10.8h1.4v2.7h'
+		+ (x2 - x1 - 2.8).toFixed(1)
+		+ 'v-2.7h1.4v10.8h-1.4v-2.7z"/>\n'
+	out_XYAB('<text x ="X" y="Y" text-anchor="middle">A</text>\n',
+		s.x, y + 22, m_gl(p))
+	anno_a.push(s)
+} // draw_mrest()
+
+function grace_slur(s) {
+    var	yy, x0, y0, x3, y3, bet1, bet2, dy1, dy2, last, below,
+	so = s,
+	g = s.extra
+
+	while (1) {
 		if (!g.next)
 			break			/* (keep the last note) */
+		g = g.next
 	}
-
-	// if an acciaccatura, draw a bar 
-	if (s.sappo) {
-		g = s.extra
-		if (!g.next) {			/* if one note */
-			x1 = 9;
-			y1 = g.stem > 0 ? 5 : -5
-		} else {			/* many notes */
-			x1 = (g.next.x - g.x) * .5 + 4;
-			y1 = (g.ys + g.next.ys) * .5 - g.y
-			if (g.stem > 0)
-				y1 -= 1
-			else
-				y1 += 1
-		}
-		note = g.notes[g.stem < 0 ? 0 : g.nhd];
-		out_acciac(x_head(g, note), y_head(g, note),
-				x1, y1, g.stem > 0)
-	}
-
-	/* slur */
-//fixme: have a full key symbol in voice
-	if (s.p_v.ckey.k_bagpipe		/* no slur when bagpipe */
-	 || !cfmt.graceslurs
-	 || slur				// explicit slur
-	 || s.tie_s				// some tie
-	 || !s.next
-	 || s.next.type != C.NOTE)
-		return
 	last = g
-	if (((g.stem >= 0 || s.multi < 0) && g.notes[0].pit <= 28)
-	 || g.notes[0].pit < 16) {		// slur below
+
+	below = ((g.stem >= 0 || s.multi < 0) && g.notes[0].pit <= 28)
+			|| g.notes[0].pit < 16
+	if (below) {
 		yy = 127
 		for (g = s.extra; g; g = g.next) {
 			if (g.y < yy) {
@@ -1274,17 +1211,86 @@ function draw_gracenotes(s) {
 		}
 	}
 
-	x1 = bet1 * x3 + (1 - bet1) * x0 - x0;
-	y1 = bet1 * y3 + (1 - bet1) * y0 - dy1 - y0;
-	x2 = bet2 * x3 + (1 - bet2) * x0 - x0;
-	y2 = bet2 * y3 + (1 - bet2) * y0 - dy2 - y0;
+	so.slur = {
+		x0: x0,
+		y0: y0,
+		x1: bet1 * x3 + (1 - bet1) * x0 - x0,
+		y1: y0 - bet1 * y3 - (1 - bet1) * y0 + dy1,
+		x2: bet2 * x3 + (1 - bet2) * x0 - x0,
+		y2: y0 - bet2 * y3 - (1 - bet2) * y0 + dy2,
+		x3: x3 - x0,
+		y3: y0 - y3
+	}
+	y0 -= so.slur.y1
+	g = so.extra
+//fixme: useless?
+//	y_set(s.st, !below, x0, x3 - x0, y0)
+	if (below) {
+		if (y0 < g.ymn)
+			g.ymn = y0
+	} else {
+		if (y0 > g.ymx)
+			g.ymx = y0
+	}
+} // grace_slur()
 
-	anno_start(s, 'slur');
-	xypath(x0, y0 + staff_tb[s.st].y);
-	output += 'c' + x1.toFixed(1) + ' ' + (-y1).toFixed(1) +
-		' ' + x2.toFixed(1) + ' ' + (-y2).toFixed(1) +
-		' ' + (x3 - x0).toFixed(1) + ' ' + (-y3 + y0).toFixed(1) + '"/>\n';
-	anno_stop(s, 'slur')
+/* -- draw grace notes -- */
+/* (the staves are defined) */
+function draw_gracenotes(s) {
+    var	x1, y1,
+	last, note,
+	bm = {},
+	g = s.extra
+
+	/* draw the notes */
+//	bm.s2 = undefined			/* (draw flags) */
+	while (1) {
+		if (g.beam_st && !g.beam_end) {
+			if (self.calculate_beam(bm, g))
+				draw_beams(bm)
+		}
+		anno_start(g)
+		draw_note(g, !bm.s2)
+		if (g == bm.s2)
+			bm.s2 = null			/* (draw flags again) */
+		anno_a.push(s)
+//		if (g.sls || g.sl2)
+//			slur = true
+		if (!g.next)
+			break			/* (keep the last note) */
+		g = g.next
+	}
+	last = g
+
+	// if an acciaccatura, draw a bar 
+	if (s.sappo) {
+		g = s.extra
+		if (!g.next) {			/* if one note */
+			x1 = 9
+			y1 = g.stem > 0 ? 5 : -5
+		} else {			/* many notes */
+			x1 = (g.next.x - g.x) * .5 + 4
+			y1 = (g.ys + g.next.ys) * .5 - g.y
+			if (g.stem > 0)
+				y1 -= 1
+			else
+				y1 += 1
+		}
+		note = g.notes[g.stem < 0 ? 0 : g.nhd]
+		out_acciac(x_head(g, note), y_head(g, note),
+				x1, y1, g.stem > 0)
+	}
+
+	/* slur */
+	g = s.slur
+	if (g) {
+		anno_start(s, 'slur')
+		xypath(g.x0, g.y0 + staff_tb[s.st].y)
+		output += 'c' + g.x1.toFixed(1) + ' ' + g.y1.toFixed(1) +
+			' ' + g.x2.toFixed(1) + ' ' + g.y2.toFixed(1) +
+			' ' + g.x3.toFixed(1) + ' ' + g.y3.toFixed(1) + '"/>\n'
+		anno_stop(s, 'slur')
+	}
 }
 
 /* -- set the y offset of the dots -- */
@@ -1334,11 +1340,12 @@ function y_head(s, note) {
 /* -- draw m-th head with accidentals and dots -- */
 /* (the staves are defined) */
 // sets {x,y}_note
-function draw_basic_note(x, s, m, y_tb) {
+function draw_basic_note(s, m, y_tb) {
 	var	i, p, yy, dotx, doty, inv,
 		old_color = false,
 		note = s.notes[m],
 		staffb = staff_tb[s.st].y,	/* bottom of staff */
+	x = s.x,
 		y = 3 * (note.pit - 18),	/* note height on staff */
 		shhd = note.shhd * stv_g.scale,
 		x_note = x + shhd,
@@ -1456,21 +1463,17 @@ function draw_basic_note(x, s, m, y_tb) {
 /* (the staves are defined) */
 function draw_note(s,
 		   fl) {		// draw flags
-    var	s2, i, m, y, staffb, slen, c, nflags,
-	x, y, note,
-	y_tb = new Array(s.nhd + 1)
+    var	s2, i, m, y, slen, c, nflags,
+	y_tb = new Array(s.nhd + 1),
+	note = s.notes[s.stem < 0 ? s.nhd : 0],	// master note head
+	x = x_head(s, note),
+	y = y_head(s, note),
+	staffb = staff_tb[s.st].y
 
 	if (s.dots)
 		setdoty(s, y_tb)
 
-	note = s.notes[s.stem < 0 ? s.nhd : 0];	// master note head
-	x = x_head(s, note)
-	staffb = staff_tb[s.st].y
-
-	self.draw_hl(s)
-
 	/* draw the stem and flags */
-	y = y_head(s, note)
 	if (!s.stemless) {
 		slen = s.ys - s.y;
 		nflags = s.nflags
@@ -1486,7 +1489,7 @@ function draw_note(s,
 			out_stem(x, y, slen, s.grace)
 		} else {				/* stem and flags */
 			out_stem(x, y, slen, s.grace,
-				 nflags, cfmt.straightflags)
+				 nflags, s.fmt.straightflags)
 		}
 	} else if (s.xstem) {				/* cross-staff stem */
 		s2 = s.ts_prev;
@@ -1517,9 +1520,8 @@ function draw_note(s,
 	}
 
 	/* draw the note heads */
-	x = s.x
 	for (m = 0; m <= s.nhd; m++)
-		draw_basic_note(x, s, m, y_tb)
+		draw_basic_note(s, m, y_tb)
 }
 
 // find where to start a long decoration
@@ -1727,19 +1729,17 @@ if (two_staves) error(2, k1, "*** multi-staves slurs not treated yet");
 					 && k1.nflags >= -1	/* if with a stem */
 //fixme: check if at end of tuplet
 					 && !k1.in_tuplet) {
-//					  || k1.ys > y1 - 3)) {
 						if (k1.nflags > 0) {
 							x1 += 2;
 							y1 = k1.ys - 3
 						} else {
 							y1 = k1.ys - 6
 						}
-// don't clash with decorations
-//					} else {
-//						y1 = k1.ys + 3
+					} else {
+						y1 = k1.ys + 3
 					}
-//				} else {
-//					y1 = k1.y + 8
+				} else {
+					y1 = k1.y + 8
 				}
 			} else {
 				if (k1.stem < 0) {
@@ -1756,11 +1756,11 @@ if (two_staves) error(2, k1, "*** multi-staves slurs not treated yet");
 						} else {
 							y1 = k1.ys + 6
 						}
-//					} else {
-//						y1 = k1.ys - 3
+					} else {
+						y1 = k1.ys - 3
 					}
-//				} else {
-//					y1 = k1.y - 8
+				} else {
+					y1 = k1.y - 8
 				}
 			}
 		}
@@ -1778,12 +1778,11 @@ if (two_staves) error(2, k1, "*** multi-staves slurs not treated yet");
 					if (k2.beam_st
 					 && k2.nflags >= -1
 					 && !k2.in_tuplet)
-//						|| k2.ys > y2 - 3))
 						y2 = k2.ys - 6
-//					else
-//						y2 = k2.ys + 3
-//				} else {
-//					y2 = k2.y + 8
+					else
+						y2 = k2.ys + 3
+				} else {
+					y2 = k2.y + 8
 				}
 			} else {
 				if (k2.stem < 0) {
@@ -1793,10 +1792,10 @@ if (two_staves) error(2, k1, "*** multi-staves slurs not treated yet");
 					 && !k2.in_tuplet)
 //						|| k2.ys < y2 + 3))
 						y2 = k2.ys + 6
-//					else
-//						y2 = k2.ys - 3
-//				} else {
-//					y2 = k2.y - 8
+					else
+						y2 = k2.ys - 3
+				} else {
+					y2 = k2.y - 8
 				}
 			}
 		}
@@ -1961,7 +1960,7 @@ if (two_staves) error(2, k1, "*** multi-staves slurs not treated yet");
 		if (height > -.8 * y)
 			height = -.8 * y
 	}
-	height *= cfmt.slurheight;
+	height *= k1.fmt.slurheight;
 
 //	anno_start(k1_o, 'slur');
 	slur_out(x1, y1, x2, y2, dir, height, ty & C.SL_DOTTED);
@@ -1980,7 +1979,7 @@ if (two_staves) error(2, k1, "*** multi-staves slurs not treated yet");
 		addy -= 4 * Math.sqrt(-height) - 2
 	for (i = 0; i < i2; i++) {
 		k = path[i]
-		if (k.st != upstaff)
+		if (k.st != upstaff || k.type == C.BAR)
 			continue
 		y = a * k.x + addy
 		if (k.ymx < y)
@@ -2172,11 +2171,11 @@ function draw_slurs(s, last) {
 /* -- draw a tuplet -- */
 /* (the staves are not yet defined) */
 /* (delayed output) */
-/* See http://moinejf.free.fr/abcm2ps-doc/tuplets.xhtml
+/* See http://moinejf.free.fr/abcm2ps-doc/tuplets.html
  * for the value of 'tp.f' */
 function draw_tuplet(s1) {
-    var	s2, s3, g, upstaff, nb_only, some_slur,
-	x1, x2, y1, y2, xm, ym, a, s0, yy, yx, dy, a, dir, r,
+    var	s2, s3, g, upstaff, nb_only,
+	x1, x2, y1, y2, xm, ym, a, s0, yy, yx, dy, a, dir, r, w,
 	tp = s1.tp.shift()		// tuplet parameters
 
 	if (!s1.tp.length)
@@ -2432,12 +2431,11 @@ function draw_tuplet(s1) {
 			yy = ym + (s3.x - xm) * a
 			if (s3.ymx < yy)
 				s3.ymx = yy
-			if (s3 == s2)
-				break
-			y_set(upstaff, true, s3.x, s3.next.x - s3.x, yy)
-		} else if (s3 == s2) {
-			break
+			w = s3.next.x - s3.x - 10
+			y_set(upstaff, true, s3.x - w, w * 2, yy)
 		}
+		if (s3 == s2)
+			break
 	}
 
     // below
@@ -2471,11 +2469,15 @@ function draw_tuplet(s1) {
 			a = 0
 		else if (a > s0)
 			a = s0
+		if (a > .35)
+			a = .35
 	} else {
 		if (a > 0)
 			a = 0
 		else if (a < s0)
 			a = s0
+		if (a < -.35)
+			a = -.35
 	}
 	if (a * a < .1 * .1)
 		a = 0
@@ -2505,12 +2507,12 @@ function draw_tuplet(s1) {
 	ym -= 2
 	for (s3 = s1; ; s3 = s3.next) {
 		if (s3.st == upstaff) {
-			if (s3 == s2)
-				break
 			yy = ym + (s3.x - xm) * a
 			if (s3.ymn > yy)
 				s3.ymn = yy;
-			y_set(upstaff, false, s3.x, s3.next.x - s3.x, yy)
+			w = s3.next.x - s3.x - 10
+			if (s3.next)
+				y_set(upstaff, false, s3.x - w, w * 2, yy)
 		}
 		if (s3 == s2)
 			break
@@ -2530,10 +2532,13 @@ function draw_tuplet(s1) {
 		y_set(upstaff, false, xm - 3, 6, yy)
 }
 
-/* -- draw the ties between two notes/chords -- */
-function draw_note_ties(not1, job) {
-    var	m, x1, x2, s, y, h, time,
-	not2 = not1.tie_n,
+// -- draw a ties --
+function draw_tie(not1, not2,
+			job) {	// -: start and end
+				// 1: no starting note
+				// 2: no ending note
+				// 3: no start for clef or staff change
+    var	m, x1, s, y, h, time,
 	p = job == 2 ? not1.pit : not2.pit,
 	dir = (not1.tie_ty & 0x07) == C.SL_ABOVE ? 1 : -1,
 	s1 = not1.s,
@@ -2574,33 +2579,24 @@ function draw_note_ties(not1, job) {
 	}
 
 	switch (job) {
-	case 0:
-		p = (not1.pit & 1) ? not1.pit : not2.pit
+	default:
+		if (p < not2.pit || dir < 0)
+			p = not1.pit
 		break
-	case 3:				/* clef or staff change */
+	case 3:
 		dir = -dir
-		// fall thru
 	case 1:				/* no starting note */
-		x1 = s1.x
+		x1 = s2.prev ? (s2.prev.x + s2.wr) : s1.x
+		if (s1.st != s2.st)
+			st = s2.st
+		x1 += (x2 - x1) * .4
 		if (x1 > x2 - 20)
 			x1 = x2 - 20
-		p = not2.pit
-		st = s2.st
 		break
-/*	case 2:				 * no ending note */
-	default:
-		if (s1 != s2) {
-			x2 -= s2.wl
-			if (s2.type == C.BAR)
-				x2 += 5
-		} else {
-			time = s1.time + s1.dur
-			for (s = s1.ts_next; s; s = s.ts_next)
-//(fixme: must check if the staff continues??)
-				if (s.time > time)
-					break
-			x2 = s ? s.x : realwidth
-		}
+	case 2:				 // no ending note
+		x2 = s1.next ? s1.next.x : realwidth
+		if (x2 != realwidth)
+			x2 -= (x2 - x1) * .4
 		if (x2 < x1 + 16)
 			x2 = x1 + 16
 		break
@@ -2620,175 +2616,70 @@ function draw_note_ties(not1, job) {
 
 	y = staff_tb[st].y + 3 * (p - 18) + /* 1.0 * */ dir
 
-	h = (.03 * (x2 - x1) + 16) * dir * cfmt.tieheight
+	h = (.03 * (x2 - x1) + 16) * dir * s1.fmt.tieheight
 //	anno_start(k1, 'slur')
 	slur_out(x1, y, x2, y, dir, h, not1.tie_ty & C.SL_DOTTED)
 //	anno_stop(k1, 'slur')
-}
-
-/* -- draw ties between neighboring notes/chords -- */
-function draw_ties(k1, k2,
-			job) {	// 0: normal
-				// 1: no starting note
-				// 2: no ending note
-				// 3: no start for clef or staff change
-    var	k3, i, j, not1, not3, time, pit, pit2,
-	mhead3 = [],
-	nh1 = k1.nhd
-
-	/* half ties from last note in line or before new repeat */
-	if (job == 2) {
-		for (i = 0; i <= nh1; i++) {
-			not1 = k1.notes[i]
-			if (not1.tie_ty) {
-				k3 = not1.tie_n
-				not1.tie_n = { s: k2 || k1 }
-				draw_note_ties(not1, job)
-				not1.tie_n = k3
-			}
-		}
-		return
-	}
-
-	// draw the ties or memorize the ones without ending
-	for (i = 0; i <= nh1; i++) {
-		not1 = k1.notes[i]
-		if (!not1.tie_ty)
-			continue
-		if (!not1.s)
-			not1.s = k1
-		if (not1.tie_n)
-			draw_note_ties(not1, job)
-		else
-			mhead3.push(not1)	/* no match */
-	}
-
-	/* if any bad tie, try an other voice of the same staff */
-	if (!mhead3.length)
-		return				/* no bad tie */
-
-	time = k1.time + k1.dur
-	k3 = k1.ts_next
-	if (job != 1)
-		job = 0
-	while (k3 && k3.time < time)
-		k3 = k3.ts_next
-	while (k3 && k3.time == time) {
-		if (k3.type != C.NOTE
-		 || k3.st != k1.st) {
-			k3 = k3.ts_next
-			continue
-		}
-		for (i = mhead3.length; --i >= 0; ) {
-			not1 = mhead3[i]
-			pit = not1.opit || not1.pit
-			for (j = k3.nhd; j >= 0; j--) {
-				not3 = k3.notes[j]
-				pit2 = not3.opit || not3.pit
-				if (pit2 == pit) {
-					not1.tie_n = not3
-					if (!not3.s)
-						not3.s = k3
-					draw_note_ties(not1, job)
-					mhead3.splice(i, 1)
-					break
-				}
-			}
-		}
-		if (!mhead3.length)
-			break
-		k3 = k3.ts_next
-	}
-
-	if (mhead3.length)
-		error(1, k1, "Bad tie")
-}
+} // draw_tie()
 
 /* -- draw all ties between neighboring notes -- */
 function draw_all_ties(p_voice) {
-    var s, s1, s2, clef_chg, time, x, dx, s_next, m
-
-	function draw_ties_g(s1, s2, job) {
-		if (s1.type == C.GRACE) {
-			for (var g = s1.extra; g; g = g.next) {
-				if (g.tie_s)
-					draw_ties(g, s2, job)
-			}
-		} else {
-			draw_ties(s1, s2, job)
-		}
-	} // draw_ties_g()
+    var s, s1, s2, clef_chg, x, dx, m, not1, not2,
+	tim2 = 0
 
 	/* search the start of ties */
 //	clef_chg = false
-	s_next = p_voice.sym
-	set_color(s_next.color)
-	while (1) {
-		for (s1 = s_next; s1; s1 = s1.next) {
-			if (s1.ti2			// if no tie start
-			 && (s1 != s_next
-			  || !s_next.prev)) {		// (at start of line)
-				s = s1.ti2
-				s.x = s1.x
-				s2 = s.next
-				s.next = s1
-				s.st = s1.st
-				s.time = s1.time - s.dur
-				draw_ties(s, s1, 1)
-				s.next = s2	// restore the linkage for play
-			}
-			if (s1.tie_s)
-				break
-		}
-		if (!s1)
-			break
-
-		// check if the tied note is in this line
-		s2 = s1.tie_s				// ending note of the tie
-		if (s2.v == s1.v) {
-			s_next = s2
-			s = s1
-			while (1) {
-				if (!s.next) {
-					s2 = s
-					s = null
-					break
-				}
-				s = s.next
-				if (s == s2)
-					break
-			}
-		} else {
-			s_next = s1.next
-			s = s1
-			while (1) {
-				if (!s.ts_next) {
-					s = null
-					break
-				}
-				s = s.ts_next
-				if (s == s2)
-					break
-			}
-			if (!s) {
-				s2 = s1
-				while (s2.next)
-					s2 = s2.next
+	s1 = p_voice.sym
+	set_color(s1.color)
+	for ( ; s1; s1 = s1.next) {
+		if (s1.ti2			// if end of tie
+		 && s1.time != tim2) {		// and new end
+			for (m = 0; m <= s1.nhd; m++) {
+				not2 = s1.notes[m]
+				not1 = not2.tie_s
+				if (!not1
+				 || not1.s.v != s1.v)	// (already done)
+					continue
+				draw_tie(not1, not2, 1)
 			}
 		}
+		if (!s1.ti1)			// if not start of tie
+			continue
 
-		if (!s) {				// end of line
-			draw_ties_g(s1, s2, 2);
-			break
+		// get the end of the tie(s)
+		if (s1.type == C.GRACE) {
+			for (s = s1.extra; s; s = s.next) {
+			    for (m = 0; m <= s1.nhd; m++) {
+				not1 = s.notes[m]
+				not2 = not1.tie_e
+				if (!not2)
+					continue
+				draw_tie(not1, not2)
+				tim2 = not2.s.time
+			    }
+			}
+			continue
 		}
 
-		// check if some clef changes (may occur in an other voice)
-		time = s1.time + s.dur
+	    for (m = 0; m <= s1.nhd; m++) {
+		not1 = s1.notes[m]
+		not2 = not1.tie_e
+		if (!not2) {
+			if (not1.tie_ty)
+				draw_tie(not1, not1, 2)
+			continue
+		}
+		s2 = not2.s
+		if (tsnext && s2.time >= tsnext.time) {	// if end in next line
+			draw_tie(not1, not2, 2)
+			continue
+		}
+		tim2 = s2.time
+
+		// check if some clef changes (can occur in an other voice)
 		for (s = s1.ts_next; s != s2; s = s.ts_next) {
 			if (s.st != s1.st)
 				continue
-			if (s.time > time)
-				break
 			if (s.type == C.CLEF) {
 				clef_chg = true
 				break
@@ -2797,23 +2688,13 @@ function draw_all_ties(p_voice) {
 
 		/* ties with clef or staff change */
 		if (clef_chg || s1.st != s2.st) {
-			clef_chg = false;
-			dx = (s2.x - s1.x) * .4;
-			x = s2.x;
-			s2.x -= dx
-			if (s2.x > s1.x + 32.)
-				s2.x = s1.x + 32.;
-			draw_ties_g(s1, s2, 2);
-			s2.x = x;
-			x = s1.x;
-			s1.x += dx
-			if (s1.x < s2.x - 24.)
-				s1.x = s2.x - 24.;
-			draw_ties(s1, s2, 3);
-			s1.x = x
-			continue
+			draw_tie(not1, not2, 2)
+			draw_tie(not1, not2, 3)
+			clef_chg = false
+		} else {
+			draw_tie(not1, not2)
 		}
-		draw_ties_g(s1, s2, s2.type == C.NOTE ? 0 : 2)
+	    }
 	}
 }
 
@@ -2827,14 +2708,15 @@ function draw_all_ties(p_voice) {
  *   - decorations tied to the notes
  *   - tuplets and slurs
  * - not scaled
- *   - chord symbols
- *   - staff decorations
- *   - lyrics
  *   - measure numbers
+ *   - lyrics
+ *   - staff decorations
+ *   - chord symbols
+ *   - repeat brackets
  * The buffer output is delayed until the definition of the staff system
  */
 function draw_sym_near() {
-    var	p_voice, p_st, s, v, st, y, g, w, i, st, dx, top, bot, ymn,
+    var	p_voice, p_st, s, v, st, y, g, w, i, st, dx, top, bot, ymn, slur,
 	output_sav = output;
 
 	// set the staff offsets of a beam
@@ -2866,14 +2748,13 @@ function draw_sym_near() {
 	} // set_yab()
 
 	output = ""
+	YSTEP = Math.ceil(realwidth / 2)
 
 	// initialize the min/max vertical offsets in the staves
 	for (st = 0; st <= nstaff; st++) {
 		p_st = staff_tb[st]
-		if (!p_st.top) {
-			p_st.top = new Float32Array(YSTEP)
-			p_st.bot = new Float32Array(YSTEP)
-		}
+		p_st.top = new Float32Array(YSTEP)
+		p_st.bot = new Float32Array(YSTEP)
 		for (i = 0; i < YSTEP; i++) {
 			p_st.top[i] = 0
 			p_st.bot[i] = 24
@@ -2891,14 +2772,29 @@ function draw_sym_near() {
 		for (s = p_voice.sym; s; s = s.next) {
 			switch (s.type) {
 			case C.GRACE:
+				slur = 0
 				for (g = s.extra; g; g = g.next) {
 					if (g.beam_st && !g.beam_end) {
 						self.calculate_beam(bm, g)
 						if (bm.s2)
 							set_yab(g, bm.s2)
 					}
+					if (g.sls || g.sl1)
+						slur++
 				}
+				if (!s.p_v.ckey.k_bagpipe	// no slur when bagpipe
+				 && s.fmt.graceslurs
+				 && !s.gr_shift			// tied to previous note
+				 && !slur			// explicit slur
+				 && !s.ti1			// some tie
+				 && s.next
+				 && s.next.type == C.NOTE)
+					grace_slur(s)
 				break
+			}
+		}
+		for (s = p_voice.sym; s; s = s.next) {
+			switch (s.type) {
 			case C.NOTE:
 				if ((s.beam_st && !s.beam_end)
 				 || (first_note && !s.beam_st)) {
@@ -3036,7 +2932,6 @@ function draw_sym_near() {
 
 	if (cfmt.measurenb >= 0)
 		draw_measnb();
-	draw_deco_staff();
 
 	/* if any lyric, draw them now as unscaled */
 	set_dscale(-1)
@@ -3048,6 +2943,8 @@ function draw_sym_near() {
 			break
 		}
 	}
+
+	draw_deco_staff()
 
 	set_dscale(-1);
 	output = output_sav
@@ -3116,6 +3013,7 @@ function draw_vname(indent, stl) {
 
 		// if instrument with 2 staves, center the voice name
 		if ((cur_sy.staves[st].flags & OPEN_BRACE)
+		 && st + 1 < staff_tb.length
 		 && (cur_sy.staves[st + 1].flags & CLOSE_BRACE)
 		 && !staff_d[st + 1])
 			y -= (staff_tb[st].y - staff_tb[st + 1].y) * .5
@@ -3129,8 +3027,9 @@ function draw_vname(indent, stl) {
 
 // -- set the y offset of the staves and return the height of the whole system --
 function set_staff() {
-var	s, i, st, prev_staff, v,
+    var	i, st, prev_staff, v,
 	y, staffsep, dy, maxsep, mbot, val, p_voice, p_staff,
+	fmt = tsfirst.fmt,
 	sy = cur_sy
 
 	/* set the scale of the voices */
@@ -3170,7 +3069,7 @@ var	s, i, st, prev_staff, v,
 
 	/* set the vertical offset of the 1st staff */
 	y *= p_staff.staffscale;
-	staffsep = cfmt.staffsep * .5 +
+	staffsep = fmt.staffsep * .5 +
 			p_staff.topbar * p_staff.staffscale
 	if (y < staffsep)
 		y = staffsep
@@ -3254,10 +3153,10 @@ var	s, i, st, prev_staff, v,
 			return y
 	}
 	dy = -mbot;
-	staffsep = cfmt.staffsep * .5
+	staffsep = fmt.staffsep * .5
 	if (dy < staffsep)
 		dy = staffsep;
-	maxsep = cfmt.maxstaffsep * .5
+	maxsep = fmt.maxstaffsep * .5
 	if (dy > maxsep)
 		dy = maxsep;
 
@@ -3274,8 +3173,8 @@ function draw_systems(indent) {
 		bar_bot = [],
 		bar_height = [],
 		ba = [],		// bars [symbol, bottom, height]
-		sb = [],
-		thb = []
+		sb = "",
+		thb = ""
 
 	/* -- set the bottom and height of the measure bars -- */
 	function bar_set() {
@@ -3381,6 +3280,7 @@ function draw_systems(indent) {
 
 		s.ymx = s.ymn + h;
 
+		set_sscale(-1)
 		anno_start(s)
 		if (s.color)
 			set_color(s.color);
@@ -3402,6 +3302,7 @@ function draw_systems(indent) {
 				if (s.v == cur_sy.top_voice)
 					nrep_out(x, yb + p_staff.topbar, s.bar_mrep)
 			}
+			set_sscale(-1)
 		}
 
 		if (bar_type == '||:')
@@ -3411,7 +3312,6 @@ function draw_systems(indent) {
 			switch (bar_type[i]) {
 			case "|":
 				if (s.bar_dotted) {
-					set_sscale(-1);
 					w = (5 * p_staff.staffscale).toFixed(1);
 					out_XYAB(
 			'<path class="bW" stroke-dasharray="A,A" d="MX Yv-G"/>\n',
@@ -3420,7 +3320,9 @@ function draw_systems(indent) {
 					out_XYAB('<path class="bW" d="MX Yv-F"/>\n',
 						x, bot, h)
 				} else {
-					sb.push(new Float32Array([x, bot, h]))
+					sb += 'M' + sx(x).toFixed(1)
+						+ ' ' + self.sy(bot).toFixed(1)
+						+ 'v-' + h.toFixed(1)
 				}
 				break
 			default:
@@ -3431,12 +3333,15 @@ function draw_systems(indent) {
 					out_XYAB('<path class="bthW" d="MX Yv-F"/>\n',
 						x + 1.5, bot, h)
 				else
-					thb.push(new Float32Array([x + 1.5, bot, h]))
+					thb += 'M' + sx(x + 1.5).toFixed(1)
+						+ ' ' + self.sy(bot).toFixed(1)
+						+ 'v-' + h.toFixed(1)
 				break
 			case ":":
 				x -= 2;
 				set_sscale(st);
 				xygl(x + 1, yb - 12, "rdots")
+				set_sscale(-1)
 				break
 			}
 			x -= 3
@@ -3462,26 +3367,63 @@ function draw_systems(indent) {
 			gene.curfont.box = bx
 
 		set_sscale(-1)
-		l = sb.length
-		if (l) {			// single bars [x, y, h]
+		if (sb)			// single bars
 			output += '<path class="bW" d="'
-			for (i = 0; i < l; i++) {
-				b = sb[i];
-				out_XYAB('MX Yv-F', b[0], b[1], b[2])
-			}
-			output += '"/>\n'
-		}
+				+ sb
+				+ '"/>\n'
 
-		l = thb.length
-		if (l) {			// thick bars [x, y, h]
+		if (thb)		// thick bars [x, y, h]
 			output += '<path class="bthW" d="'
-			for (i = 0; i < l; i++) {
-				b = thb[i];
-				out_XYAB('MX Yv-F', b[0], b[1], b[2])
-			}
-			output += '"/>\n'
-		}
+				+ thb
+				+ '"/>\n'
 	} // out_bars()
+
+	// set the helper lines of rests
+	function hl_rest(s) {
+	    var	j,
+		p_st = staff_tb[s.st],
+		i = 5 - s.nflags,		// rest_tb index (5 = C_XFLAGS)
+		x = s.x,
+		y = s.y
+
+		if (i < 6)	// no ledger line if rest smaller than minim
+			return
+
+		if (i == 7 && y == 12
+		 && p_st.stafflines.length <= 2)
+			y -= 6			// semibreve a bit lower
+
+		j = y / 6
+		switch (i) {
+		default:
+			switch (p_st.stafflines[j + 1]) {
+			case '|':
+			case '[':
+				break
+			default:
+				set_hl(p_st, j + 1, x, -7, 7)
+				break
+			}
+			if (i == 9) {		// longa
+				y -= 6
+				j--
+			}
+			break
+		case 7:				// semibreve
+			y += 6
+			j++
+		case 6:				// minim
+			break
+		}
+		switch (p_st.stafflines[j]) {
+		case '|':
+		case '[':
+			break
+		default:
+			set_hl(p_st, j, x, -7, 7)
+			break
+		}
+	} // hl_rest()
 
 	// ---- draw_systems() ----
 
@@ -3551,7 +3493,13 @@ function draw_systems(indent) {
 			bar_set()
 			continue
 		case C.BAR:		// display the bars after the staves
-			if (s.second || s.invis || !s.bar_type)
+			if (s.invis || !s.bar_type
+			 || !cur_sy.st_print[s.st])
+				break
+			if (s.second
+			 && (!s.ts_prev
+			  || (s.ts_prev.type == C.BAR
+			   && s.ts_prev.st == s.st)))
 				break
 			ba.push([s, bar_bot[s.st], bar_height[s.st]])
 			break
@@ -3591,6 +3539,21 @@ function draw_systems(indent) {
 				xstaff[st] = s.x
 			}
 			break
+		case C.GRACE:
+			for (s2 = s.extra; s2; s2 = s2.next)
+				self.draw_hl(s2)
+			break
+		case C.NOTE:
+			if (!s.invis)
+				self.draw_hl(s)
+			break
+		case C.REST:
+			if (s.fmr		// if full measure rest
+			 || (s.rep_nb && s.rep_nb >= 0))
+				center_rest(s)
+			if (!s.invis)
+				hl_rest(s)
+			break
 //		default:
 //fixme:does not work for "%%staves K: M: $" */
 //removed for K:/M: in empty staves
@@ -3610,6 +3573,9 @@ function draw_systems(indent) {
 		draw_staff(st, x, realwidth)
 	}
 
+	// the ledger lines
+	draw_all_hl()
+
 	// and the bars
 	out_bars()
 
@@ -3622,7 +3588,7 @@ function draw_systems(indent) {
 // (possible hook)
 Abc.prototype.draw_symbols = function(p_voice) {
 	var	bm = {},
-		s, g, x, y, st;
+		s, x, y, st;
 
 //	bm.s2 = undefined
 	for (s = p_voice.sym; s; s = s.next) {
@@ -3689,7 +3655,9 @@ Abc.prototype.draw_symbols = function(p_voice) {
 					if (s.clef_small)
 						y += 1
 				}
-				xygl(x - 2, y, "oct")
+				xygl(x - 2, y, (s.clef_octave == 7
+						|| s.clef_octave == -7)
+					? "oct" : "oct2")
 			}
 			anno_a.push(s)
 			break
@@ -3716,14 +3684,7 @@ Abc.prototype.draw_symbols = function(p_voice) {
 			anno_a.push(s)
 			break
 		case C.MREST:
-			set_scale(s);
-			x += 32;
-			anno_start(s);
-			xygl(x, staff_tb[s.st].y + 12, "mrest");
-			out_XYAB('<text style="font:bold 15px serif"\n\
-	x ="X" y="Y" text-anchor="middle">A</text>\n',
-				x, staff_tb[s.st].y + 28, s.nmes);
-			anno_a.push(s)
+			draw_mrest(s)
 			break
 		case C.GRACE:
 			set_scale(s);
@@ -3737,7 +3698,6 @@ Abc.prototype.draw_symbols = function(p_voice) {
 			draw_note(s, 0)
 			break
 		case C.BLOCK:			// no width
-		case C.PART:
 		case C.REMARK:
 		case C.STAVES:
 		case C.TEMPO:
@@ -3755,51 +3715,6 @@ function draw_all_sym() {
     var	p_voice, v,
 	n = voice_tb.length
 
-	// draw all the helper/ledger lines
-	function draw_all_hl() {
-	    var	st, p_st
-
-		function hlud(hla, d) {
-		    var	hl, hll, i, xp, dx2, x2,
-			n = hla.length
-
-			if (!n)
-				return
-			for (i = 0; i < n; i++) {	// for all lines
-				hll = hla[i]
-				if (!hll || !hll.length)
-					continue
-				xp = sx(hll[0][0])	// previous x
-				output +=
-				    '<path class="stroke" stroke-width="1" d="M' +
-					xp.toFixed(1) + ' ' +
-					sy(p_st.y + d * i).toFixed(1)
-				dx2 = 0
-				while (1) {
-					hl = hll.shift()
-					if (!hl)
-						break
-					x2 = sx(hl[0])
-					output += 'm' +
-						(x2 - xp + hl[1] - dx2).toFixed(1) +
-						' 0h' + (-hl[1] + hl[2]).toFixed(1)
-					xp = x2
-					dx2 = hl[2]
-				}
-				output += '"/>\n'
-			}
-		} // hlud()
-
-		for (st = 0; st <= nstaff; st++) {
-			p_st = staff_tb[st]
-			if (!p_st.hlu)
-				continue	// (staff not yet displayed)
-			set_sscale(st)
-			hlud(p_st.hlu, 6)
-			hlud(p_st.hld, -6)
-		}
-	} // draw_all_hl()
-
 	for (v = 0; v < n; v++) {
 		p_voice = voice_tb[v]
 		if (p_voice.sym
@@ -3812,7 +3727,6 @@ function draw_all_sym() {
 	}
 
 	self.draw_all_deco()
-	draw_all_hl()
 	glout()			// output the symbols
 	anno_put()		// before outputting the symbol annotations
 	set_sscale(-1)				/* restore the scale */
@@ -3820,15 +3734,35 @@ function draw_all_sym() {
 
 /* -- set the tie directions for one voice -- */
 function set_tie_dir(s) {
-    var i, ntie, dir, sec, pit, ty
+    var i, ntie, dir, sec, pit, ty, s2
 
 	for ( ; s; s = s.next) {
-		if (!s.tie_s)
+		if (!s.ti1)
 			continue
 
-		/* if other voice, set the ties in opposite direction */
-		if (s.multi != 0) {
+		sec = ntie = 0;
+		pit = 128
+		for (i = 0; i <= s.nhd; i++) {
+			if (s.notes[i].tie_ty) {
+				ntie++
+				if (pit < 128
+				 && s.notes[i].pit <= pit + 1)
+					sec++;
+				pit = s.notes[i].pit
+				s2 = s.notes[i].tie_e
+			}
+		}
+
+		if (s2 && s.stem * s2.stem < 0)
+			dir = pit >= 22	// up if above middle staff
+				? C.SL_ABOVE : C.SL_BELOW
+		else if (s.multi)
 			dir = s.multi > 0 ? C.SL_ABOVE : C.SL_BELOW
+		else
+			dir = s.stem < 0 ? C.SL_ABOVE : C.SL_BELOW
+
+		// if other voice, set the ties in opposite direction
+		if (s.multi) {
 			for (i = 0; i <= s.nhd; i++) {
 				ty = s.notes[i].tie_ty
 				if (!((ty & 0x07) == C.SL_AUTO))
@@ -3839,19 +3773,7 @@ function set_tie_dir(s) {
 		}
 
 		/* if one note, set the direction according to the stem */
-		sec = ntie = 0;
-		pit = 128
-		for (i = 0; i <= s.nhd; i++) {
-			if (s.notes[i].tie_ty) {
-				ntie++
-				if (pit < 128
-				 && s.notes[i].pit <= pit + 1)
-					sec++;
-				pit = s.notes[i].pit
-			}
-		}
 		if (ntie <= 1) {
-			dir = s.stem < 0 ? C.SL_ABOVE : C.SL_BELOW
 			for (i = 0; i <= s.nhd; i++) {
 				ty = s.notes[i].tie_ty
 				if (ty) {
@@ -3863,7 +3785,7 @@ function set_tie_dir(s) {
 			}
 			continue
 		}
-		if (sec == 0) {
+		if (!sec) {
 			if (ntie & 1) {
 /* in chords with an odd number of notes, the outer noteheads are paired off
  * center notes are tied according to their position in relation to the
@@ -3950,7 +3872,7 @@ function set_tie_room() {
 			continue
 		set_tie_dir(s)
 		for ( ; s; s = s.next) {
-			if (!s.tie_s)
+			if (!s.ti1)
 				continue
 			if (s.notes[0].pit < 20
 			 && s.notes[0].tie_ty

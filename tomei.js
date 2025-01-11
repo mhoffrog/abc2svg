@@ -471,30 +471,23 @@ abc2svg.printErr('!! V:'+s.p_v.id+' '+s.time+' '+s.type+' st '+s.st)
 
 	// dump a duration
 	function dur_dump(dur, nflags) {
-	    var	t,
+	    var	t = (dur / 12) | 0,
 		d = ' dur="'
 
-		if (nflags == undefined) {
-//fixme: what if dur % 12 != 0 ?
-			t = (dur / 12) | 0
 			for (nflags = 5; t; t >>= 1, nflags--) {
 				if (t & 1)
 					break
 			}
-		}
 		if (nflags == -4)
 			d += "long"
 		else if (nflags == -3)
 			d += "breve"
 		else
 			d += (1 << (nflags + 2)).toString()
-		dur >>= (5 - nflags)
-		switch (dur) {
-		case 12: break
-		case 18: d += '" dots="1'; break
-		case 21: d += '" dots="2'; break
-//		case 22:
-		default: d += '" dots="3'; break
+		switch (t) {
+		case 3: d += '" dots="1'; break
+		case 7: d += '" dots="2'; break
+		case 15: d += '" dots="3'; break
 		}
 		return d + '"'
 	} // dur_dump()

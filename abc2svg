@@ -23,7 +23,11 @@ abc2svg.quit = function() {
 abc2svg.readFile = function(fname) {
     var	fs = require("fs")
 
-	return fs.readFileSync(fname).toString()
+	try {
+		return fs.readFileSync(fname).toString()
+	} catch(e) {
+	}
+	return null
 }
 
 abc2svg.get_mtime = function(fn) {
@@ -51,9 +55,14 @@ m = require("abc2svg/cmdline");
 global.user = m.user;
 global.abc_cmd = m.abc_cmd
 
+// set the ABC path
+var path = process.env.ABCPATH
+if (path)
+	abc2svg.path = path.split(':')
+
 // main
 var args = process.argv
 args.shift();
 args.shift()
 
-abc_cmd("nodeJS", args, "Node.js")
+abc_cmd("abc2svg", args, "nodeJS")

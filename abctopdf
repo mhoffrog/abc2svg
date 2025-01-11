@@ -1,20 +1,18 @@
 :;# abctopdf
 # convert ABC to PDF using abc2svg and one of
 #	- a chrome/chromium compatible web browser
-#	  (if not found, set its name in the environment variable 'BROWSER')
+#	  (if not found, you can set its name in the environment variable 'BROWSER')
 #	- weasyprint (https://weasyprint.org/)
-#	- rsvg-convert (https://wiki.gnome.org/Projects/LibRsvg)
 #
-# Note: when weasyprint or rsvg-convert are used,
+# Note: when weasyprint is used,
 #	this script forces A4 as the paper size.
 #	For an other size, change
-#		'size: A4' and '--pageheight 29.7cm' with weasyprint
-#		'%%pageheight 29.7cm' with rsvg-convert
+#		'size: A4' and '--pageheight 29.7cm'
 #
-# Copyright (C) 2019-2020 Jean-François Moine - License GPL3+
+# Copyright (C) 2019-2021 Jean-François Moine - License GPL3+
 
 # set a browser
-if [ x$BROWSER = x ]; then
+if [ "x$BROWSER" = "x" ]; then
 	BROWSER=chromium
 fi
 
@@ -88,11 +86,12 @@ for a do
 done
 
 # check if some chromium-based browser is available
-for c in $BROWSER chromium-browser vivaldi opera brave-browser epic google-chrome; do
-	if command -v $c >/dev/null 2>&1; then
+for c in "$BROWSER" chromium-browser vivaldi opera brave-browser epic google-chrome; do
+	if command -v "$c" >/dev/null 2>&1; then
 		echo "and $c"
 		command $abcscr "$@" > /tmp/o.html
-		$c --headless --disable-gpu --print-to-pdf=$out /tmp/o.html
+		"$c" --headless --disable-gpu\
+			--print-to-pdf=$out --print-to-pdf-no-header /tmp/o.html
 		rm /tmp/o.html
 		exit 0
 	fi
@@ -102,22 +101,12 @@ done
 if command -v weasyprint >/dev/null 2>&1; then
 	echo "and weasyprint"
 
-	rm -f /tmp/abc*.svg
+	rm -f /tmp/abc*.svg /tmp/abc.html
 
 # generate a (HTML+SVG) file
 # then, extract the SVG images (pages) to /tmp/ and build a file.html
-	cat > /tmp/abc.html <<EOF
-<!DOCTYPE html>
-<meta charset="utf-8"/>
-<style>
-@page {
- size: A4;
- margin: 0;
-}
-</style>
-<body>
-EOF
-n=0
+	touch /tmp/abc.html
+	n=0
 command $abcscr --pageheight 29.7cm --fullsvg 1 --musicfont abc2svg "$@" | while read v; do
 	case "$v" in
 	"<svg"*)
@@ -129,6 +118,9 @@ command $abcscr --pageheight 29.7cm --fullsvg 1 --musicfont abc2svg "$@" | while
 	"</svg"*)
 		echo $v >> $fn
 		fn=
+		;;
+	"<body>")
+		echo '<body bgcolor="white">' >> /tmp/abc.html
 		;;
 	"</body"*)
 		break;;
@@ -149,163 +141,5 @@ echo weasyprint -f pdf /tmp/abc.html $out
 	exit 0
 fi
 
-# last chance with rsvg-convert
-# check the required programs
-if ! command -v rsvg-convert >/dev/null 2>&1; then
-	echo "$0: program 'rsvg-convert' not found - abort"
+	echo "$0: no program found for SVG to PDF translation - abort"
 	exit 1
-fi
-echo "and rsvg-convert"
-
-# build a ABC file (with JS script) to change the font and page definitions
-# this solves the following problems:
-# - the maintainer of librsvg does not want to handle the CSS shorthand 'font:'
-# - rsvg-convert always gets the SVG images at 72ppi, ignoring the -p/-d values
-# - the sets of SVG images per page must be converted to a set of one SVG per page
-cat > /tmp/fix.abc << EOF
-%%pageheight 29.7cm
-%%fullsvg 1
-%%musicfont abc2svg
-%%beginjs
-    var fix_out
-function font_bug(str) {
-	return str.replace(/font:.*?["};]/g, function(p) {	// "
-	    var	w = p.slice(5, -1).match(/[^ \t"]+|".+?"/g), // "
-		l = w.length,
-		r = 'font-family:' + w[--l] + ';font-size:' + w[--l]
-		while (--l >= 0) {
-			switch (w[l]) {
-			case 'italic':
-				r += ';font-style:italic'
-				break
-			case 'oblique':
-				r += ';font-style:oblique'
-				break
-			case 'bold':
-				r += ';font-weight:bold'
-				break
-			}
-		}
-		return r + p[p.length - 1]
-	})
-}
-// install
-// - front-end
-	fix_out = abc2svg.page.img_out
-	abc2svg.page.img_out = function(page, p) {
-		fix_out(page, font_bug(p))
-	}
-// - back-end
-    var	page_h, page_out,
-	page_cl = "",
-	page_sty = ""
-
-	// get the style from the image and remove it from the block
-	function get_style(p) {
-	    var	i,
-		sty = p.match(/<style.*?>((.|\n)*?)<\/style>/)
-
-		if (!sty)
-			return p
-		sty = sty[1].split('\n')
-		if (!page_sty)
-			page_sty = '<style>\n</style>\n'
-		for (i = 0; i < sty.length; i++) {
-			if (page_sty.indexOf(sty[i]) < 0)
-				page_sty = page_sty.replace('</style>\n',
-						sty[i] + '\n</style>\n')
-		}
-		return p.replace(/<style(.|\n)*?\/style>\n/, '')
-	} // get_style()
-
-	// low level output
-	abc.page.user_out = function(p) {
-	    var	h, w,
-		cfmt = abc.cfmt()
-
-		switch (p.slice(0, 4)) {
-		case "<div":			// new page
-			page_h = 0
-			page_out = ""
-			break
-		case "<svg":			// SVG image
-			p = get_style(p)
-			if (!page_cl) {
-				h = p.match(/<svg(.|\n)*?class="([^"]*)"[^>]*>/) // "
-				if (h)
-					page_cl = h[2]
-			}
-			page_out += p
-			    .replace(/<svg(.|\n)*?>/,
-				'<g transform="translate(0, ' +
-					page_h.toFixed(1) + ')">')
-			    .replace('</svg>', '</g>\n')
-			page_h += Number(p.match(/height="(\d+)px"/)[1])
-			break
-		case "</di":			// end of page
-			w = cfmt.pagewidth
-			h = cfmt.pageheight
-			if (!page_cl)
-				page_cl = "music"	// old version
-			abc2svg.print('\
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
- xmlns:xlink="http://www.w3.org/1999/xlink"\n\
- color="black" class="' + page_cl + '" stroke-width=".7"\n\
- width="' +
-				(w * .75).toFixed(0) + 'px" height="' +
-				(h * .75).toFixed(0) + 'px" viewBox="0 0 ' +
-					w.toFixed(0) + ' ' +
-					h.toFixed(0) + '"' +
-				(cfmt.bgcolor ?
-					(' style="background-color: ' +
-						cfmt.bgcolor + '"') : '') +
-				'>\n' +
-				page_sty +
-				page_out + "</svg>")
-			break
-		}
-	} // user_out()
-// for tests
-abc2svg.abort = function(e) {
-abc2svg.printErr('abort: '+e.message+'\n'+e.stack)
-abc2svg.quit()
-}
-%%endjs
-EOF
-
-# purge /tmp
-rm -f /tmp/abc*.svg
-
-# generate a (HTML+SVG) file with a abc2svg batch script
-# then, extract the SVG images (pages) to /tmp
-n=0
-command $abcscr /tmp/fix.abc "$@" | while read v; do
-	case "$v" in
-	"<svg"*)
-		n=$(($n+1))
-		fn="/tmp/abc$n.svg"
-		echo $v > $fn
-		;;
-	"</svg"*)
-		echo $v >> $fn
-		fn=
-		;;
-	"</body"*)
-		break;;
-	*)
-		if [ "X$fn" != "X" ]; then
-			echo $v >> $fn
-		fi
-		;;
-	esac
-done
-
-# convert the SVG images to PDF
-if [ -f /tmp/abc1.svg ]; then
- rsvg-convert -f pdf $(ls -rt /tmp/abc*.svg) -o $out
-else
- echo 'Errors during the generation'
-fi
-
-# cleanup
-rm -f /tmp/abc*.svg /tmp/fix.abc

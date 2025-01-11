@@ -10,7 +10,6 @@ function loadtxt() {
 	var text_kv = {
 		a: 'Über ...',
 		b: 'ABC-Files:',
-		cmpa: 'Alles',
 		cmpt: 'Stück',
 		cmps: 'Auswahl',
 		cmpl: 'Schleife',

@@ -1,7 +1,22 @@
 // abc2svg - jazzchord.js - Adds jazz chord styling to chord symbols
 //
-// Copyright (C) 2020 Jean-Francois Moine
-// License GPL-3
+// Copyright (C) 2020-2022 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
+//
 // Code adapted from Chris Fargen.
 //	https://gist.github.com/chrisfargen/4324c6cf6fed2c8f9a6eae1680e53169
 //
@@ -12,10 +27,26 @@
 
 abc2svg.jazzchord = {
 
-    gch_build: function(of, s) {
-    var	gch, i, ix, t
+    // default replacements
+    defrep: {
+	"-": "–",
+	"°": "o",
+	"º": "o",
+	"ᵒ": "o",
+	"0": "ø",
+//	"6/9": "⁶⁄₉",
+//	"maj": "Δ",
+//	"M": "Δ",
+//	"min": "–",
+//	"m": "–",
+	"^": "∆"
+    },
 
-	if (!this.cfmt().jazzchord) {
+    gch_build: function(of, s) {
+    var	gch, ix, t,
+	fmt = s.fmt
+
+	if (!fmt.jazzchord) {
 		of(s)
 		return
 	}
@@ -27,48 +58,32 @@ abc2svg.jazzchord = {
 		 || t.indexOf('$') >= 0)	// if some formatting already
 			continue
 		switch (t) {
-		case "/": gch.text = "&#x1d10d;"; continue
-		case "%": gch.text = "&#x1d10e;"; continue
-		case "%%": gch.text = "&#x1d10e;"; continue
+		case "/": gch.text = "\ue101"; continue
+		case "%": gch.text = "\ue500"; continue
+		case "%%": gch.text = "\ue501"; continue
 		}
 
-		if (abc2svg.jazzchord.rep) {	// if replacement list
-			t = t.replace(abc2svg.jazzchord.reg, function(x) {
-				return abc2svg.jazzchord.rep[x]
+		if (fmt.jzreg) {		// if replacement list
+			t = t.replace(fmt.jzRE,
+					function(x) {
+						return fmt.jzrep[x]
 			})
 		}
 
-
-		t = t.replace(/-|°|º|ᵒ|0|6\/9|\^/g, function(x) {
-			switch (x) {
-			case '-': return "–"
-			case '0': return "ø"
-			case '6/9': return "⁶⁄₉"
-			case '^': return "∆"
-			default: return "o"
-			}
-		})
-		if (t[0] == '(')
-			t = t.slice(1, -1)
-		i = 1
-		switch (t[1]) {
-		case "\u266f":		// #
-		case "\u266d":		// b
-			i++
-			break
+		if (fmt.jazzchord == 1) {
+			if (t[0] == '(')
+				t = t.slice(1, -1)
+			a = t.match(/([A-G])([#♯b♭]?)([^/]*)\/?(.*)/)
+			// a[1]=note, a[2]=acc, a[3]=quality, a[4]=bass
+			if (!a)
+				continue
+			t = a[1] + "$7" + (a[2] || '')
+			if (a[3])
+				t += "$8" + a[3]
+			if (a[4])
+				t += "$0/$9" + a[4]
+			t += "$0"
 		}
-		a = t.match(/([A-G])([#♯b♭]?)([^/]*)\/?(.*)/)
-		// a[1] = note, a[2] = acc, a[3] = type, a[4] = bass
-		if (!a)
-			continue
-		if (!a[2])
-			t = a[1]
-		else
-			t = "$6" + a[1] + "$7" + a[2] + "$0"
-		if (a[3])
-			t += "$8" + a[3] + "$0"
-		if (a[4])
-			t += "/$9" + a[4] + "$0"
 		if (gch.text[0] == '(')
 			gch.text = '(' + t + ')'
 		else
@@ -78,22 +93,46 @@ abc2svg.jazzchord = {
     }, // gch_build()
 
     set_fmt: function(of, cmd, parm) {
-    var	r, k
+    var	i, k, s,
+	cfmt = this.cfmt()
 
 	if (cmd == "jazzchord") {
-		this.cfmt().jazzchord = this.get_bool(parm)
+		cfmt.jazzchord = this.get_bool(parm)
+		if (!cfmt.jazzchord)
+			return
+		if (parm[0] == '2')
+			cfmt.jazzchord = 2		// no style
+
+		if(!cfmt.jzreg) {			// if new definition
+//			cfmt.jzreg = "-|°|º|ᵒ|0|6/9|maj|M|min|m|\\^"
+			cfmt.jzreg = "-|°|º|ᵒ|0|\\^"
+			cfmt.jzrep = Object.create(abc2svg.jazzchord.defrep)
+			cfmt.jzRE = new RegExp(cfmt.jzreg, 'g')
+		}
 		if (parm && parm.indexOf('=') > 0) {
 			parm = parm.split(/[\s]+/)
-			abc2svg.jazzchord.rep = {}
-			r = []
 			for (cmd = 0; cmd < parm.length; cmd++) {
 				k = parm[cmd].split('=')
-				if (k.length == 2) {
-					abc2svg.jazzchord.rep[k[0]] = k[1]
-					r.push(k[0])
+				if (k.length != 2)
+//fixme: error
+					continue
+				s = k[1]		// replacement
+				k = k[0]		// key
+				i = cfmt.jzreg.indexOf(k)
+				if (i >= 0) {		// if old key
+					if (s) {	// new value
+						cfmt.jzrep[k] = s
+					} else {
+						cfmt.jzreg = cfmt.jzreg.replace(k, '')
+						cfmt.jzreg = cfmt.jzreg.replace('||', '|')
+						delete cfmt.jzrep[k]
+					}
+				} else {
+					cfmt.jzreg += '|' + k
+					cfmt.jzrep[k] = s
 				}
+				cfmt.jzRE = new RegExp(cfmt.jzreg, 'g')
 			}
-			abc2svg.jazzchord.reg = new RegExp(r.join('|'))
 		}
 		return
 	}
@@ -104,12 +143,11 @@ abc2svg.jazzchord = {
 	abc.gch_build = abc2svg.jazzchord.gch_build.bind(abc, abc.gch_build)
 	abc.set_format = abc2svg.jazzchord.set_fmt.bind(abc, abc.set_format)
 
-	abc.add_style("\n.jc6{letter-spacing:-0.05em}\
-\n.jc7{baseline-shift:30%;font-size:75%}\
+	abc.add_style("\
+\n.jc7{baseline-shift:10%;font-size:90%;letter-spacing:-0.05em}\
 \n.jc8{baseline-shift:25%;font-size:75%;letter-spacing:-0.05em}\
 \n.jc9{font-size:75%;letter-spacing:-0.05em}\
 ")
-	abc.param_set_font("setfont-6", "* * class=jc6")
 	abc.param_set_font("setfont-7", "* * class=jc7")
 	abc.param_set_font("setfont-8", "* * class=jc8")
 	abc.param_set_font("setfont-9", "* * class=jc9")

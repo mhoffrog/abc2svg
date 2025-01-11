@@ -1,6 +1,6 @@
 // abc2svg - cmdline.js - command line
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -21,10 +21,30 @@
 var user = {
 	read_file: function(fn) {	// read a file (main or included)
 	    var	i,
-		file = abc2svg.readFile(fn)
+		p = fn,
+		file = abc2svg.readFile(p)
+
+		if (!file && fn[0] != '/') {
+			for (i = 0; i < abc2svg.path.length; i++) {
+				p = abc2svg.path[i] + '/' + fn
+				file = abc2svg.readFile(p)
+				if (file)
+					break
+			}
+		}
 
 		if (!file)
 			return file
+
+		// memorize the file path
+		i = p.lastIndexOf('/')
+		if (i > 0) {
+			p = p.slice(0, i)
+			if (abc2svg.path.indexOf(p) < 0)
+				abc2svg.path.unshift(p)
+		}
+
+		// convert the file content into a Unix string
 		i = file.indexOf('\r')
 		if (i >= 0) {
 			if (file[i + 1] == '\n')
@@ -38,35 +58,22 @@ var user = {
 
 		return file
 	},
-	errtxt: ''
-}
-
-	// print or store the error messages
-	if (typeof abc2svg.printErr == 'function')
-		user.errmsg = function(msg, l, c) { abc2svg.printErr(msg) }
-	else
-		user.errmsg = function(msg, l, c) { user.errtxt += msg + '\n' }
+	errtxt: '',
+	errmsg:			// print or store the error messages
+		typeof abc2svg.printErr == 'function'
+			? function(msg, l, c) { abc2svg.printErr(msg) }
+			: function(msg, l, c) { user.errtxt += msg + '\n' }
+} // user
 
 var	abc				// (global for 'toxxx.js')
 
+if (!abc2svg.path)
+	abc2svg.path = []		// path to ABC files - from env ABCPATH
+
 // treat a file
 function do_file(fn) {
-    var	ext, file
+    var	file = user.read_file(fn)
 
-	try {
-		file = user.read_file(fn)
-	} catch (e) {
-
-		// get the file extension
-		ext = fn.slice((fn.lastIndexOf('.') - 1 >>> 0) + 2)
-		if (!ext) {
-			fn += ".abc"
-			try {
-				file = user.read_file(fn)
-			} catch (e) {
-			}
-		}
-	}
 	if (!file) {
 		if (fn != "default.abc")
 			user.errmsg("Cannot read file '" + fn + "'")
@@ -112,7 +119,7 @@ function abc_cmd(cmd, args, interp_name) {
 	} // arg_reorder()
 
 	// if the first argument is a javascript file, load it
-	if (/\.js$/.test(args[0])) {
+	if (args[0] && args[0].slice(-3) == '.js') {
 		abc2svg.loadjs(args[0])
 		args.shift()
 	}

@@ -25,8 +25,15 @@ Abc.prototype.a_de = function() { return a_de }
 Abc.prototype.add_style = function(s) { style += s };
 Abc.prototype.cfmt = function() { return cfmt };
 Abc.prototype.clone = clone;
-Abc.prototype.deco_cnv = deco_cnv;
+Abc.prototype.deco_put = function(nm, s) {
+	a_dcn.push(nm)
+	deco_cnv(s)
+}
 Abc.prototype.defs_add = defs_add
+Abc.prototype.dh_put = function(nm, s, nt) {
+	a_dcn.push(nm)
+	dh_cnv(s, nt)
+}
 Abc.prototype.draw_meter = draw_meter
 Abc.prototype.draw_note = draw_note;
 Abc.prototype.errs = errs;
@@ -56,7 +63,6 @@ Abc.prototype.get_tsfirst = function() { return tsfirst };
 Abc.prototype.get_unit = get_unit;
 Abc.prototype.get_voice_tb = function() { return voice_tb };
 Abc.prototype.glout = glout
-Abc.prototype.goto_tune = goto_tune;
 Abc.prototype.info = function() { return info };
 Abc.prototype.new_block = new_block;
 Abc.prototype.out_arp = out_arp;

@@ -1,6 +1,21 @@
 // jianpu.js - module to output jiănpŭ (简谱) music sheets
 //
-// Copyright (C) 2020 Jean-Francois Moine - GPL3+
+// Copyright (C) 2020-2022 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This module is loaded when "%%jianpu" appears in a ABC source.
 //
@@ -18,8 +33,16 @@ abc2svg.jianpu = {
   acc2: new Int8Array([-2, -1, 3, 1, 2]),
   acc_tb: ["\ue264", "\ue260", , "\ue262", "\ue263", "\ue261"],
 
+// don't calculate the beams
+  calc_beam: function(of, bm, s1) {
+	if (!this.cfmt().jianpu)
+		return of(bm, s1)
+//	return 0
+  }, // calc_beam()
+
 // change %%staves and %%score
   do_pscom: function(of, p) {
+    if (this.cfmt().jianpu)
 	switch (p.match(/\w+/)[0]) {
 	case 'staves':
 	case 'score':
@@ -47,6 +70,7 @@ abc2svg.jianpu = {
 		p_v = voice_tb[0],
 		mt = p_v.meter.a_meter[0],
 		sk = p_v.key,
+		s2 = voice_tb[0].sym,
 		s = {
 			type: C.BLOCK,
 			subtype: "text",
@@ -54,12 +78,13 @@ abc2svg.jianpu = {
 			v: 0,
 			p_v: p_v,
 			st: 0,
+			fmt: s2.fmt,
 			seqst: true,
 			text: (sk.k_mode + 1) + "=" +
 				(abc2svg.jianpu.k_tb[sk.k_sf + 7 +
-					abc2svg.jianpu.cde2fcg[sk.k_mode]])
-		},
-		s2 = voice_tb[0].sym
+					abc2svg.jianpu.cde2fcg[sk.k_mode]]),
+			font: abc.get_font("text")
+		}
 
 		if (mt)
 			s.text += ' ' + (mt.bot ? (mt.top + '/' + mt.bot) : mt.top)
@@ -82,6 +107,8 @@ abc2svg.jianpu = {
 			n = 1
 		else
 			n = 2
+		s.dur = s.dur_orig = C.BLEN / 4
+		delete s.fmr
 		while (--n >= 0) {
 			s2 = {
 				type: C.REST,
@@ -90,6 +117,7 @@ abc2svg.jianpu = {
 				st: s.st,
 				dur: C.BLEN / 4,
 				dur_orig: C.BLEN / 4,
+				fmt: s.fmt,
 				stem: 0,
 				multi: 0,
 				nhd: 0,
@@ -129,20 +157,22 @@ abc2svg.jianpu = {
 				break
 			    }
 			}
-
 			s = s2
 		}
 	} // slice()
 
 	function set_sym(p_v) {
 	    var s, s2, note, pit, nn, p, a, m, i,
-		sf = p_v.key.k_sf
+		sf = p_v.key.k_sf,
 		delta = abc2svg.jianpu.cgd2cde[sf + 7] - 2
 
 		p_v.key.k_a_acc = []	// no accidental
 
 		// no (visible) clef
-		p_v.clef.invis = true
+		s = p_v.clef
+		s.invis = true
+		s.clef_type = 't'
+		s.clef_line = 2
 
 		// scan the voice
 		for (s = p_v.sym; s; s = s.next) {
@@ -150,6 +180,8 @@ abc2svg.jianpu = {
 			switch (s.type) {
 			case C.CLEF:
 				s.invis = true
+				s.clef_type = 't'
+				s.clef_line = 2
 //				continue
 			default:
 				continue
@@ -225,7 +257,7 @@ abc2svg.jianpu = {
 			if (s.a_dd) {
 				for (i = 0; i < s.a_dd.length; i++) {
 					if (s.a_dd[i].glyph == "stc") {
-						abc.deco_cnv(["gstc"], s)
+						abc.deco_put("gstc", s)
 						s.a_dd[i] = s.a_dd.pop()
 					}
 				}
@@ -291,10 +323,10 @@ abc2svg.jianpu = {
 		out_svg('<text x="')
 		out_sxsy(x, '" y="', y)
 		out_svg('">' + p + '</text>\n')
-	} // out_txt()
+	} // out_mus()
 
 	function out_txt(x, y, p) {
-		out_svg('<text class="bn" x="')
+		out_svg('<text class="fj" x="')
 		out_sxsy(x, '" y="', y)
 		out_svg('">' + p + '</text>\n')
 	} // out_txt()
@@ -319,6 +351,10 @@ abc2svg.jianpu = {
 				if (m == 0 && s.nflags > 0)
 					ym -= 2.5 * s.nflags
 				out_mus(x - 1, ym, dot)
+				if (note.jo < 1) {
+					ym -= 3
+					out_mus(x - 1, ym, dot)
+				}
 			}
 			y += 20
 		}
@@ -342,6 +378,8 @@ abc2svg.jianpu = {
 			if (s.nflags >= 0 && s.dots)
 				out_mus(x + 8, y + 13, dot)
 			if (s.nflags > 0) {
+				if (s.time == p_voice.sym.time)
+					s.beam_st = 1	// beam continuation
 //fixme: ko with rests because no beam_st /_end
 				if (s.beam_st || s.type == C.REST) {
 					nl = s.nflags
@@ -370,6 +408,8 @@ abc2svg.jianpu = {
 	if (cmd == "jianpu") {
 	    var	cfmt = this.cfmt()
 
+		if (!this.get_bool(param))
+			return
 		cfmt.jianpu = true
 		cfmt.staffsep = 20
 		cfmt.sysstaffsep = 14
@@ -439,6 +479,7 @@ abc2svg.jianpu = {
     }, // set_width()
 
     set_hooks: function(abc) {
+	abc.calculate_beam = abc2svg.jianpu.calc_beam.bind(abc, abc.calculate_beam)
 	abc.do_pscom = abc2svg.jianpu.do_pscom.bind(abc, abc.do_pscom)
 	abc.draw_symbols = abc2svg.jianpu.draw_symbols.bind(abc, abc.draw_symbols)
 	abc.output_music = abc2svg.jianpu.output_music.bind(abc, abc.output_music)
@@ -450,7 +491,7 @@ abc2svg.jianpu = {
 	abc.get_glyphs().gstc = '<circle id="gstc" cx="0" cy="-3" r="2"/>'
 	abc.get_decos().gstc = "0 gstc 5 1 1"
 
-	abc.add_style("\n.bn {font-family:sans-serif; font-size:15px}")
+	abc.add_style("\n.fj{font:15px sans-serif}")
     } // set_hooks()
 } // jianpu
 

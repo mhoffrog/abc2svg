@@ -1,6 +1,6 @@
 // abc2svg - front.js - ABC parsing front-end
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -104,7 +104,7 @@ function cnv_escape(src, flag) {
 			j = i + 5
 			continue
 		case 't':			// TAB
-			dst += ' ';
+			dst += '\t';
 			j = i + 1
 			continue
 		case 'n':			// new line (voice name)
@@ -121,6 +121,8 @@ function cnv_escape(src, flag) {
 
 			// try unicode combine characters
 			c2 = src[i + 1]
+			if (!c2)
+				break	// !! the next test is true if c2 is undefined !!
 			if (!/[A-Za-z]/.test(c2))
 				break
 			switch (c) {
@@ -183,8 +185,8 @@ function cnv_escape(src, flag) {
 			}
 			break
 		}
-		if (flag == 'w')
-			dst += '\\'
+		if (flag == 'w')	// if lyrics line (w:)
+			dst += '\\'	// keep the backslash
 		dst += c
 		j = i + 1
 	}
@@ -286,6 +288,8 @@ function tosvg(in_fname,		// file name
 		maci = sav.maci;
 		parse.tune_v_opts = null;
 		parse.scores = null;
+		parse.ufmt = false
+		delete parse.part
 		init_tune()
 		img.chg = true;
 		set_page();
@@ -397,6 +401,8 @@ function tosvg(in_fname,		// file name
 		bol = 0
 	if (!eof)
 		eof = file.length
+	if (file.slice(bol, bol + 5) == "%abc-")
+		cfmt["abc-version"] = /[1-9.]+/.exec(file.slice(bol + 5, bol + 10))
 	for ( ; bol < eof; bol = parse.eol + 1) {
 		eol = file.indexOf('\n', bol)	// get a line
 		if (eol < 0 || eol > eof)
@@ -485,9 +491,8 @@ function tosvg(in_fname,		// file name
 					continue
 				}
 				self.do_begin_end(b, uncomment(a[2]),
-					file.slice(eol + 1, i).replace(
-						new RegExp('^' + line0 + line1, 'gm'),
-										''));
+					file.slice(eol + 1, i)
+						.replace(/^%%/gm,''))
 				parse.eol = file.indexOf('\n', i + 6)
 				if (parse.eol < 0)
 					parse.eol = eof
@@ -709,11 +714,6 @@ function tosvg(in_fname,		// file name
 			 || cfmt.writefields.indexOf(line0) < 0)
 				break
 			get_lyrics(text, txt_add == ' ')
-			if (text.slice(-1) == '\\') {	// old continuation
-				txt_add = ' ';
-				last_info = line0
-				continue
-			}
 			break
 		case '|':			// "|:" starts a music line
 			if (parse.state < 2)

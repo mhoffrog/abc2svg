@@ -5,16 +5,16 @@ li p{margin-left:0}
 </style>
 ## abc2svg
 
-**abc2svg** is a set of Javascript files for handling the
- [ABC music notation](http://abcnotation.com/). This includes
+**abc2svg** is a set of ECMAscript files that handle the
+[ABC music notation](http://abcnotation.com/). This includes
 editing, displaying, printing, playing the music files and
 converting them to other formats such as ABC and MEI notations.
 
 The **abc2svg** core is based on the
-[abcm2ps](https://github.com/leesavide/abcm2ps) C code
+[abcm2ps](https://github.com/lewdlime/abcm2ps) C code
 which requires compilation on every operating system. 
 The **abc2svg** scripts can run in any system with no compilation on
-any platform that contains an internet browser. This includes Windows,
+any platform that contains an internet browser. This includes MS-Windows,
 Apple, and Unix-like systems (Linux, BSD...) as well as portable devices
 such as cell phones and iPads.
 
@@ -22,11 +22,6 @@ A description of the ABC parameters that relate to both abcm2ps
 and abc2svg can be found [here][1].
 
 [1]: http://moinejf.free.fr/abcm2ps-doc/index.html "abc2svg documentation"
-
-Note: The ABC music notation is now discussed in the mailing list
-[abcusers at groups.io](https://groups.io/g/abcusers).
-Some work in progress about the ABC draft may be found in these
-[temporary pages](http://moinejf.free.fr/abcstd/).
 
 ### 1. Web browser usage
 
@@ -58,7 +53,7 @@ representation or a list of the contents of the ABC file. Here
 are two bookmarklets that you can try.
 
 This
-<a href="javascript:(function(){var%20s,n=3,d=document,b=d.body;d.head.innerHTML='&lt;style&gt;\nsvg{display:block};@media print{body{margin:0;padding:0;border:0}.nop{display:none}}\n&lt;/style&gt;';b.innerHTML='\n%25abc-2.2%25%3c!--\n'+b.textContent+'%25--%3e\n';function%20f(u){s=d.createElement('script');s.src='http://moinejf.free.fr/js/'+u;s.onload=function(){if(--n==0)dom_loaded()};d.head.appendChild(s)};f('abcweb-1.js');f('snd-1.js')})()"
+<a href="javascript:(function(){var%20s,n=2,d=document,b=d.body;d.head.innerHTML='&lt;style&gt;svg{display:block};@media print{body{margin:0;padding:0;border:0};.nop{display:none}}&lt;/style&gt;\n';b.innerHTML='\n%25abc-2.2%25%3c!--\n'+b.textContent+'%25--%3e\n';function%20f(u){s=d.createElement('script');s.src='http://moinejf.free.fr/js/'+u;s.onload=function(){if(--n==0)dom_loaded()};d.head.appendChild(s)};f('abcweb-1.js');f('snd-1.js')})()"
 title="Copy me">first abc2svg bookmarklet</a>
 renders all the music it finds in the page currently displayed.  
 Once the music is displayed, clicking inside a tune starts playing it
@@ -71,10 +66,10 @@ try right clicking on the web page.)
 
 Alternatively, if your source contains many tunes, you can
 use this
-<a href="javascript:(function(){var%20s,n=3,d=document,b=d.body;d.head.innerHTML='&lt;style&gt;\nsvg{display:block};@media print{body{margin:0;padding:0;border:0}.nop{display:none}}\n&lt;/style&gt;';b.innerHTML='\n%25abc-2.2%25%3c!--\n'+b.textContent+'%25--%3e\n';function%20f(u){s=d.createElement('script');s.src='http://moinejf.free.fr/js/'+u;s.onload=function(){if(--n==0)dom_loaded()};d.head.appendChild(s)};f('abcweb1-1.js');f('snd-1.js')})()"
+<a href="javascript:(function(){var%20s,n=2,d=document,b=d.body;d.head.innerHTML='&lt;style&gt;svg{display:block};@media print{body{margin:0;padding:0;border:0};.nop{display:none}}&lt;/style&gt;\n';b.innerHTML='\n%25abc-2.2%25%3c!--\n'+b.textContent+'%25--%3e\n';function%20f(u){s=d.createElement('script');s.src='http://moinejf.free.fr/js/'+u;s.onload=function(){if(--n==0)dom_loaded()};d.head.appendChild(s)};f('abcweb1-1.js');f('snd-1.js')})()"
 title="Copy me">second bookmarklet</a>.
-The browser will list the titles of the tunes. Click on one of the titles
-to view the music representation.
+The browser will list the titles of the tunes.
+Clicking on a title displays the tune.
 Playing and printing work in the same manner as above.  
 The generated pages contain a yellow menu in the top right corner which permits
 you to return to the tune list or to modify the music. With this last option,
@@ -136,7 +131,7 @@ ABC sequences in the &lt;body&gt;.
 [This example][4] demonstrates how to do it.
 (Note that, in the example, the paths are relative - see why below.)
 
-[4]: http://moinejf.free.fr/abcm2ps-doc/tabac.xhtml "J'ai du bon tabac"
+[4]: http://moinejf.free.fr/abcm2ps-doc/tabac.html "J'ai du bon tabac"
 
 As it is apparent, HTML and ABC can be mixed in the same html file.
 Both are rendered in the order you defined them.
@@ -153,7 +148,7 @@ Global ABC parameters may be added as `parameter=value` in the query string
 of the URL of the page. The [following example][16] calls the same
 "J'ai du bon tabac" with `pagescale=1.2` (giving `%%pagescale 1.2`).
 
-[16]: http://moinejf.free.fr/abcm2ps-doc/tabac.xhtml?pagescale=1.2 "J'ai du bon tabac"
+[16]: http://moinejf.free.fr/abcm2ps-doc/tabac.html?pagescale=1.2 "J'ai du bon tabac"
 
 In the above examples, all the ABC music is generated (displayed
 and ready to be played) by means of the script **abcweb-1.js**.  
@@ -168,7 +163,7 @@ permits to get the tune list again. Here is [a real example][6].
 
 [6]: http://moinejf.free.fr/abc/boyvin-2-2.html "J. Boyvin organ tunes"
 
-As you may note in the menu, the edition of the ABC content is proposed.
+As you may notice in the menu, the edition of the ABC content is proposed.
 This permits, for example, to transpose the tunes.
 This edition is done inside the browser, so, your changes will be lost
 after leaving the page.
@@ -181,11 +176,6 @@ For instance, here is the ['Duo' de J. Boyvin][8].
 
 [7]: https://en.wikibooks.org/wiki/Regular_Expressions "Regular expressions"
 [8]: http://moinejf.free.fr/abc/boyvin-2-2.html#T:Duo "Duo"
-
-In the first example ("J'ai du bon tabac"), you saw that care
-should be taken with regard to the special XML characters
-'&lt;', '&gt;' and '&amp;' by enclosing
-the ABC sequences inside XML comments.
 
 With any of the above scripts the music may be printed using
 the 'Print' button of the browser. You should add a style as:  
@@ -207,8 +197,8 @@ There are many ways to install abc2svg:
   each release of a new version (many thanks, Guido!).  
   You can just download and unzip this archive. **abc2svg** should
   run immediately in your machine without connecting to my site.  
-  In the same page, you can also find some binaries for the fastest
-  javascript interpreter (QuickJS - see below).
+  In the same page, you can also find some binaries of QuickJS,
+  a fast javascript interpreter (see below).
 
 - tarball  
   From the timeline in the [chisel repository][13], you can get a tarball
@@ -218,7 +208,7 @@ There are many ways to install abc2svg:
   The disadvantage of this approach is that if you want
   to use an other or newer version you need to download a new tarball.
 
-[13]: https://chiselapp.com/user/moinejf/repository/abc2svg/timeline)
+[13]: https://chiselapp.com/user/moinejf/repository/abc2svg/timeline
 
 - fossil clone  
   If you can get the fossil program (one binary) for your system,
@@ -230,7 +220,7 @@ There are many ways to install abc2svg:
   `        fossil pull`  
   `        fossil update`  
   Building the scripts is done in the same way as with a tarball.  
-  The repository is presently over 23Mb.
+  The repository is presently over 34Mb.
 
   For those unfamiliar with [fossil][14], it is an integrated
   software management system similar to [git](https://git-scm.com/).  
@@ -276,11 +266,8 @@ The interfaces to the various scripts are different. Below you will
 find various scripts that I had to built.
 
 - `abcqjs` with `qjs` [QuickJS by Fabrice Bellard and Charlie Gordon][10]
-- `abcjs24` with `js24` (Mozilla JavaScript shell - Spidermonkey)
-- `abcjs52` with `js52` (Mozilla JavaScript shell - Spidermonkey)
-- `abcjs60` with `js60` (Mozilla JavaScript shell - Spidermonkey)
-- `abcjsc` with `jsc-1` (webkitgtk2)
-- `abcv8` with `d8` (Google libv8)
+- `abcmjs` with `js78`, `js68`, `js60`, `js52` or `js24` (Mozilla JavaScript shell)
+- `abcjsc` with `jsc` (webkit2gtk)
 - `abcnode` with `node` (nodeJS without module)
 - `abc2svg` with `node` (nodeJS with modules)
 
@@ -296,6 +283,11 @@ with:
   It defaults to `tohtml.js` (HTML+SVG)
 - `options` are the ABC options.  
   For compatibility, the last options are moved before the last ABC file.
+
+These scripts try to read a file `default.abc` at startup time.
+This file and also the files included by `%%abc-include` are searched
+in the current directory or in the colon separated list of directories
+contained in the environment variable `ABCPATH`.
 
 #### 2.2 Backend scripts
 
@@ -318,12 +310,15 @@ They are:
   The abc2svg music font (`abc2svf.woff` or `abc2svg.ttf`) must be installed
   in the local system for displaying and/or converting the .abw file.  
   Example:  
-  `        abcv8 toabw.js my_file.abc > my_file.abw`
+  `        abcmjs toabw.js my_file.abc > my_file.abw`
 
 - `tomei.js`  
   This script outputs the music as a [MEI](https://music-encoding.org/) file.  
   Note, only one tune may be translated from ABC to MEI (multi-tunes ABC
   generates bad MEI).
+
+- `tonotes.js`  
+  This script outputs a list of the MIDI events.
 
 - `toodt.js`  
   This script creates an Open Document (ODT+SVG) which can be read by most
@@ -438,8 +433,7 @@ Detailed information about the modules may be found in the [wiki][12].
   For audio, by default, abc2svg uses a sound font (format SF2)
   which is split into one file
   per instrument. This sound font is stored in the subdirectory `Scc1t2/`.
-  Each instrument file is a base64 encoded javascript array.
-
+  Each instrument file is a base64 encoded javascript array.  
   Other sound fonts may be used. Some of them are stored in the subdirectory
   `sf2/` (`AWE_ROM_gm` and `2MBGMGS`). Two formats are supported: raw SF2 and
   SF2 wrapped into javascript (the raw SF2 files can be loaded
@@ -459,14 +453,15 @@ Here are the scripts which are used in a web context:
 
 - `abcweb-1.js`  
   This script replaces the ABC or MEI sequences found in the (X)HTML file
-  by SVG images of the music. The ABC sequences may start on `X:` or `%abc-`
-  at start of line, and stop on any XML tag also at start of line
-  (see below for MEI).
-  They may also appear after a (X)HTML element of the class "abc"
-  (lower case letters) or inside a &lt;script&gt; with a type
-  ["text/vnd.abc"](https://www.iana.org/assignments/media-types/text/vnd.abc)
-  (the script element is removed from the page).  
-  When a ABC sequence is not included in a &lt;script&gt; and when it contains
+  by SVG images of the music.  
+  The ABC sequences are searched:
+  - first inside &lt;script&gt; elements with a type
+    ["text/vnd.abc"](https://www.iana.org/assignments/media-types/text/vnd.abc)
+    (the script tag is removed from the page),
+  - or inside (X)HTML elements with a class `abc` (lower case letters),
+  - otherwise on `X:` or `%abc-` at start of line up to a XML tag at start of line.
+
+	When a ABC sequence is not included in a &lt;script&gt; and when it contains
   the characters '<', '>' or '&',
   it must be enclosed in a XML comment or in a CDATA
   (%&lt;![CDATA[ .. %]]&gt; - the comment or CDATA must be in a ABC comment).  
@@ -479,33 +474,37 @@ Here are the scripts which are used in a web context:
 [15]: http://moinejf.free.fr/abcm2ps-doc/inline.html "abc2svg - inline music"
 
 - `abcweb1-1.js`  
-  This script replaces all the page body by music as SVG images.  
-  As with abcweb-1.js, the music sequences start on `X:` or `%abc`
-  at start of line, stop on any ML tag, a XML comment must be used
-  when there are special XML characters, and playing is possible.  
-  When there are many tunes in the file, the script displays a list
+  The page body is analyzed as a ABC file and its content is
+  replaced by music as SVG images.  
+  If the page contains reserved XML characters ('&lt;', '&gt;' and '&amp;'),
+  the ABC code must be enclosed in a
+  `         <script type="text/vnd.abc"> .. </script>`
+  sequence.
+
+	When there are many tunes in the file, the script displays a list
   of the tunes. The list step may be bypassed when the URL of the file
   contains a regular expression in the 'hash' value ('#' followed by
   a string at the end of the URL).
   This string does a
-  [%%select](http://moinejf.free.fr/abcm2ps-doc/select.xhtml).  
-  When one or many tunes are displayed, a menu in the top/right corner
+  [%%select](http://moinejf.free.fr/abcm2ps-doc/select.xhtml).
+
+	When one or many tunes are displayed, a menu in the top/right corner
   offers to go back to the tune list or to modify the ABC source.
   
 - `snd-1.js`  
-  This script may be used with `abcweb{,1}-1.js` to play the rendered
-  ABC music.  
+  This script may be used with `abcweb-1.js` or `abcweb1-1.js`
+  to play the rendered ABC music.  
 
 - `abcdoc-1.js`  
   This script is mainly used for ABC documentation.
   It lets the ABC source sequences in the page before the SVG images.  
   See the source of
-  [abcm2ps/abc2svg features](http://moinejf.free.fr/abcm2ps-doc/features.xhtml)
+  [abcm2ps/abc2svg features](http://moinejf.free.fr/abcm2ps-doc/features.html)
   for an example.
 
 ### 5. MEI support
 
-As an experimental feature, an extented core `mei2svg-1.js` may be generated.
+As an experimental feature, an extended core `mei2svg-1.js` may be generated.
 This one may handle both the ABC and
 [MEI](https://music-encoding.org/ "Music Encoding Initiative")
 notations.

@@ -1,6 +1,5 @@
 /* edit.css - file used in the abc2svg editor */
 @page {margin:0}
-text tspan {white-space:pre; fill:currentColor}
 svg {display:block;background-color:#ffffff}
 .abcr {fill: #d00000; fill-opacity: 0; z-index: 15}
 @media screen {

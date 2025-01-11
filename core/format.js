@@ -27,32 +27,44 @@ var	font_tb = [],
 		Palatino: 1.1,
 		monospace: 1.35
 	},
+	txt_ff = "text,serif",		// text font-family (serif for compatibility)
 	fmt_lock = {}
 
 var cfmt = {
-	annotationfont: {name: "sans-serif", size: 12},
+	"abc-version": "1",		// default: old version
+	annotationfont: {name: "text,sans-serif", size: 12},
 	aligncomposer: 1,
 	beamslope: .4,			// max slope of a beam
 //	botmargin: .7 * IN,		// != 1.8 * CM,
+	bardef: {
+		"[":	"",		// invisible
+		"[]":	"",
+		"|:":	"[|:",
+		"|::":	"[|::",
+		"|:::":	"[|:::",
+		":|":	":|]",
+		"::|":	"::|]",
+		":::|":	":::|]",
+		"::":	":][:"
+	},
 	breaklimit: .7,
 	breakoneoln: true,
 	cancelkey: true,
-	composerfont: { name: "serif", style: "italic", size: 14 },
+	composerfont: { name: txt_ff, style: "italic", size: 14 },
 	composerspace: 6,
 //	contbarnb: false,
-	dblrepbar: ':][:',
 	decoerr: true,
 	dynalign: true,
-	footerfont: { name: "serif", size: 16 },
+	footerfont: { name: txt_ff, size: 16 },
 	fullsvg: '',
-	gchordfont: { name: "sans-serif", size: 12 },
-	gracespace: new Float32Array([4, 8, 11]), // left, inside, right
+	gchordfont: { name: "text,sans-serif", size: 12 },
+	gracespace: new Float32Array([6, 8, 11]),	// left, inside, right
 	graceslurs: true,
-	headerfont: { name: "serif", size: 16 },
-	historyfont: { name: "serif", size: 16 },
+	headerfont: { name: txt_ff, size: 16 },
+	historyfont: { name: txt_ff, size: 16 },
 	hyphencont: true,
 	indent: 0,
-	infofont: {name: "serif", style: "italic", size: 14 },
+	infofont: {name: txt_ff, style: "italic", size: 14 },
 	infoname: 'R "Rhythm: "\n\
 B "Book: "\n\
 S "Source: "\n\
@@ -69,37 +81,41 @@ H "History: "',
 	maxstaffsep: 2000,
 	maxsysstaffsep: 2000,
 	measrepnb: 1,
-	measurefont: {name: "serif", style: "italic", size: 10},
+	measurefont: {name: txt_ff, style: "italic", size: 10},
 	measurenb: -1,
 	musicfont: {name: "music", src: musicfont, size: 24},
 	musicspace: 6,
-//	notespacingfactor: 1.33
-	partsfont: {name: "serif", size: 15},
+//	notespacingfactor: "1.3, 38",
+	partsfont: {name: txt_ff, size: 15},
 	parskipfac: .4,
 	partsspace: 8,
 //	pageheight: 29.7 * CM,
 	pagewidth: 21 * CM,
 	printmargin: 0,
 	rightmargin: 1.4 * CM,
-	rbdbstop: true,
 	rbmax: 4,
 	rbmin: 2,
-	repeatfont: {name: "serif", size: 13},
+	repeatfont: {name: txt_ff, size: 13},
 	scale: 1,
 	slurheight: 1.0,
+	spatab: 	// spacing table (see "notespacingfactor" and set_space())
+		new Float32Array([	// default = "1.3, 38"
+			10.2, 13.3, 17.3, 22.48, 29.2,
+			38,
+			49.4, 64.2, 83.5, 108.5]),
 	staffsep: 46,
 	stemheight: 21,			// one octave
 	stretchlast: .25,
 	stretchstaff: true,
-	subtitlefont: {name: "serif", size: 16},
+	subtitlefont: {name: txt_ff, size: 16},
 	subtitlespace: 3,
 	sysstaffsep: 34,
-	tempofont: {name: "serif", weight: "bold", size: 12},
-	textfont: {name: "serif", size: 16},
+	tempofont: {name: txt_ff, weight: "bold", size: 12},
+	textfont: {name: txt_ff, size: 16},
 //	textoption: undefined,
 	textspace: 14,
 	tieheight: 1.0,
-	titlefont: {name: "serif", size: 20},
+	titlefont: {name: txt_ff, size: 20},
 //	titleleft: false,
 	titlespace: 6,
 	titletrim: true,
@@ -107,15 +123,45 @@ H "History: "',
 //	topmargin: .7 * IN,
 	topspace: 22,
 	tuplets: [0, 0, 0, 0],
-	tupletfont: {name: "serif", style: "italic", size: 12},
-	vocalfont: {name: "serif", weight: "bold", size: 13},
+	tupletfont: {name: txt_ff, style: "italic", size: 12},
+	vocalfont: {name: txt_ff, weight: "bold", size: 13},
 	vocalspace: 10,
-	voicefont: {name: "serif", weight: "bold", size: 13},
+	voicefont: {name: txt_ff, weight: "bold", size: 13},
 //	voicescale: 1,
 	writefields: "CMOPQsTWw",
-	wordsfont: {name: "serif", size: 16},
+	wordsfont: {name: txt_ff, size: 16},
 	wordsspace: 5
 }
+
+// parameters that are used in the symbols
+var sfmt = {
+bardef: true,
+barsperstaff: true,
+beamslope: true,
+breaklimit: true,
+bstemdown: true,
+cancelkey: true,
+dynalign: true,
+flatbeams: true,
+gracespace: true,
+hyphencont: true,
+keywarn: true,
+maxshrink: true,
+maxstaffsep: true,
+measrepnb: true,
+rbmax: true,
+rbmin: true,
+shiftunison: true,
+slurheight: true,
+squarebreve: true,    
+staffsep: true,
+stemheight: true,
+stretchlast: true,
+stretchstaff: true,
+tieheight: true,
+timewarn: true,
+vocalspace: true
+} // sfmt
 
 function get_bool(param) {
 	return !param || !/^(0|n|f)/i.test(param) // accept void as true !
@@ -128,7 +174,7 @@ function get_font_scale(param) {
 
 	if (a.length <= 1)
 		return
-	var scale = parseFloat(a[a.length - 1])
+	var scale = +a[a.length - 1]
 
 	if (isNaN(scale) || scale <= 0.5) {
 		syntax(1, "Bad scale value in %%font")
@@ -169,7 +215,7 @@ function param_set_font(xxxfont, p) {
 			name: font.name,
 			size: font.size,
 			box: font.box,
-			pad: font.pad
+			pad: font.pad || 0
 		}
 	}
 	cfmt[xxxfont] = font;
@@ -188,7 +234,7 @@ function param_set_font(xxxfont, p) {
 	}
 	a = p.match(/\s+padding=([\d.]+)(\s|$)/)
 	if (a) {				// if padding
-		font.pad = a[1] ? Number(a[1]) : 0
+		font.pad = a[1] ? +a[1] : 0
 		p = p.replace(a[0], a[2])
 	}
 
@@ -221,51 +267,83 @@ function param_set_font(xxxfont, p) {
 	a = p.match(/\s+([0-9.]+|\*)$/)
 	if (a) {
 		if (a[1] != "*")
-			font.size = Number(a[1])
+			font.size = +a[1]
 		p = p.replace(a[0], "")
 	}
 
-	a = p.match(/[- ]?[nN]ormal/)
-	if (a) {
-		font.normal = true
-		p = p.replace(a[0], '')
-	}
+	// accept url(...) as the font name
+	if (p[0] == 'u' && p.slice(0, 4) == "url(") {
+		n = p.indexOf(')', 1)
+		if (n < 0) {
+			syntax(1, "No end of url in font family")
+			return
+		}
+		p = p.slice(0, n + 1)
 
-	a = p.match(/[- ]?[bB]old/)
-	if (a) {
-		font.weight = "bold"
-		p = p.replace(a[0], '')
-	}
-	a = p.match(/[- ]?[iI]talic/)
-	if (a) {
-		font.style = "italic"
-		p = p.replace(a[0], '')
-	}
-	a = p.match(/[- ]?[oO]blique/)
-	if (a) {
-		font.style = "oblique"
-		p = p.replace(a[0], '')
+		font.src = p
+		font.fid = font_tb.length
+		font_tb.push(font)
+		font.normal = true
+		p = 'ft' + font.fid
+	} else {
+		if (p[0] == '"') {
+			n = p.indexOf('"', 1)
+			if (n < 0) {
+				syntax(1, "No end of string in font family")
+				return
+			}
+			p = p.slice(1, n)
+		}
+
+		// extract the font attributes
+		a = p.match(/[- ]?[nN]ormal/)
+		if (a) {
+			font.normal = true
+			p = p.replace(a[0], '')
+		}
+
+		// font weight
+		a = p.match(abc2svg.ft_re)
+		if (a) {
+			font.weight = abc2svg.ft_w[a[0].replace(/[ -]/, '')
+					.toLowerCase()]
+			p = p.replace(a[0], '')
+		}
+
+		a = p.match(/[- ]?[iI]talic/)
+		if (a) {
+			font.style = "italic"
+			p = p.replace(a[0], '')
+		}
+		a = p.match(/[- ]?[oO]blique/)
+		if (a) {
+			font.style = "oblique"
+			p = p.replace(a[0], '')
+		}
+
+		// here is the font family
+		p = p.trim()
+
+		switch (p) {
+		case "":
+		case "*": return
+		case "Times-Roman":
+		case "Times":	p = "serif"; break
+		case "Helvetica": p = "sans-serif"; break
+		case "Courier": p = "monospace"; break
+		case "music": p = cfmt.musicfont.name; break
+		default:
+//hack: the font "Figurato" is used for figured bass
+			if (p.indexOf("Fig") > 0)
+				font.figb = true
+			break
+		}
 	}
 	if (font.size)
 		set_font_fac(font)
 	else
 		font.swfac = 0
-	switch (p) {
-	case "":
-	case "*": return
-	case "Times-Roman":
-	case "Times":	p = "serif"; break
-	case "Helvetica": p = "sans-serif"; break
-	case "Courier": p = "monospace"; break
-	}
 
-	// accept url(...) as the font name
-	if (p[3] == '(') {
-		font.src = p
-		font.fid = font_tb.length
-		font_tb.push(font)
-		p = 'ft' + font.fid
-	}
 	font.name = p
 }
 
@@ -275,7 +353,7 @@ function get_unit(param) {
 	if (!v)
 		return NaN
 
-	v[1] = Number(v[1])
+	v[1] = +v[1]
 	switch (v[2]) {
 	case "cm":
 		return v[1] * CM
@@ -316,12 +394,16 @@ var textopt = {
 	center: 'c',
 	fill: 'f',
 	justify: 'j',
+	obeylines: 'l',
 	ragged: 'f',
 	right: 'r',
 	skip: 's'
 }
-function get_textopt(param) {
-	return textopt[param]
+function get_textopt(v) {
+    var	i = v.indexOf(' ')
+	if (i > 0)
+		v = v.slice(0, i)
+	return textopt[v]
 }
 
 /* -- position of a voice element -- */
@@ -341,7 +423,7 @@ function set_pos(k, v) {		// keyword, value
 	k = k.slice(0, 3)
 	if (k == "ste")
 		k = "stm"
-	set_v_param("pos", k + ' ' + v)
+	set_v_param("pos", '"' + k + ' ' + v + '"')
 }
 
 // set/unset the fields to write
@@ -407,6 +489,10 @@ Abc.prototype.set_format = function(cmd, param) {
 		return
 	}
 
+	// duplicate the global parameters if already used by symbols
+	if (sfmt[cmd] && parse.ufmt)
+		cfmt = Object.create(cfmt)
+
 	switch (cmd) {
 	case "aligncomposer":
 	case "barsperstaff":
@@ -423,9 +509,9 @@ Abc.prototype.set_format = function(cmd, param) {
 		}
 		cfmt[cmd] = v
 		break
+	case "abc-version":
 	case "bgcolor":
 	case "fgcolor":
-	case "dblrepbar":
 	case "titleformat":
 		cfmt[cmd] = param
 		break
@@ -438,9 +524,8 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "scale":
 	case "slurheight":
 	case "stemheight":
-	case "stretchlast":
 	case "tieheight":
-		f = parseFloat(param)
+		f = +param
 		if (isNaN(f)) {
 			syntax(1, errs.bad_val, '%%' + cmd)
 			break
@@ -462,6 +547,7 @@ Abc.prototype.set_format = function(cmd, param) {
 		param_set_font(cmd.replace("box", "font"),	// font
 			"* * " + (get_bool(param) ? "box" : "nobox"))
 		break
+	case "altchord":
 	case "bstemdown":
 	case "breakoneoln":
 	case "cancelkey":
@@ -469,7 +555,6 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "contbarnb":
 	case "custos":
 	case "decoerr":
-	case "dynalign":
 	case "flatbeams":
 	case "graceslurs":
 	case "graceword":
@@ -477,7 +562,6 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "keywarn":
 	case "linewarn":
 	case "quiet":
-	case "rbdbstop":
 	case "singleline":
 	case "squarebreve":
 	case "splittune":
@@ -487,6 +571,19 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "titlecaps":
 	case "titleleft":
 		cfmt[cmd] = get_bool(param)
+		break
+	case "dblrepbar":
+		param = ":: " + param
+		// fall thru
+	case "bardef":			// %%bardef oldbar newbar
+		v = param.split(/\s+/)
+		if (v.length != 2) {
+			syntax(1, errs.bad_val, "%%bardef")
+		} else {
+			if (parse.ufmt)
+				cfmt.bardef = Object.create(cfmt.bardef)	// new object
+			cfmt.bardef[v[0]] = v[1]
+		}
 		break
 	case "chordalias":
 		v = param.split(/\s+/)
@@ -568,12 +665,14 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "gracespace":
 		v = param.split(/\s+/)
 		for (i = 0; i < 3; i++)
-			if (isNaN(Number(v[i]))) {
+			if (isNaN(+v[i])) {
 				syntax(1, errs.bad_val, "%%gracespace")
 				break
 			}
+		if (parse.ufmt)
+			cfmt[cmd] = new Float32Array(3)
 		for (i = 0; i < 3; i++)
-			cfmt[cmd][i] = Number(v[i])
+			cfmt[cmd][i] = +v[i]
 		break
 	case "tuplets":
 		cfmt[cmd] = param.split(/\s+/);
@@ -586,30 +685,50 @@ Abc.prototype.set_format = function(cmd, param) {
 		set_infoname(param)
 		break
 	case "notespacingfactor":
-		f = parseFloat(param)
-		if (isNaN(f) || f < 1 || f > 2) {
+		v = param.match(/([.\d]+)[,\s]*(\d+)?/)
+		if (v) {
+			f = +v[1]
+			if (isNaN(f) || f < 1 || f > 2) {
+				f = 0
+			} else if (v[2]) {
+				f2 = +v[2]
+				if (isNaN(f))
+					f = 0
+			} else {
+				f2 = cfmt.spatab[5]
+			}
+		}
+		if (!f) {
 			syntax(1, errs.bad_val, "%%" + cmd)
 			break
 		}
+		cfmt[cmd] = param		// (for dump)
+
+		// in the table 'spatab',
+		// the width of notes is indexed by log2(note_length)
+		cfmt.spatab = new Float32Array(10)
 		i = 5;				// index of crotchet
-		f2 = space_tb[i]
-		for ( ; --i >= 0; ) {
-			f2 /= f;
-			space_tb[i] = f2
-		}
+		do {
+			cfmt.spatab[i] = f2
+			f2 /= f
+		} while (--i >= 0)
 		i = 5;
-		f2 = space_tb[i]
-		for ( ; ++i < space_tb.length; ) {
+		f2 = cfmt.spatab[i]
+		for ( ; ++i < cfmt.spatab.length; ) {
 			f2 *= f;
-			space_tb[i] = f2
+			cfmt.spatab[i] = f2
 		}
 		break
 	case "play":
 		cfmt.sound = "play"		// without clef
 		break
 	case "pos":
-		cmd = param.split(/\s+/);
-		set_pos(cmd[0], cmd[1])
+		cmd = param.match(/(\w*)\s+(.*)/)
+		if (!cmd || !cmd[2]) {
+			syntax(1, "Error in %%pos")
+			break
+		}
+		set_pos(cmd[1], cmd[2])
 		break
 	case "sounding-score":
 		if (cfmt.sound != "play")
@@ -636,12 +755,19 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "textoption":
 		cfmt[cmd] = get_textopt(param)
 		break
+	case "dynalign":
+	case "stretchlast":
 	case "titletrim":
-		v = Number(param)
+		v = +param
 		if (isNaN(v))
-			cfmt[cmd] = get_bool(param)
-		else
-			cfmt[cmd] = v
+			v = get_bool(param) ? 0 : 1
+		if (cmd[0] == 's') {		// stretchlast
+			if (v < 0 || v > 1) {
+				syntax(1, errs.bad_val, '%%' + cmd)
+				break
+			}
+		}
+		cfmt[cmd] = v
 		break
 	case "combinevoices":
 		syntax(1, "%%combinevoices is deprecated - use %%voicecombine instead")
@@ -652,10 +778,24 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "voicescale":
 		set_v_param("scale", param)
 		break
+	// deprecated
+	case "rbdbstop":
+		v = get_bool(param)
+		if (v && cfmt["abc-version"] >= "2.2")
+			cfmt["abc-version"] = "1"
+		else if (!v && cfmt["abc-version"] < "2.2")
+			cfmt["abc-version"] = "2.2"
+		break
 	default:		// memorize all global commands
-		if (parse.state == 0)		// (needed for modules)
+		if (!parse.state)		// (needed for modules)
 			cfmt[cmd] = param
 		break
+	}
+
+	// check if already a same format
+	if (sfmt[cmd] && parse.ufmt) {
+		// to do...
+		parse.ufmt = false
 	}
 }
 
@@ -702,12 +842,16 @@ function use_font(font) {
 				font.pad = 0
 		}
 		add_fstyle(".f" + font.fid +
-			(typeof document == "undefined" ? cfmt.fullsvg : "") +
+			(cfmt.fullsvg || "") +
 			"{" + style_font(font) + "}")
 		if (font.src)
 			add_fstyle("@font-face{\n\
  font-family:" + font.name + ";\n\
  src:" + font.src + "}")
+		if (font == cfmt.musicfont)	// add more music font style
+			add_fstyle(".f" + font.fid
+				+ (cfmt.fullsvg || "")
+				+ ' text,tspan{fill:currentColor;white-space:pre}')
 	}
 }
 
@@ -723,7 +867,7 @@ function get_font(fn) {
 	}
 
 	if (!font.name || !font.size) {		// if incomplete user font
-		font2 = Object.create(gene.curfont)
+		font2 = Object.create(gene.deffont)
 		if (font.name)
 			font2.name = font.name
 		if (font.normal) {
@@ -737,8 +881,8 @@ function get_font(fn) {
 			if (font.style)
 				font2.style = font.style
 		}
-//		if (font.class)
-//			font2.class = font.class
+		if (font.src)
+			font2.src = font.src
 		if (font.size)
 			font2.size = font.size
 		st = st_font(font2)

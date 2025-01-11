@@ -1,6 +1,6 @@
 // abc2svg - deco.js - decorations
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -52,74 +52,86 @@
 // }
 
 var	dd_tb = {},		// definition of the decorations
-	a_de			// array of the decoration elements
+	a_de,			// array of the decoration elements
+	cross			// cross voice decorations
 
 // decorations - populate with standard decorations
 var decos = {
-	dot: "0 stc 5 1 1",
-	tenuto: "0 emb 5 3 3",
+	dot: "0 stc 6 1 1",
+	tenuto: "0 emb 6 3 3",
 	slide: "1 sld 3 7 0",
-	arpeggio: "2 arp 12 10 0",
-	roll: "3 roll 7 6 6",
-	fermata: "3 hld 10 7 7",
-	emphasis: "3 accent 7 4 4",
-	lowermordent: "3 lmrd 10 5 5",
-	coda: "3 coda 24 10 10",
-	uppermordent: "3 umrd 10 5 5",
-	segno: "3 sgno 22 8 8",
+	arpeggio: "2 arp 12 10 2",
+	roll: "3 roll 3,3 6 6",
+	emphasis: "3 accent 3.5,3.5 4 4",
+	lowermordent: "3 lmrd 4,4 5 5",
+	uppermordent: "3 umrd 4,4 5 5",
 	trill: "3 trl 14 5 5",
 	upbow: "3 upb 10 5 5",
 	downbow: "3 dnb 9 5 5",
 	gmark: "3 grm 6 5 5",
-	wedge: "0 wedge 7 3 3",		// (staccatissimo or spiccato)
-	turnx: "3 turnx 10 0 5",
-	breath: "3 brth 0 1 20",
+	wedge: "0 wedge 8 3 3",	// (staccatissimo or spiccato)
 	longphrase: "3 lphr 0 1 1",
 	mediumphrase: "3 mphr 0 1 1",
 	shortphrase: "3 sphr 0 1 1",
-	invertedfermata: "3 hld 10 7 7",
-	invertedturn: "3 turn 10 0 5",
-	invertedturnx: "3 turnx 10 0 5",
-	"0": "3 fng 8 3 3 0",
-	"1": "3 fng 8 3 3 1",
-	"2": "3 fng 8 3 3 2",
-	"3": "3 fng 8 3 3 3",
-	"4": "3 fng 8 3 3 4",
-	"5": "3 fng 8 3 3 5",
+	turnx: "3 turnx 5,5 6 6",
+	invertedturn: "3 turn 5,5 6 6",
+	invertedturnx: "3 turnx 5,5 6 6",
+	"0": "3 fng 5,5 3 3 0",
+	"1": "3 fng 5,5 3 3 1",
+	"2": "3 fng 5,5 3 3 2",
+	"3": "3 fng 5,5 3 3 3",
+	"4": "3 fng 5,5 3 3 4",
+	"5": "3 fng 5,5 3 3 5",
 	plus: "3 dplus 7 3 3",
 	"+": "3 dplus 7 3 3",
-	accent: "3 accent 7 4 4",
-	">": "3 accent 7 4 4",
+	accent: "3 accent 3.5,3.5 4 4",
+	">": "3 accent 3.5,3.5 4 4",
 	marcato: "3 marcato 9 3 3",
 	"^": "3 marcato 9 3 3",
-	mordent: "3 lmrd 10 5 5",
+	mordent: "3 lmrd 4,4 5 5",
 	open: "3 opend 10 3 3",
 	snap: "3 snap 14 3 3",
 	thumb: "3 thumb 14 3 3",
-	dacapo: "3 dacs 16 20 20 Da Capo",
-	dacoda: "3 dacs 16 20 20 Da Coda",
-	"D.C.": "3 dcap 16 10 10",
-	"D.S.": "3 dsgn 16 10 10",
-	"D.C.alcoda": "3 dacs 16 38 38 D.C. al Coda",
-	"D.S.alcoda": "3 dacs 16 38 38 D.S. al Coda",
-	"D.C.alfine": "3 dacs 16 38 38 D.C. al Fine",
-	"D.S.alfine": "3 dacs 16 38 38 D.S. al Fine",
-	fine: "3 dacs 16 10 10 Fine",
-	turn: "3 turn 10 0 5",
+	turn: "3 turn 5,5 6 6",
 	"trill(": "3 ltr 8 4 0",
 	"trill)": "3 ltr 8 4 0",
-	f: "6 f 18 1 7",
-	ff: "6 ff 18 2 10",
-	fff: "6 fff 18 4 13",
-	ffff: "6 ffff 18 6 16",
-	mf: "6 mf 18 6 13",
-	mp: "6 mp 18 6 16",
-	p: "6 p 18 2 8",
-	pp: "6 pp 18 5 14",
-	ppp: "6 ppp 18 8 20",
-	pppp: "6 pppp 18 10 25",
-	pralltriller: "3 umrd 10 5 5",
-	sfz: "6 sfz 18 4 10",
+	"8va(": "5 8va 12 6 6",
+	"8va)": "5 8va 12 6 6",
+	"8vb(": "7 8vb 12 6 6",
+	"8vb)": "7 8vb 12 6 6",
+	"15ma(": "5 15ma 12 9 9",
+	"15ma)": "5 15ma 12 9 9",
+	"15mb(": "7 15mb 12 9 9",
+	"15mb)": "7 15mb 12 9 9",
+	breath: "5 brth 0 1 20",
+	caesura: "5 caes 0 1 10",
+	short: "5 short 0 1 4",
+	tick: "5 tick 0 1 4",
+	coda: "5 coda 24 10 10",
+	dacapo: "5 dacs 16 20 20 Da Capo",
+	dacoda: "5 dacs 16 20 20 Da Coda",
+	"D.C.": "5 dcap 16 10 10",
+	"D.S.": "5 dsgn 16 10 10",
+	"D.C.alcoda": "5 dacs 16 38 38 D.C. al Coda",
+	"D.S.alcoda": "5 dacs 16 38 38 D.S. al Coda",
+	"D.C.alfine": "5 dacs 16 38 38 D.C. al Fine",
+	"D.S.alfine": "5 dacs 16 38 38 D.S. al Fine",
+	fermata: "5 hld 12 7 7",
+	fine: "5 dacs 16 10 10 Fine",
+	invertedfermata: "7 hld 12 7 7",
+	segno: "5 sgno 22 8 8",
+	f: "6 f 18 4 4",
+	ff: "6 ff 18 6 6",
+	fff: "6 fff 18 9 9",
+	ffff: "6 ffff 18 12 12",
+	mf: "6 mf 18 9 9",
+	mp: "6 mp 18 10 10",
+	p: "6 p 18 5 5",
+	pp: "6 pp 18 9 9",
+	ppp: "6 ppp 18 13 13",
+	pppp: "6 pppp 18 17 17",
+	pralltriller: "3 umrd 4,4 5 5",
+	sfz: "6 sfz 18 8 8",
 	ped: "4 ped 18 6 10",
 	"ped-up": "4 pedoff 12 4 4",
 	"ped(": "4 lped 20 5 5",
@@ -136,14 +148,6 @@ var decos = {
 	"-)": "8 gliss 0 0 0",
 	"~(": "8 glisq 0 0 0",
 	"~)": "8 glisq 0 0 0",
-	"8va(": "3 8va 10 0 0",
-	"8va)": "3 8va 10 0 0",
-	"8vb(": "4 8vb 10 0 0",
-	"8vb)": "4 8vb 10 0 0",
-	"15ma(": "3 15ma 10 0 0",
-	"15ma)": "3 15ma 10 0 0",
-	"15mb(": "4 15mb 10 0 0",
-	"15mb)": "4 15mb 10 0 0",
 // internal
 //	color: "10 0 0 0 0",
 	invisible: "32 0 0 0 0",
@@ -170,19 +174,34 @@ var decos = {
 	courtesy: "43 0 0 0 0",
 	"cacc-1": "3 cacc-1 0 0 0",
 	cacc3: "3 cacc3 0 0 0",
-	cacc1: "3 cacc1 0 0 0"},
+	cacc1: "3 cacc1 0 0 0",
+	"tie(": "44 0 0 0 0",
+	"tie)": "44 0 0 0 0"},
 
 	// types of decoration per function
-	f_near = [true, true, true],
-	f_note = [false, false, false, true, true, true, false, false, true],
-	f_staff = [false, false, false, false, false, false, true, true]
+	f_near = [
+		d_near,		// 0 - near the note
+		d_slide,	// 1
+		d_arp		// 2
+	],
+	f_note = [
+		null, null, null,
+		d_upstaff,	// 3 - tied to note
+		d_upstaff	// 4 (below the staff)
+	],
+	f_staff = [
+		null, null, null, null, null,
+		d_upstaff,	// 5 (above the staff)
+		d_pf,		// 6 - tied to staff (dynamic marks)
+		d_upstaff	// 7 (below the staff)
+	]
 
 /* -- get the max/min vertical offset -- */
 function y_get(st, up, x, w) {
 	var	y,
 		p_staff = staff_tb[st],
-		i = (x / realwidth * YSTEP) | 0,
-		j = ((x + w) / realwidth * YSTEP) | 0
+	i = (x / 2) | 0,
+	j = ((x + w) / 2) | 0
 
 	if (i < 0)
 		i = 0
@@ -211,9 +230,9 @@ function y_get(st, up, x, w) {
 
 /* -- adjust the vertical offsets -- */
 function y_set(st, up, x, w, y) {
-	var	p_staff = staff_tb[st],
-		i = (x / realwidth * YSTEP) | 0,
-		j = ((x + w) / realwidth * YSTEP) | 0
+    var	p_staff = staff_tb[st],
+	i = (x / 2) | 0,
+	j = ((x + w) / 2) | 0
 
 	/* (may occur when annotation on 'y' at start of an empty staff) */
 	if (i < 0)
@@ -238,21 +257,35 @@ function y_set(st, up, x, w, y) {
 	}
 }
 
-/* -- get the staff position of the dynamic and volume marks -- */
-function up_p(s, pos) {
-	switch (pos) {
+// get the staff position
+// - of the ornements
+function up3(s, pos) {
+	switch (pos & 0x07) {
+	case C.SL_ABOVE:
+		return 1	// true
+	case C.SL_BELOW:
+		return 0	// false
+	}
+	if (s.multi)
+		return s.multi > 0
+	return 1		// true
+} // up3()
+
+// - of the dynamic and volume marks
+function up6(s, pos) {
+	switch (pos & 0x07) {
 	case C.SL_ABOVE:
 		return true
 	case C.SL_BELOW:
 		return false
 	}
-	if (s.multi && s.multi != 0)
+	if (s.multi)
 		return s.multi > 0
 	if (!s.p_v.have_ly)
 		return false
 
 	/* above if the lyrics are below the staff */
-	return s.pos.voc != C.SL_ABOVE
+	return (s.pos.voc & 0x07) != C.SL_ABOVE
 }
 
 /* -- drawing functions -- */
@@ -261,14 +294,14 @@ function d_arp(de) {
 	var	m, h, dx,
 		s = de.s,
 		dd = de.dd,
-		xc = 5
+		xc = dd.wr
 
 	if (s.type == C.NOTE) {
 		for (m = 0; m <= s.nhd; m++) {
 			if (s.notes[m].acc) {
-				dx = 5 + s.notes[m].shac
+				dx = s.notes[m].shac
 			} else {
-				dx = 6 - s.notes[m].shhd
+				dx = 1 - s.notes[m].shhd
 				switch (s.head) {
 				case C.SQUARE:
 					dx += 3.5
@@ -292,40 +325,51 @@ function d_arp(de) {
 	de.val = h;
 //	de.x = s.x - xc;
 	de.x -= xc;
-	de.y = 3 * (s.notes[0].pit - 18) - 3
+	de.y = 3 * ((s.notes[0].pit + s.notes[s.nhd].pit) / 2 - 18) - h / 2 - 3
 }
 
 // special case for long dynamic decorations
 function d_cresc(de) {
 	if (de.ldst)			// skip start of deco
 		return
-	var	s, dd, dd2, up, x, dx, x2, i,
-		s2 = de.s,
-		de2 = de.start,		/* start of the deco */
-		de2_prev, de_next;
-
-	s = de2.s;
-	x = s.x + 3;
-	i = de2.ix
-	if (i > 0)
-		de2_prev = a_de[i - 1];
+    var	up, dx, x2, i, de3,
+	dd = de.dd,
+	s2 = de.s,
+	de2 = de.start,			// start of the deco
+	s = de2.s,
+	x = s.x + 3			// x left
 
 	de.st = s2.st;
 	de.lden = false;		/* old behaviour */
 	de.has_val = true;
-	up = up_p(s2, s2.pos.dyn)
+	if (dd.ty == '^')
+		up = 1
+	else if (dd.ty != '_')
+		up = up6(s2, s2.pos.dyn)
 	if (up)
 		de.up = true
 
-	// shift the starting point if any dynamic mark on the left
-	if (de2_prev && de2_prev.s == s
-	 && ((de.up && !de2_prev.up)
-	  || (!de.up && de2_prev.up))) {
-		dd2 = de2_prev.dd
-		if (f_staff[dd2.func]) {	// if dynamic mark
-			x2 = de2_prev.x + de2_prev.val + 4
+	// shift the starting point if any dynamic mark on this symbol
+	i = de2.ix
+	while (--i >= 0) {
+		de3 = a_de[i]
+		if (!de3 || de3.s != s)
+			break
+	}
+	while (1) {
+		i++
+		de3 = a_de[i]
+		if (!de3 || de3.s != s)
+			break
+		if (de3 == de || de3 == de2)
+			continue
+		if (!(de.up ^ de3.up)
+		 && f_staff[de3.dd.func]) {	// if dynamic mark
+//			x2 = de3.x + de3.val + 4
+			x2 = de3.x + de3.dd.wr + 2
 			if (x2 > x)
 				x = x2
+			break
 		}
 	}
 
@@ -337,16 +381,26 @@ function d_cresc(de) {
 		}
 	} else {
 
-		// shift the ending point if any dynamic mark on the right
-		x2 = s2.x;
-		de_next = a_de[de.ix + 1]
-		if (de_next
-		 && de_next.s == s
-		 && ((de.up && !de_next.up)
-		  || (!de.up && de_next.up))) {
-			dd2 = de_next.dd
-			if (f_staff[dd2.func])	// if dynamic mark
-				x2 -= 5
+		// shift the ending point if any dynamic mark
+		x2 = s2.x
+		i = de.ix
+		while (--i > 0) {
+			de3 = a_de[i]
+			if (!de3 || de3.s != s2)
+				break
+		}
+		while (1) {
+			i++
+			de3 = a_de[i]
+			if (!de3 || de3.s != s2)
+				break
+			if (de3 == de || de3 == de2)
+				continue
+			if (!(de.up ^ de3.up)
+			 && f_staff[de3.dd.func]) {	// if dynamic mark
+				x2 -= de3.dd.wl
+				break
+			}
 		}
 		dx = x2 - x - 4
 		if (dx < 20) {
@@ -358,10 +412,10 @@ function d_cresc(de) {
 	de.val = dx;
 	de.x = x;
 	de.y = y_get(de.st, up, x, dx)
-	if (!up) {
-		dd = de.dd;
+	if (!up)
 		de.y -= dd.h
-	}
+	else
+		de.y += dd.hd
 	/* (y_set is done later in draw_deco_staff) */
 }
 
@@ -376,29 +430,29 @@ function d_near(de) {
 //		de.y = s.y;
 		return
 	}
-	if (s.multi)
+	if (dd.ty == '^')
+		up = 1
+	else if (dd.ty == '_')
+		up = 0
+	else if (s.multi)
 		up = s.multi > 0
 	else
 		up = s.stem < 0
+	y = up ? s.ymx : s.ymn
+	if (y > -6 && y < 30) {
+		y = (((y + 9) / 6) | 0) * 6 - 6	// between lines
+	}
 	if (up) {
-		y = s.ymx | 0
-	} else if (dd.name[0] == 'w') {
-		de.inv = true
-		y = s.ymn
-	} else {
-		y = s.ymn - dd.h
-	}
-	if (y > -6 && y < 24) {
-		if (up)
-			y += 3;
-		y = (((y + 6) / 6) | 0) * 6 - 6		/* between lines */
-	}
-	if (up)
+		y += dd.hd
 		s.ymx = y + dd.h
-	else if (dd.name[0] == 'w')		// wedge
-		s.ymn = y - dd.h
-	else
+	} else if (dd.name[0] == 'w') {		// wedge (no descent)
+		de.inv = true
+		y -= dd.h
 		s.ymn = y
+	} else {
+		y -= dd.h
+		s.ymn = y - dd.hd
+	}
 	de.y = y
 	if (s.type == C.NOTE)
 		de.x += s.notes[s.stem >= 0 ? 0 : s.nhd].shhd
@@ -424,16 +478,22 @@ function d_pf(de) {
 	// don't treat here the long decorations
 	if (de.ldst)			// if long deco start
 		return
+	if ((de.pos & C.SL_ALI_MSK) == C.SL_CLOSE
+	 || ((de.pos & C.SL_ALI_MSK) == 0
+	  && s.fmt.dynalign < 0)) {	// if no dynalign
+		d_upstaff(de)		// then, do as above/below the staff
+		return
+	}
 	if (de.start) {			// if long decoration
 		d_cresc(de)
 		return
 	}
 
 	de.val = dd.wl + dd.wr;
-	up = up_p(s, s.pos.vol)
+	up = up6(s, de.pos)
 	if (up)
 		de.up = true;
-	x = s.x - dd.wl
+	x = s.x
 	if (de.ix > 0) {
 		de_prev = a_de[de.ix - 1]
 		if (de_prev.s == s
@@ -452,6 +512,8 @@ function d_pf(de) {
 	de.y = y_get(s.st, up, x, de.val)
 	if (!up)
 		de.y -= dd.h
+	else
+		de.y += dd.hd
 	/* (y_set is done later in draw_deco_staff) */
 }
 
@@ -505,17 +567,26 @@ function d_trill(de) {
 	}
 	de.st = st
 
-	if (dd.func != 4) {		// if not below
-		switch (dd.glyph) {
-		case "8va":
-		case "15ma":
-			up = 1
+	switch (dd.func) {
+	case 5:
+		up = 1
+		break
+	case 4:
+	case 7:
+		break
+	case 3:			// tied to note
+	case 6:			// dynamic mark
+			if (dd.func == 6)
+				up = up6(s, de.pos)
+			else
+				up = up3(s, de.pos)
 			break
-		default:
-			up = s2.multi >= 0
-			break
-		}
 	}
+	if (dd.ty == '^')
+		up = 1
+	else if (dd.ty == '_')
+		up = 0
+
 	if (de.defl.noen) {		/* if no decoration end */
 		w = de.x - x
 		if (w < 20) {
@@ -531,7 +602,6 @@ function d_trill(de) {
 			w = 10
 		}
 	}
-	dd = de.dd;
 	y = y_get(st, up, x - dd.wl - 5, w)
 	if (up) {
 		tmp = staff_tb[s.st].topbar + 2
@@ -564,6 +634,7 @@ function d_trill(de) {
 	de.val = w;
 	de.x = x;
 	de.y = y
+	de.up = up
 	if (up)
 		y += dd.h;
 	y_set(st, up, x, w, y)
@@ -573,7 +644,7 @@ function d_trill(de) {
 		s.ymn = s2.ymn = y
 }
 
-/* 3, 4: above (or below) the staff */
+/* 3, 4, 5, 7: above (or below) the staff */
 function d_upstaff(de) {
 
 	// don't treat here the long decorations
@@ -583,107 +654,87 @@ function d_upstaff(de) {
 		d_trill(de)
 		return
 	}
-	var	yc, up, inv,
-		s = de.s,
-		dd = de.dd,
-//		x = s.x,
+
+    var	y, up, inv,
+	s = de.s,
+	dd = de.dd,
 	x = de.x,
-		w = dd.wl + dd.wr,
-		stafft = staff_tb[s.st].topbar + 2,
-		staffb = staff_tb[s.st].botbar - 2
+	w = dd.wl + dd.wr,
+	stafft = staff_tb[s.st].topbar + 2 + dd.hd,
+	staffb = staff_tb[s.st].botbar - 2 - dd.h
 
-	if (s.nhd)
-		x += s.notes[s.stem >= 0 ? 0 : s.nhd].shhd;
-	up = -1
-	if (dd.func == 4) {		// below
-		up = 0
-	} else if (s.pos) {
-		switch (s.pos.orn) {
-		case C.SL_ABOVE:
-			up = 1
-			break
-		case C.SL_BELOW:
-			up = 0
-			break
-		}
-	}
-
+	// glyphs inside the staff
 	switch (dd.glyph) {
-	case "accent":
-	case "roll":
-		if (!up
-		 || (up < 0
-		  && (s.multi < 0
-		   || (!s.multi && s.stem > 0)))) {
-			yc = y_get(s.st, false, s.x - dd.wl, w) - 2
-			if (yc > staffb)
-				yc = staffb;
-			yc -= dd.h;
-			y_set(s.st, false, s.x, 0, yc);
-			inv = true;
-			s.ymn = yc
-		} else {
-			yc = y_get(s.st, true, s.x - dd.wl, w) + 2
-			if (yc < stafft)
-				yc = stafft;
-			y_set(s.st, true, s.x - dd.wl, w, yc + dd.h);
-			s.ymx = yc + dd.h
-		}
-		break
 	case "brth":
+	case "caes":
 	case "lphr":
 	case "mphr":
 	case "sphr":
-		yc = stafft + 1
-		if (dd.glyph == "brth" && yc < s.ymx)
-			yc = s.ymx
-		for (s = s.ts_next; s; s = s.ts_next)
-			if (s.seqst)
-				break
-		x += ((s ? s.x : realwidth) - x) * .45
-		break
-	default:
-		if (dd.name.indexOf("invert") == 0)
-			inv = true
-		if (dd.name != "invertedfermata"
-		 && (up > 0
-		  || (up < 0 && s.multi >= 0))) {
-			yc = y_get(s.st, true, s.x - dd.wl, w) + 2 + dd.hd
-			if (yc < stafft)
-				yc = stafft;
-			y_set(s.st, true, s.x - dd.wl, w, yc + dd.h);
-			s.ymx = yc + dd.h
+	case "short":
+	case "tick":
+		y = stafft
+		if (s.type == C.BAR) {
+			s.invis = 1
 		} else {
-			yc = y_get(s.st, false, s.x - dd.wl, w) - 3 + dd.hd
-			if (yc > staffb)
-				yc = staffb;
-			yc -= dd.h;
-			y_set(s.st, false, s.x - dd.wl, w, yc - dd.hd)
-			if (dd.name == "fermata")
-				inv = true;
-			s.ymn = yc
+		if (dd.glyph == "brth" && y < s.ymx)
+				y = s.ymx
+			for (s = s.ts_next; s; s = s.ts_next)
+				if (s.seqst)
+					break
+			x += ((s ? s.x : realwidth) - x) * .45
 		}
+		de.x = x
+		de.y = y
+		return
+	}
+
+	if (s.nhd)
+		x += s.notes[s.stem >= 0 ? 0 : s.nhd].shhd;
+	de.up = up = (dd.func == 4 || dd.func == 7) ? 0
+			: dd.func == 6 ? up6(s, de.pos)
+					: up3(s, de.pos)
+
+	switch (dd.ty) {
+	case '@':
+	case '<':
+	case '>':
+		y = de.y
 		break
 	}
-	if (inv) {
-		yc += dd.h;
-		de.inv = true
+	if (y == undefined) {
+		if (up) {
+			y = y_get(s.st, true, x - dd.wl, w)
+					+ dd.hd
+			if (y < stafft)
+				y = stafft
+			if (de.y > y)
+				y = de.y
+			s.ymx = y + dd.h
+		} else {
+			y = y_get(s.st, false, x - dd.wl, w)
+				- dd.h
+			if (y > staffb)
+				y = staffb
+			if (de.y < y)
+				y = de.y
+			if (dd.name == "fermata"
+			 || dd.glyph == "accent"
+			 || dd.glyph == "roll")
+				de.inv = 1
+			s.ymn = y - dd.hd
+		}
 	}
-	de.x = x;
-	de.y = yc
-}
 
-/* deco function table */
-var func_tb = [
-	d_near,		/* 0 - near the note */
-	d_slide,	/* 1 */
-	d_arp,		/* 2 */
-	d_upstaff,	/* 3 - tied to note */
-	d_upstaff,	/* 4 (below the staff) */
-	d_trill,	/* 5 */
-	d_pf,		/* 6 - tied to staff (dynamic marks) */
-	d_cresc		/* 7 */
-]
+	if (dd.func != 6) {			// if not d_pf
+		if (y >= stafft)
+			y_set(s.st, 1, x - dd.wl, w, y + dd.h)
+		else if (y <= staffb)
+			y_set(s.st, 0, x - dd.wl, w, y - dd.hd)
+	}
+
+	de.x = x;
+	de.y = y
+}
 
 // add a decoration
 /* syntax:
@@ -696,9 +747,17 @@ function deco_add(param) {
 }
 
 // define a decoration
-function deco_def(nm) {
-    var a, dd, dd2, name2, c, i, elts, str, hd,
-	text = decos[nm]
+// nm is the name of the decoration
+// nmd is the name of the definition in the table 'decos'
+function deco_def(nm, nmd) {
+	if (!nmd)
+		nmd = nm
+    var a, dd, dd2, nm2, c, i, elts, str, hd,
+	text = decos[nmd]
+
+	// check if a long decoration with number
+	if (!text && /\d[()]$/.test(nmd))
+		text = decos[nmd.replace(/\d/, '')]
 
 	if (!text) {
 		if (cfmt.decoerr)
@@ -723,14 +782,14 @@ function deco_def(nm) {
 		return //undefined
 	}
 	if (c_func > 10
-	 && (c_func < 32 || c_func > 43)) {
+	 && (c_func < 32 || c_func > 44)) {
 		error(1, null, "%%deco: bad C function index '$1'", c_func)
 		return //undefined
 	}
-	if (c_func == 5)			// old !trill(!
-		c_func = 3
-	if (c_func == 7)			// old !cresc(!
-		c_func = 6
+//	if (c_func == 5)			// old !trill(!
+//		c_func = 3
+//	if (c_func == 7)			// old !cresc(!
+//		c_func = 6
 
 	if (h.indexOf(',') > 0) {
 		h = h.split(',')
@@ -754,7 +813,7 @@ function deco_def(nm) {
 	}
 
 	/* set the values */
-	dd.func = dd.name.indexOf("head-") == 0 ? 9 : c_func;
+	dd.func = nm.indexOf("head-") == 0 ? 9 : c_func;
 	dd.glyph = a[2];
 	dd.h = Number(h)
 	dd.hd = Number(hd)
@@ -764,20 +823,25 @@ function deco_def(nm) {
 	if (str) {				// optional string
 		if (str[0] == '"')
 			str = str.slice(1, -1);
+		if (str[0] == '@'
+		 && !str.match(/^@([0-9.-]+),([0-9.-]+);?/)) {
+			error(1, null, "%%deco: bad position '$1'", str)
+			return
+		}
 		dd.str = str
 	}
 
 	/* compatibility */
 	if (dd.func == 6 && dd.str == undefined)
-		dd.str = dd.name
+		dd.str = nm
 
 	// link the start and end of long decorations
-	c = dd.name.slice(-1)
+	c = nm.slice(-1)
 	if (c == '(' ||
-	    (c == ')' && dd.name.indexOf('(') < 0)) {
+	    (c == ')' && nm.indexOf('(') < 0)) {	// not (#)
 		dd.str = null;			// (no string)
-		name2 = dd.name.slice(0, -1) + (c == '(' ? ')' : '(');
-		dd2 = dd_tb[name2]
+		nm2 = nm.slice(0, -1) + (c == '(' ? ')' : '(');
+		dd2 = dd_tb[nm2]
 		if (dd2) {
 			if (c == '(') {
 				dd.dd_en = dd2;
@@ -786,92 +850,151 @@ function deco_def(nm) {
 				dd.dd_st = dd2;
 				dd2.dd_en = dd
 			}
-		} else {
-			dd2 = deco_def(name2)
-			if (!dd2)
-				return //undefined
 		}
 	}
 	return dd
 }
 
-/* -- convert the decorations -- */
-function deco_cnv(a_dcn, s, prev) {
-	var	i, j, dd, dcn, note,
-		nd = a_dcn.length
+// define a cross-voice tie
+// @nm = decoration name
+// @s = note symbol
+// @nt1 = note
+function do_ctie(nm, s, nt1) {
+    var	nt2 = cross[nm],
+	nm2 = nm.slice(0, -1) + (nm.slice(-1) == '(' ? ')' : '(')
 
-	for (i = 0; i < nd; i++) {
-		dcn = a_dcn[i];
-		dd = dd_tb[dcn]
-		if (!dd) {
-			dd = deco_def(dcn)
-			if (!dd)
-				continue
+	if (nt2) {
+		error(1, s, "Conflict on !$1!", nm)
+		return
+	}
+	nt1.s = s
+	nt2 = cross[nm2]
+	if (!nt2) {
+		cross[nm] = nt1		// keep the start/end
+		return
+	}
+	if (nm.slice(-1) == ')') {
+		nt2 = nt1
+		nt1 = cross[nm2]
+	}
+	cross[nm2] = null
+	if (nt1.midi != nt2.midi
+	 || nt1.s.time + nt1.s.dur != nt2.s.time) {
+		error(1, s, "Bad tie")
+	} else {
+		nt1.tie_ty = C.SL_AUTO
+		nt1.tie_e = nt2
+		nt2.tie_s = nt1
+		nt1.s.ti1 = nt2.s.ti2 = true
+	}
+} // do_ctie()
+
+// get/create the definition of a decoration
+function get_dd(nm) {
+    var	ty, p,
+	dd = dd_tb[nm]
+
+	if (dd)
+		return dd
+	if ("<>^_@".indexOf(nm[0]) >= 0	// if position
+	 && !/^([>^]|[<>]\d?[()])$/.test(nm)) {
+		ty = nm[0]
+		if (ty == '@') {
+			p = nm.match(/@([-\d]+),([-\d]+)/)
+			if (!p) {
+				error(1, s, "Bad position in !$1!", nm)
+				return
+			}
+			ty = p[0]
 		}
+		dd = deco_def(nm, nm.replace(ty, ''))
+	} else {
+		dd = deco_def(nm)
+	}
+	if (!dd)
+		return
+	if (ty) {
+		if (ty[0] == '@') {		// if with x,y
+			dd.x = Number(p[1])
+			dd.y = Number(p[2])
+			ty = '@'
+		}
+		dd.ty = ty
+	}
+	return dd
+} // get_dd()
+
+/* -- convert the decorations -- */
+function deco_cnv(s, prev) {
+    var	j, dd, nm, note, s1, court
+
+	while (1) {
+		nm = a_dcn.shift()
+		if (!nm)
+			break
+		dd = get_dd(nm)
+		if (!dd)
+			continue
 
 		/* special decorations */
 		switch (dd.func) {
 		case 0:			// near
-			if (s.type == C.BAR && dd.name == "dot") {
+			if (s.type == C.BAR && nm == "dot") {
 				s.bar_dotted = true
-				break
+				continue
 			}
 			// fall thru
 		case 1:			// slide
 		case 2:			// arp
 //			if (s.type != C.NOTE && s.type != C.REST) {
 			if (!s.notes) {
-				error(1, s,
-					errs.must_note_rest, dd.name)
+				error(1, s, errs.must_note_rest, nm)
 				continue
 			}
 			break
 		case 8:			// gliss
 			if (s.type != C.NOTE) {
-				error(1, s,
-					errs.must_note, dd.name)
+				error(1, s, errs.must_note, nm)
 				continue
 			}
 			note = s.notes[s.nhd] // move to the upper note of the chord
-			if (!note.a_dcn)
-				note.a_dcn = []
-			note.a_dcn.push(dd.name)
+			if (!note.a_dd)
+				note.a_dd = []
+			note.a_dd.push(dd)
 			continue
 		case 9:			// alternate head
 			if (!s.notes) {
-				error(1, s,
-					errs.must_note_rest, dd.name)
+				error(1, s, errs.must_note_rest, nm)
 				continue
 			}
 
 			// move the alternate head of the chord to the notes
 			for (j = 0; j <= s.nhd; j++) {
 				note = s.notes[j]
-				if (!note.a_dcn)
-					note.a_dcn = []
-				note.a_dcn.push(dd.name)
+				note.invis = true
+				if (!note.a_dd)
+					note.a_dd = []
+				note.a_dd.push(dd)
 			}
 			continue
-		default:
-			break
 		case 10:		/* color */
 			if (s.notes) {
 				for (j = 0; j <= s.nhd; j++)
-					s.notes[j].color = dd.name
+					s.notes[j].color = nm
 			} else {
-				s.color = dd.name
+				s.color = nm
 			}
-			continue
+			break
 		case 32:		/* invisible */
 			s.invis = true
-			continue
+			break
 		case 33:		/* beamon */
 			if (s.type != C.BAR) {
 				error(1, s, "!beamon! must be on a bar")
 				continue
 			}
 			s.beam_on = true
-			continue
+			break
 		case 34:		/* trem1..trem4 */
 			if (s.type != C.NOTE
 			 || !prev
@@ -879,7 +1002,7 @@ function deco_cnv(a_dcn, s, prev) {
 			 || s.dur != prev.dur) {
 				error(1, s,
 					"!$1! must be on the last of a couple of notes",
-					dd.name)
+					nm)
 				continue
 			}
 			s.trem2 = true;
@@ -887,60 +1010,60 @@ function deco_cnv(a_dcn, s, prev) {
 			s.beam_st = false;
 			prev.beam_st = true;
 			prev.beam_end = false;
-			s.ntrem = prev.ntrem = Number(dd.name[4]);
+			s.ntrem = prev.ntrem = Number(nm[4]);
 			for (j = 0; j <= s.nhd; j++)
 				s.notes[j].dur *= 2;
 			for (j = 0; j <= prev.nhd; j++)
 				prev.notes[j].dur *= 2
-			continue
+			break
 		case 35:		/* xstem */
 			if (s.type != C.NOTE) {
-				error(1, s, errs.must_note, dd.name)
+				error(1, s, errs.must_note, nm)
 				continue
 			}
 			s.xstem = true;
-			continue
+			break
 		case 36:		/* beambr1 / beambr2 */
 			if (s.type != C.NOTE) {
-				error(1, s, errs.must_note, dd.name)
+				error(1, s, errs.must_note, nm)
 				continue
 			}
-			if (dd.name[6] == '1')
+			if (nm[6] == '1')
 				s.beam_br1 = true
 			else
 				s.beam_br2 = true
-			continue
+			break
 		case 37:		/* rbstop */
 			s.rbstop = 1	// open
-			continue
+			break
 		case 38:		/* /, // and /// = tremolo */
 			if (s.type != C.NOTE) {
-				error(1, s, errs.must_note, dd.name)
+				error(1, s, errs.must_note, nm)
 				continue
 			}
 			s.trem1 = true;
-			s.ntrem = dd.name.length	/* 1, 2 or 3 */
-			continue
+			s.ntrem = nm.length	/* 1, 2 or 3 */
+			break
 		case 39:		/* beam-accel/beam-rall */
 			if (s.type != C.NOTE) {
-				error(1, s, errs.must_note, dd.name)
+				error(1, s, errs.must_note, nm)
 				continue
 			}
-			s.feathered_beam = dd.name[5] == 'a' ? 1 : -1;
-			continue
+			s.feathered_beam = nm[5] == 'a' ? 1 : -1;
+			break
 		case 40:		/* stemless */
 			s.stemless = true
-			continue
+			break
 		case 41:		/* rbend */
 			s.rbstop = 2	// with end
-			continue
+			break
 		case 42:		// editorial
 			if (!s.notes[0].acc)
 				continue
-			dcn = "sacc" + s.notes[0].acc.toString() // small accidental
-			dd = dd_tb[dcn]
+			nm = "sacc" + s.notes[0].acc.toString() // small accidental
+			dd = dd_tb[nm]
 			if (!dd) {
-				dd = deco_def(dcn)
+				dd = deco_def(nm)
 				if (!dd) {
 					error(1, s, errs.bad_val, "!editorial!")
 					continue
@@ -953,10 +1076,13 @@ function deco_cnv(a_dcn, s, prev) {
 			j = curvoice.acc[s.notes[0].pit + 19]
 			if (s.notes[0].acc || !j)
 				continue
-			if (!s.notes[0].a_dcn)
-				s.notes[0].a_dcn = []
-			s.notes[0].a_dcn.push("cacc" + j)
+			court = 1			// defer
+			break
+		case 44:		// cross-voice ties
+			do_ctie(nm, s, s.notes[0])	// (only one note for now)
 			continue
+//		default:
+//			break
 		}
 
 		// add the decoration in the symbol
@@ -964,7 +1090,60 @@ function deco_cnv(a_dcn, s, prev) {
 			s.a_dd = []
 		s.a_dd.push(dd)
 	}
+	// handle the possible courtesy accidental
+	if (court) {
+		a_dcn.push("cacc" + j)
+		dh_cnv(s, s.notes[0])
+	}
 }
+
+// -- convert head decorations --
+// The decorations are in the global array a_dcn
+function dh_cnv(s, nt) {
+    var	k, nm, dd
+
+	while (1) {
+		nm = a_dcn.shift()
+		if (!nm)
+			break
+		dd = get_dd(nm)
+		if (!dd)
+			continue
+
+		switch (dd.func) {
+		case 0:
+		case 1:
+		case 3:
+		case 4:
+		case 8:			// gliss
+			break
+		default:
+//		case 2:			// arpeggio
+//		case 5:			// trill
+//		case 7:			// d_cresc
+			error(1, s, "Cannot have !$1! on a head", nm)
+			continue
+		case 9:			// head replacement
+		case 32:		// invisible
+			nt.invis = true
+			break
+		case 10:		// color
+			nt.color = nm
+			continue
+		case 40:		// stemless chord (abcm2ps behaviour)
+			s.stemless = true
+			continue
+		case 44:		// cross-voice ties
+			do_ctie(nm, s, nt)
+			continue
+		}
+
+		// add the decoration in the note
+		if (!nt.a_dd)
+			nt.a_dd = []
+		nt.a_dd.push(dd)
+	}
+} // dh_cnv()
 
 /* -- update the x position of a decoration -- */
 // used to center the rests
@@ -981,7 +1160,7 @@ function deco_update(s, dx) {
 
 /* -- adjust the symbol width -- */
 function deco_width(s) {
-	var	dd, i,
+    var	dd, i, w,
 		wl = 0,
 		a_dd = s.a_dd,
 		nd = a_dd.length
@@ -1007,24 +1186,54 @@ function deco_width(s) {
 					s.wr = 20
 				break
 			}
+			// fall thru
+		default:
+			switch (dd.ty) {
+			case '<':
+				w = dd.wl + dd.wr + 6
+				if (wl < w)
+					wl = w
+				break
+			case '>':
+				w = dd.wl + dd.wr + 8
+				if (s.wr < w)
+					s.wr = w
+				break
+			}
 			break
 		}
 	}
-	if (wl != 0 && s.prev && s.prev.type == C.BAR)
+	if (wl && s.prev && s.prev.type == C.BAR)
 		wl -= 3
 	return wl
 }
+
+// compute the width of decorations in chord
+function deco_wch(nt) {
+    var	i, w, dd,
+	wl = 0,
+	n = nt.a_dd.length
+
+	for (i = 0; i < n; i++) {
+		dd = nt.a_dd[i]
+		if (dd.ty == '<') {
+			w = dd.wl + dd.wr + 8
+			if (w > wl)
+				wl = w
+		}
+	}
+	return wl
+} // deco_wch()
 
 /* -- draw the decorations -- */
 /* (the staves are defined) */
 Abc.prototype.draw_all_deco = function() {
 	if (!a_de.length)
 		return
-	var	de, de2, dd, s, note, f, st, x, y, y2, ym, uf, i, str, a,
+	var	de, dd, s, note, f, st, x, y, y2, ym, uf, i, str, a,
 		new_de = [],
 		ymid = []
 
-	if (!cfmt.dynalign) {
 		st = nstaff;
 		y = staff_tb[st].y
 		while (--st >= 0) {
@@ -1032,7 +1241,6 @@ Abc.prototype.draw_all_deco = function() {
 			ymid[st] = (y + 24 + y2) * .5;
 			y = y2
 		}
-	}
 
 	while (1) {
 		de = a_de.shift()
@@ -1076,7 +1284,10 @@ Abc.prototype.draw_all_deco = function() {
 
 		/* center the dynamic marks between two staves */
 /*fixme: KO when deco on other voice and same direction*/
-		} else if (f_staff[dd.func] && !cfmt.dynalign
+		} else if (dd.func == 6
+			&& ((de.pos & C.SL_ALI_MSK) == C.SL_CENTER
+			 || ((de.pos & C.SL_ALI_MSK) == 0
+			  && !s.fmt.dynalign))
 			&& ((de.up && st > 0)
 			 || (!de.up && st < nstaff))) {
 			if (de.up)
@@ -1104,6 +1315,8 @@ Abc.prototype.draw_all_deco = function() {
 //					y_set(st, de.up, de.x, de.val,
 //						(de.up ? y + dd.h : y)
 //							- staff_tb[st].y)
+					if (stv_g.scale != 1)
+						y += stv_g.dy / 2
 				}
 			}
 		}
@@ -1125,6 +1338,7 @@ Abc.prototype.draw_all_deco = function() {
 //			x = y = 0
 //		} else
 		if (de.inv) {
+			y = y + dd.h - dd.hd
 			g_open(x, y, 0, 1, -1);
 			x = y = 0
 		}
@@ -1135,7 +1349,7 @@ Abc.prototype.draw_all_deco = function() {
 				out_deco_val(x, y, f, de.val / stv_g.scale, de.defl)
 			else
 				out_deco_val(x, y, f, de.val, de.defl)
-			if (de.defl.noen)
+			if (de.cont)
 				new_de.push(de.start)	// to be continued next line
 		} else if (dd.str != undefined) {
 			str = dd.str
@@ -1186,20 +1400,29 @@ function draw_deco_near() {
 
 	/* -- create the deco elements, and treat the near ones -- */
 	function create_deco(s) {
-		var	dd, k, l, pos, de, x,
-			nd = s.a_dd.length
+	    var	dd, k, pos, de, x, y, v,
+		nd = s.a_dd.length
+
+		if (s.y == undefined)
+			s.y = 0			// (no y in measure bars)
 
 /*fixme:pb with decorations above the staff*/
 		for (k = 0; k < nd; k++) {
 			dd = s.a_dd[k]
 
-			/* check if hidden */
+			// adjust the position
+			x = s.x
+			y = s.y
 			switch (dd.func) {
 			default:
+				if (dd.func >= 10)
+					continue
 				pos = 0
 				break
 			case 3:				/* d_upstaff */
 			case 4:
+			case 5:				// after slurs
+			case 7:
 				pos = s.pos.orn
 				break
 			case 6:				/* d_pf */
@@ -1209,7 +1432,34 @@ function draw_deco_near() {
 				pos = s.pos.dyn
 				break
 			}
-			if (pos == C.SL_HIDDEN)
+
+			switch (dd.ty) {		// explicit position
+			case '^':
+				pos = (pos & ~0x07) | C.SL_ABOVE
+				break
+			case '_':
+				pos = (pos & ~0x07) | C.SL_BELOW
+				break
+			case '<':
+			case '>':
+				pos = (pos & 0x07) | C.SL_CLOSE
+				if (dd.ty == '<') {
+					x -= dd.wr + 8
+					if (s.notes[0].acc)
+						x -= 5.5
+				} else {
+					x += dd.wl + 8
+				}
+				y = 3 * (s.notes[0].pit - 18)
+						- (dd.h - dd.hd) / 2
+				break
+			case '@':
+				x += dd.x
+				y += dd.y
+				break
+			}
+
+			if ((pos & 0x07) == C.SL_HIDDEN)
 				continue
 
 			de = {
@@ -1218,11 +1468,14 @@ function draw_deco_near() {
 				st: s.st,
 				ix: a_de.length,
 				defl: {},
-				x: s.x,
-				y: s.y,
+				x: x,
+				y: y,
+				pos: pos
 //				dy: 0
 			}
-			if (s.type == C.BAR)
+			if (dd.name.indexOf("invert") == 0)
+				de.inv = 1
+			if (s.type == C.BAR && !dd.ty)
 				de.x -= s.wl / 2 - 2
 			a_de.push(de)
 			if (dd.dd_en) {
@@ -1233,53 +1486,20 @@ function draw_deco_near() {
 				de.defl.nost = true
 			}
 
-			if (!f_near[dd.func])	/* if not near the note */
-				continue
-			func_tb[dd.func](de)
+			if (f_near[dd.func])
+				f_near[dd.func](de)
 		}
 	} // create_deco()
 
 	// create the decorations of note heads
 	function create_dh(s, m) {
-		var	f, str, de, uf, k, dcn, dd,
-			note = s.notes[m],
-			nd = note.a_dcn.length
+	    var	de, k, dd,
+		note = s.notes[m],
+		nd = note.a_dd.length,
+		x = s.x
 
 		for (k = 0; k < nd; k++) {
-			dcn = note.a_dcn[k];
-			dd = dd_tb[dcn]
-			if (!dd) {
-				dd = deco_def(dcn)
-				if (!dd)
-					continue
-			}
-
-			switch (dd.func) {
-			case 0:
-			case 1:
-			case 3:
-			case 4:
-			case 8:			// gliss
-				break
-			default:
-//			case 2:			// arpeggio
-//			case 5:			// trill
-//			case 7:			// d_cresc
-				error(1, null, "Cannot have !$1! on a head", dd.name)
-				continue
-			case 9:			// head replacement
-				note.invis = true
-				break
-			case 10:		// color
-				note.color = dd.name
-				continue
-			case 32:		// invisible
-				note.invis = true
-				continue
-			case 40:		// stemless chord (abcm2ps behaviour)
-				s.stemless = true
-				continue
-			}
+			dd = note.a_dd[k]
 
 //fixme: check if hidden?
 			de = {
@@ -1289,10 +1509,24 @@ function draw_deco_near() {
 				m: m,
 				ix: 0,
 				defl: {},
-				x: s.x,
-				y: 3 * (note.pit - 18),
+				x: x,
+				y: 3 * (note.pit - 18)
 //				dy: 0
 			}
+
+			if (dd.ty) {		// if explicit position
+				if (dd.ty == '@') {
+					de.x += dd.x
+					de.y += dd.y
+				} else {
+					de.y -= (dd.h - dd.hd) / 2	// center
+					if (dd.ty == '<')
+						de.x -= dd.wr + 8
+					else if (dd.ty == '>')
+						de.x += dd.wr + 8
+				}
+			}
+
 			a_de.push(de)
 			if (dd.dd_en) {
 				de.ldst = true
@@ -1305,11 +1539,13 @@ function draw_deco_near() {
 
 	// create all decorations of a note (chord and heads)
 	function create_all(s) {
+		if (s.invis && s.play)	// play sequence: no decoration
+			return
 		if (s.a_dd)
 			create_deco(s)
 		if (s.notes) {
 			for (var m = 0; m < s.notes.length; m++) {
-				if (s.notes[m].a_dcn)
+				if (s.notes[m].a_dd)
 					create_dh(s, m)
 			}
 		}
@@ -1352,6 +1588,7 @@ function draw_deco_near() {
 					ix: a_de.length - 1,
 					x: realwidth - 6,
 					y: s.y,
+					cont: true,	// keep for next line
 					lden: true,
 					defl: {
 						noen: true
@@ -1366,11 +1603,13 @@ function draw_deco_near() {
 			de2.start = de;
 			de2.defl.nost = de.defl.nost
 
-			// handle same decoration type at a same time
-			if (i > 0
+			// handle same numbered decoration at a same time
+			j = dd.name.slice(-1)
+			if (j >= '0' && j <= '9'
+			 && i > 0
 			 && a_de[i - 1].s.time == de.s.time
-			 && a_de[i - 1].dd.name.slice(0, dd.name.length - 1) ==
-					dd.name.slice(0, dd.name.length - 1))
+			 && a_de[i - 1].dd.name.slice(0, -2) ==
+					dd.name.slice(0, -2))
 				de2.prev = a_de[i - 1]
 		}
 
@@ -1444,7 +1683,7 @@ function draw_deco_note() {
 		f = dd.func
 		if (f_note[f]
 		 && de.m == undefined)
-			func_tb[f](de)
+			f_note[f](de)
 	}
 }
 
@@ -1463,7 +1702,7 @@ function draw_deco_staff() {
 	function draw_repbra(p_voice) {
 		var s, s1, x, y, y2, i, p, w, wh, first_repeat;
 
-		/* search the max y offset */
+		// search the max y offset of the line
 		y = staff_tb[p_voice.st].topbar + 25	// 20 (vert bar) + 5 (room)
 		for (s = p_voice.sym; s; s = s.next) {
 			if (s.type != C.BAR)
@@ -1485,11 +1724,21 @@ function draw_deco_staff() {
 				if (s.rbstop)
 					break
 			}
-			y2 = y_get(p_voice.st, true, s1.x, s.x - s1.x)
+			y2 = y_get(p_voice.st, true, s1.x, s.x - s1.x) + 2
 			if (y < y2)
 				y = y2
 
-			/* have room for the repeat numbers */
+			// have room for the vertical lines and the repeat numbers
+			if (s1.rbstart == 2) {
+				y2 = y_get(p_voice.st, true, s1.x, 3) + 20
+				if (y < y2)
+					y = y2
+			}
+			if (s.rbstop == 2) {
+				y2 = y_get(p_voice.st, true, s.x - 3, 3) + 20
+				if (y < y2)
+					y = y2
+			}
 			if (s1.text) {
 				wh = strwh(s1.text);
 				y2 = y_get(p_voice.st, true, s1.x + 4, wh[0]) +
@@ -1550,12 +1799,9 @@ function draw_deco_staff() {
 			if (!s.next		// 2nd ending at end of line
 			 && !s.rbstop
 			 && !p_voice.bar_start) { // continue on next line
-				p_voice.bar_start = clone(s);
-				p_voice.bar_start.type = C.BAR;
+				p_voice.bar_start = _bar(s)
 				p_voice.bar_start.bar_type = ""
-				delete p_voice.bar_start.text;
 				p_voice.bar_start.rbstart = 1
-				delete p_voice.bar_start.a_gch
 			}
 			if (s1.text)
 				xy_str(x + 4, y2 - gene.curfont.size - 3,
@@ -1588,10 +1834,12 @@ function draw_deco_staff() {
 		if (!f_staff[dd.func]	/* if not tied to the staff */
 		 || de.m != undefined)	// or head decoration
 			continue
-		func_tb[dd.func](de)
+		f_staff[dd.func](de)
 		if (dd.dd_en)		// if start
 			continue
-		if (cfmt.dynalign) {
+		if ((de.pos & C.SL_ALI_MSK) == C.SL_ALIGN
+		 || ((de.pos & C.SL_ALI_MSK) == 0
+		  && de.s.fmt.dynalign > 0)) {	// if align
 			if (de.up) {
 				if (de.y > minmax[de.st].ymax)
 					minmax[de.st].ymax = de.y
@@ -1611,7 +1859,10 @@ function draw_deco_staff() {
 		if (dd.dd_en		// if start
 		 || !f_staff[dd.func])
 			continue
-		if (cfmt.dynalign) {
+		if (dd.func == 6
+		 &&((de.pos & C.SL_ALI_MSK) == C.SL_ALIGN
+		  || ((de.pos & C.SL_ALI_MSK) == 0
+		   && de.s.fmt.dynalign > 0))) {	// if align
 			if (de.up)
 				y = minmax[de.st].ymax
 			else
@@ -1684,15 +1935,13 @@ function draw_measnb() {
 
 			// don't display the number twice
 		     if (s.type != C.BAR || !s.bar_num) {
-			if (s.prev)
-				s = s.prev;
 			any_nb = true;
 			w = w0
 			if (bar_num >= 10)
 				w *= bar_num >= 100 ? 3 : 2
 			if (gene.curfont.pad)
 				w += gene.curfont.pad * 2
-			x = s.x + s.wr + 1	// if clef, shift a bit
+			x = s.x - s.wl + 2	// if clef, shift a bit
 			y = y_get(st, true, x, w)
 			if (y < staff_tb[st].topbar + 6)
 				y = staff_tb[st].topbar + 6;
@@ -1736,10 +1985,10 @@ function draw_measnb() {
 			w *= bar_num >= 100 ? 3 : 2
 		if (gene.curfont.pad)
 			w += gene.curfont.pad * 2
-		x = s.x - w * (s.text ? .6 : .4)
+		x = s.x
 		y = y_get(st, true, x, w)
-		if (y < staff_tb[st].topbar + 3)
-			y = staff_tb[st].topbar + 3
+		if (y < staff_tb[st].topbar + 6)
+			y = staff_tb[st].topbar + 6
 		if (s.next.type == C.NOTE) {
 			if (s.next.stem > 0) {
 				if (y < s.next.ys - gene.curfont.size)
@@ -1764,7 +2013,7 @@ function draw_measnb() {
 /* -- draw the parts and the tempo information -- */
 /* (the staves are being defined) */
 function draw_partempo(st, top) {
-    var	s, some_part, some_tempo, h, w, y,
+    var	s, s2, some_part, some_tempo, h, w, y,
 	dy = 0,		/* put the tempo indication at top */
 	ht = 0
 
@@ -1825,7 +2074,8 @@ function draw_partempo(st, top) {
 /*fixme: should reduce vertical space if parts don't overlap tempo...*/
 	ymin = staff_tb[st].topbar + 6
 	for (s = tsfirst; s; s = s.ts_next) {
-		if (s.type != C.PART || s.invis)
+		s2 = s.part
+		if (!s2 || s2.invis)
 			continue
 		if (!some_part) {
 			some_part = s;
@@ -1833,33 +2083,36 @@ function draw_partempo(st, top) {
 			h = gene.curfont.size + 2 +
 				gene.curfont.pad * 2
 		}
-		w = strwh(s.text)[0];
-		y = y_get(st, true, s.x - 10, w + 3)
+		if (s2.x == undefined)
+			s2.x = s.x - 10
+		w = strwh(s2.text)[0]
+		y = y_get(st, true, s2.x, w + 3)
 		if (ymin < y)
 			ymin = y
 	}
 	if (some_part) {
 		set_sscale(-1)
-		if (top + dy < ymin + h + ht)
-			dy = ymin + h + ht - top
+		ht += h
+		if (top + dy < ymin + ht)
+			dy = ymin + ht - top
 
 		for (s = some_part; s; s = s.ts_next) {
-			if (s.type != C.PART || s.invis)
+			s2 = s.part
+			if (!s2 || s2.invis)
 				continue
-			s.x -= 10;
 			if (user.anno_start || user.anno_stop) {
-				w = strwh(s.text)[0];
-				s.wl = 0;
-				s.wr = w;
-				s.ymn = -ht - h;
-				s.ymx = s.ymn + h;
-				anno_start(s)
+				s2.type = C.PART
+				s2.p_v = s.p_v
+				s2.v = s.v
+				s2.st = s2.wl = 0
+				s2.wr = strwh(s2.text)[0]
+				s2.ymn = -ht
+				s2.ymx = s2.ymn + h
+				anno_start(s2)
 			}
-			xy_str(s.x, 2 - ht - h, s.text);
-			anno_stop(s)
-			while (s.ts_next && s.ts_next.type == C.PART)
-				s = s.ts_next
+			xy_str(s2.x, 2 - ht, s2.text)
+			anno_stop(s2)
 		}
 	}
-	return dy
+	return dy /= staff_tb[0].staffscale
 }

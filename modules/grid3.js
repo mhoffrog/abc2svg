@@ -1,6 +1,21 @@
 // grid3.js - module to insert a manual chords
 //
-// Copyright (C) 2020 Jean-Francois Moine - GPL3+
+// Copyright (C) 2020-2021 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This module is loaded when "%%begingrid" appears in a ABC source.
 //
@@ -20,7 +35,7 @@ abc2svg.grid3 = {
 
 // generate the grid
     block_gen: function(of, s) {
-	if (s.subtype != "grid") {
+	if (s.subtype != "grid3") {
 		of(s)
 		return
 	}
@@ -267,6 +282,7 @@ abc2svg.grid3 = {
 	if (opt.indexOf("chord-define") >= 0)
 		this.cfmt().csdef = txt
 	if (opt.indexOf("noprint") < 0) {
+		type += "3"
 		if (this.parse.state >= 2) {
 			s = this.new_block(type)
 			s.text = txt
@@ -299,6 +315,7 @@ abc2svg.grid3 = {
 			p_v: p_vc,
 			time: ntim,
 			st: 0,
+			fmt: ss.fmt,
 			dur: 0,
 			dur_orig: 0,
 			invis: true,
@@ -317,7 +334,8 @@ abc2svg.grid3 = {
 				otext: ch,
 				istart: ss.istart,
 				iend: ss.iend,
-				font: abc.get_font("gchord")
+				font: abc.get_font("gchord"),
+				pos: p_vc.pos.gch || C.SL_ABOVE
 			}])
 		}
 
@@ -420,6 +438,7 @@ abc2svg.grid3 = {
 					}
 					if (!s)
 						break
+					ss.fmt = s.fmt
 					if (s.seqst) {
 						ss.seqst = true
 						delete s.seqst

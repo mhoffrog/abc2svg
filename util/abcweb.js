@@ -1,21 +1,20 @@
-//#javascript
 // abcweb-1.js file to include in html pages
 //
-// Copyright (C) 2014-2021 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
 // abc2svg is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
+// it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // abc2svg is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// GNU Lesser General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
+// You should have received a copy of the GNU Lesser General Public License
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
 // This script is used in HTML or XHTML files.
@@ -30,7 +29,7 @@
 //
 // When the file is .html, if the ABC sequence is contained inside
 // elements <script type="text/vnd.abc">, there is no constraint
-// about the ABC characters. Note that the <script> element is removed.
+// about the ABC characters. Note that the <script> tag is removed.
 // With a container of class "abc", the characters '<', '>' and '&' may be
 // replaced by their XML counterparts ('&lt;', '&gt;' and '&amp;').
 // When the file is .xhtml, if the ABC sequence contains the characters
@@ -51,25 +50,29 @@ window.onerror = function(msg, url, line) {
 	return false
 }
 
-    var user
+    var	user,
+	abcplay
+
 if (typeof abc2svg == "undefined")
     var abc2svg = {}
 
 // function called when abc2svg is fully loaded
 function dom_loaded() {
-var	abc, new_page, src,
+var	abc, src,
 	a_inc = {},
+	new_page = '',
 	errtxt = '',
+	html,			// set if some pure HTML in the file
 	app = "abcweb",
+	glopar = '',		// global parameters from URL
 	playing,
-	abcplay,
 	playconf = {
 		onend: function() {
 			playing = false
 		}
 	},
 	page,				// document source
-	tune_lst,		// array of [tsfirst, voice_tb, info, cfmt] per tune
+	tune_lst = [],	// array of [tsfirst, voice_tb, info, cfmt] per tune
 	jsdir = document.currentScript ?
 		    document.currentScript.src.match(/.*\//) :
 		    (function() {
@@ -137,14 +140,13 @@ function clean_txt(txt) {
 			abcplay = AbcPlay(playconf);
 		}
 
-		// if first time, get the tunes references
-		// and generate the play data of all tunes
-		if (!tune_lst) {
-			tune_lst = abc.tunes
-			for (j = 0; j < tune_lst.length; j++)
-				abcplay.add(tune_lst[j][0],
-					tune_lst[j][1],
-					tune_lst[j][3])
+		// if not done yet,
+		// generate the play data of the tune
+		if (!tune_lst[i]) {
+			tune_lst[i] = abc.tunes[i]
+			abcplay.add(tune_lst[i][0],
+					tune_lst[i][1],
+					tune_lst[i][3])
 		}
 
 		// check if click on a music symbol
@@ -206,75 +208,65 @@ function render() {
 // 3- %abc-n ..ABC.. '<' with skip %%beginxxx .. %%endxxx
 // 4- X:n ..ABC.. '<' with skip %%beginxxx .. %%endxxx
 
-    var	i = 0, j, k, res,
-	re = /<script type="text\/vnd.abc"|<[^>]* class="abc"|%abc-\d|X:\s*\d/g,
+    var	re, src, res,
+	ss = 0,
 	re_stop = /\n<|\n%.begin[^\s]+/g
 
-	// aweful hack: user.anno_stop must be defined before Abc creation
-	// for being set later by follow() !
-	if (typeof follow == "function")
-		user.anno_stop = function(){};
+	// extract a music sequence
+	// @re is the regular expression starting a music sequence
+	function extract() {
+	    var	i, j, k, t
 
-	abc = new abc2svg.Abc(user)
-	new_page = ''
-
-	// initialize the play follow function
-	if (typeof follow == "function")
-		follow(abc, user, playconf)
-
-	// handle MEI files
-	j = page.indexOf("<mei ")
-	if (j >= 0) {
-		k = page.indexOf("</mei>") + 6
-		abc.mei2mus(page.slice(j, k))
-		document.body.innerHTML = new_page
-		return
-	}
-
-	src = '%%beginml\n'
-	for (;;) {
-
-		// get the start of a ABC sequence
 		res = re.exec(page)
 		if (!res) {
-			src += page.slice(i).replace(/\n%%/g,"\n%%%%") +
-					"\n%%endml\n"
-			break
+
+			// alert about bad print
+			if (abc2svg.page && html) {
+				new_page += '\
+<pre class="nop" style="background:#ff8080">\
+Printing may be bad because the file contains pure HTML and %%pageheight\
+</pre>\n'
+				errtxt = ""
+			}
+
+			document.body.innerHTML = new_page // browser page update
+				+ page.slice(ss)	// HTML end
+			window.onclick = abc2svg.playseq	// prepare for play on click
+			return				// done
 		}
-		j = re.lastIndex - res[0].length;
+		i = re.lastIndex - res[0].length	// start of music sequence
+		if (i > ss) {
+			new_page += page.slice(ss, i)		// HTML copy
+			html = 1
+		}
+		t = res[2]
+		if (t[0] == '<') {
+			t = t.slice(1, 4)
+			switch (t) {
+			case "scr":			// <script
+				i = page.indexOf('>', i)
+				i = page.indexOf('\n', i) + 1
+				j = page.indexOf('</script>', i)
+				ss = j + 10
+				break
+			default:			// < .. class="abc"
+				j = i
 
-		// (the core removes '%%' at start of line)
-		src += page.slice(i, j).replace(/\n%%/g,"\n%%%%")
+				i = res[2].index(' ', i) // get the tag
+				t = res[2].slice(1, i)
 
-		switch (res[0][0]) {
-		default:
-			res = res[0].match(/<([^\s]*)/)[1]	// tag
-			if (res == 'script') {		// <script
-				j = page.indexOf('>', j) + 2
-				i = page.indexOf('</' + res, j)
-				src += "%%endml\n" +
-					page.slice(j, i) // keep the script content only
-				i += 10
-			} else {			// < .. class="abc"
-				i = page.indexOf('>', j) + 1
-				src += page.slice(j, i) + "\n%%endml\n"
-				i = page.indexOf('\n', i)
-				j = page.indexOf('</' + res, i)
-				src += toabc(page.slice(i, j))	// keep the element
-				i = j
+				i = page.indexOf('>', j)
+				i = page.indexOf('\n', i) + 1
+				new_page += page.slice(j, i) // keep the element
+				j = page.indexOf('</' + t + '>', i)
+				ss = j + t.length + 4
+				break
 			}
-			break
-		case '%':		// %abc
-		case 'X':		// X:
-			if (j != 0 && page[j - 1] != '\n') {
-				src += res[0]		// not at start of line
-				i = re.lastIndex
-				continue
-			}
+		} else {		// %abc or X:
 
 			// get the end of the ABC sequence
 			// including the %%beginxxx/%%endxxx sequences
-			re_stop.lastIndex = j
+			re_stop.lastIndex = i
 			while (1) {
 				res = re_stop.exec(page)
 				if (!res || res[0] == "\n<")
@@ -286,53 +278,58 @@ function render() {
 				re_stop.lastIndex = k
 			}
 			if (!res || k < 0)
-				i = page.length
+				j = page.length
 			else
-				i = re_stop.lastIndex - 1
-			src += "%%endml\n" + page.slice(j, i)
-			break
+				j = re_stop.lastIndex - 1
+			ss = j
 		}
-		if (i < 0)
-			break			// problem!
-		re.lastIndex = i
-		src += '%%beginml\n'
-	}
-
-	// use the query string of URL for global parameters
-	k = location.search.substr(1).split("&")
-	for (i = 0; i < k.length; i++) {
-		if (k[i]) {
-			j = k[i].split('=')
-			if (j[0])
-				abc.tosvg(app, "%%" + j[0] + " " +
-						decodeURIComponent(j[1]))
+		if (j < 0) {
+//fixme			error
+console.log('error i/j '+i+' '+j)
+			return
 		}
-	}
 
-	// generate the new source
-	try {
-		abc.tosvg(app, src)
-	} catch (e) {
-		alert("abc2svg javascript error: " + e.message +
-			"\nStack:\n" + e.stack)
-	}
-	abc2svg.abc_end()		// close the page if %%pageheight
-	if (errtxt) {
-		new_page += '<pre class="nop" style="background:#ff8080">' +
-				errtxt + "</pre>\n"
-		errtxt = ""
-	}
+		re.lastIndex = ss		// new HTML start
+//		src = page.slice(i, j)		// music sequence
+//		if (abc2svg.modules.load(src, render1))
+//			render1()
+//	} // extract()
 
-	// change the page
-	try {
-		document.body.innerHTML = new_page
-	} catch (e) {
-		alert("abc2svg bad generated SVG: " + e.message +
-			"\nStack:\n" + e.stack)
-	}
+	// render one text music sequence
+	// @page is the content of the page
+	// @ss and @se are the start and end indexes of the music sequence
+	// i,j are the start and stop of the music inside the page source
+//	function render1() {
+		abc.tosvg(app, page, i, j)
+		abc2svg.abc_end()	// close the page if %%pageheight
 
-	// prepare for play on click
-	window.onclick = abc2svg.playseq
+		if (errtxt) {
+			new_page += '<pre class="nop" style="background:#ff8080">'
+					+ errtxt + "</pre>\n"
+			errtxt = ""
+		}
+
+		// try the next sequence
+		extract()
+	} // render1()
+
+	// get the ABC insertion mode
+	if (/<script[^t>]*type="text\/vnd.abc"/.test(page))
+		re = '<script[^t>]*type="text\/vnd.abc"'
+	else if (/<[^>]* class="[^"]*abc[^"]*/.test(page))	// "
+		re = '<[^>]* class="[^"]*abc[^"]*'
+	else
+		re = '%abc-\\d|X:\\s*\\d'
+
+	re = new RegExp('(^|\n)(' + re + ')', 'g')
+
+	// prepare the generation of the music sequences
+	abc = new abc2svg.Abc(user)
+	if (typeof follow == "function") // initialize the play follow function
+		follow(abc, user, playconf)
+	abc.tosvg(app, glopar)
+
+	extract()			// start
 } // render()
 
 	// load the %%abc-include files
@@ -378,22 +375,37 @@ function render() {
 
 	// --- dom_loaded() main code ---
 
-	// get the page content
-	page = document.body.innerHTML
-
 	// load the abc2svg core if not done by <script>
 	if (!abc2svg.Abc) {
-		abc2svg.loadjs(page.indexOf("<mei ") >= 0 ?
+		abc2svg.loadjs(document.body.innerHTML.indexOf("<mei ") >= 0 ?
 					"mei2svg-1.js" :
 					"abc2svg-1.js",
 						dom_loaded)
 		return
 	}
 
+	window.removeEventListener("load", dom_loaded)
+
+	// use the query string of the URL for global parameters
+	{
+	    var	i, j,
+		k = location.search.substr(1).split("&")
+
+	    for (i = 0; i < k.length; i++) {
+		j = k[i].split('=')
+		if (j[0])
+			glopar += "%%" + j[0] + " "
+				+ decodeURIComponent(j[1]) + '\n'
+	    }
+	}
+
 	// accept page formatting
 	abc2svg.abc_end = function() {}
 
-	// load the required modules, then render the music
+	// load the included files if any
+	page = document.body.innerHTML		// initial page
+
+	// load the required modules and the include files before rendering
 	if (abc2svg.modules.load(page, include))
 		include()
 } // dom_loaded()

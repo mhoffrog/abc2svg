@@ -1,5 +1,21 @@
-//#javascript
 // abcweb1-1.js file to include in html pages with abc2svg-1.js
+//
+// Copyright (C) 2019-2021 Jean-Francois Moine
+//
+// This file is part of abc2svg.
+//
+// abc2svg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// abc2svg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 //
 // This script either:
 // - builds a list of the tunes when there is no selection or
@@ -13,23 +29,6 @@
 // javascript variable 'list_head'.
 // The tail of the tune list ("(all tunes)") may be set in a global
 // javascript variable 'list_tail'.
-//
-// Copyright (C) 2019-2021 Jean-Francois Moine
-//
-// This file is part of abc2svg.
-//
-// abc2svg is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// abc2svg is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
 window.onerror = function(msg, url, line) {
 	if (typeof msg == 'string')
@@ -80,7 +79,7 @@ function dom_loaded() {
 			playing = false
 		}
 	},
-	tune_lst,		// array of [tsfirst, voice_tb, info, cfmt] per tune
+	tune_lst,	// array of [tsfirst, voice_tb, info, cfmt] per tune
 	jsdir = document.currentScript ?
 		    document.currentScript.src.match(/.*\//) :
 		    (function() {
@@ -198,7 +197,8 @@ function dom_loaded() {
 	abc2svg.src_edit = function() {
 		// offer a textarea with the ABC source and 2 buttons
 		document.body.innerHTML = '\
-<textarea id="ta" rows="50" cols="80">' + page + '</textarea>\
+<textarea id="ta" rows="50" cols="80" style="overflow:scroll">'
+			+ page + '</textarea>\
 <br/>\
 <a href="#" onclick="abc2svg.src_upd()"> Apply </a> - \
 <a href="#" onclick="abc2svg.get_sel()"> Cancel </a>'
@@ -237,8 +237,6 @@ function dom_loaded() {
 		i = 0,
 		t = (typeof list_head == "undefined" ? "Tunes:" : list_head) + '<ul>\n'
 		tt = typeof list_tail == "undefined" ? "(all tunes)" : list_tail
-
-//		window.onclick = null
 
 		for (;;) {
 			i = page.indexOf("\nX:", i)
@@ -315,6 +313,7 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 		if (typeof follow == "function")
 			user.anno_stop = function(){}
 
+		tune_lst = []
 		abc = new abc2svg.Abc(user)
 		new_page = ""
 
@@ -424,11 +423,9 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 	// get the page content
 	page = fix_abc(document.body.innerHTML)
 
-	// mouse functions
-	window.onmouseup = function(evt) {
-
-		// stop playing
-		if (playing) {
+	// mouse/tap events
+	window.onclick = function(evt) {
+		if (playing) {			// stop playing
 			abcplay.stop()
 			return
 		}
@@ -436,28 +433,24 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 	    var	e, s, j,
 		c = evt.target
 
+		// remove the menu if active
+		e = document.getElementById("dc")
+		if (e && e.classList.contains("show")) {
+			e.classList.remove("show") // remove the menu
+			return
+		}
+
 		// search if click in a SVG image
 		e = c				// keep the clicked element
 		while (c && c.tagName != 'svg')
 			c = c.parentNode
-		if (c)
-			c = c.getAttribute('class')
-
-		// no, remove the menu if active
-		if (!c) {
-			e = document.getElementById("dc")
-			if (e && e.classList.contains("show")) {
-				evt.stopImmediatePropagation()
-				evt.preventDefault()
-				e.classList.remove("show")
-			}
+		if (!c)
 			return
-		}
+
+		c = c.getAttribute('class')
 
 		// if click in the menu button, show the menu
 		if (c == "db") {
-			evt.stopImmediatePropagation()
-			evt.preventDefault()
 			e = document.getElementById("dc")
 			e.classList.toggle("show")
 			return
@@ -480,14 +473,13 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 			return
 		c = c[1]			// tune number
 
-		// if a new generation, get the tunes references
-		// and generate the play data of all tunes
-		if (tune_lst != abc.tunes) {
-			tune_lst = abc.tunes
-			for (j = 0; j < tune_lst.length; j++)
-				abcplay.add(tune_lst[j][0],
-					tune_lst[j][1],
-					tune_lst[j][3])
+		// if not done yet,
+		// generate the play data of the tune
+		if (!tune_lst[c]) {
+			tune_lst[c] = abc.tunes[c]
+			abcplay.add(tune_lst[c][0],
+					tune_lst[c][1],
+					tune_lst[c][3])
 		}
 
 		// start playing from the clicked symbol
@@ -509,7 +501,7 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 
 		playing = true
 		abcplay.play(s, null)
-	} // onmouseup()
+	} // onclick()
 
 	// accept page formatting
 	abc2svg.abc_end = function() {}

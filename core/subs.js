@@ -1,6 +1,6 @@
 // abc2svg - subs.js - text output
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -22,6 +22,8 @@
 var add_fstyle = typeof document != "undefined" ?
     function(s) {
     var	e
+	if (cfmt.fullsvg)
+		font_style += "\n" + s
 	if (!sheet) {
 		if (abc2svg.sheet) {	// if styles from a previous generation
 			sheet = abc2svg.sheet
@@ -135,12 +137,11 @@ var strwh = typeof document != "undefined" ?
 			return str.wh
 		}
 
-		str = str.replace(/<|>|&[^&]*?;|&|  /g, function(c){
+		str = str.replace(/<|>|&[^&\s]*?;|&/g, function(c){
 			switch (c) {
 			case '<': return "&lt;"
 			case '>': return "&gt;"
 			case '&': return "&amp;"
-			case "  ": return '  '	// space + nbspace
 			}
 			return c		// &xxx;
 		})
@@ -171,7 +172,6 @@ var strwh = typeof document != "undefined" ?
 		el.innerHTML = str.slice(i0);
 		w += el.clientWidth;
 
-		gene.curfont = font
 		return [w, h]
 	}
     })() :
@@ -204,6 +204,8 @@ var strwh = typeof document != "undefined" ?
 				h = font.size
 			continue
 		case '&':
+			if (str[i + 1] == ' ')
+				break		// normal '&'
 			j = str.indexOf(';', i)
 			if (j > 0 && j - i < 10) {
 				i = j;
@@ -213,7 +215,6 @@ var strwh = typeof document != "undefined" ?
 		}
 		w += cwid(c) * swfac
 	}
-	gene.curfont = font
 	return [w, h]
 }
 
@@ -244,12 +245,11 @@ function str2svg(str) {
 		return '<tspan\n\tclass="' + cl + '">'
 	} // tspan()
 
-	o = str.replace(/<|>|&[^&]*?;|&|  |\$./g, function(c){
+	o = str.replace(/<|>|&[^&\s]*?;|&|\$./g, function(c){
 			switch (c) {
 			case '<': return "&lt;"
 			case '>': return "&gt;"
 			case '&': return "&amp;"
-			case '  ': return '  '	// space + nbspace
 			default:
 				if (c[0] != '$')
 					break
@@ -271,10 +271,8 @@ function str2svg(str) {
 			}
 			return c		// &xxx;
 		})
-	if (c_font != o_font) {
+	if (c_font != o_font)
 		o += "</tspan>"
-		gene.curfont = c_font	// keep current font for next paragraph
-	}
 
 	// convert to String and memorize the string width and height
 	o = new String(o)
@@ -282,6 +280,9 @@ function str2svg(str) {
 		strwh(o)		// browser
 	else
 		o.wh = strwh(str)	// CLI
+
+	gene.curfont = c_font	// keep the current font for the next paragraph
+
 	return o
 } // str2svg()
 
@@ -347,7 +348,7 @@ function trim_title(title, is_subtitle) {
 		i = title.lastIndexOf(", ")
 		if (i < 0 || title[i + 2] < 'A' || title[i + 2] > 'Z') {
 			i = 0
-		} else if (cfmt.titletrim == true) {	// compatibility
+		} else if (cfmt.titletrim == 1) {	// (true) compatibility
 			if (i < title.length - 7
 			 || title.indexOf(' ', i + 3) >= 0)
 				i = 0
@@ -438,12 +439,6 @@ function write_text(text, action) {
 		j = 0
 		while (1) {
 			i = text.indexOf('\n', j)
-			if (i < 0) {
-				str = str2svg(text.slice(j))
-				vskip(str.wh[1]  * cfmt.lineskipfac + font.pad * 2)
-				xy_str(x, font.pad, str, action)
-				break
-			}
 			if (i == j) {			// new paragraph
 				vskip(parskip);
 				blk_flush()
@@ -455,9 +450,15 @@ function write_text(text, action) {
 				if (i == text.length)
 					break
 			} else {
-				str = str2svg(text.slice(j, i))
-				vskip(str.wh[1]  * cfmt.lineskipfac + font.pad * 2)
+				if (i < 0)
+					str = text.slice(j)
+				else
+					str = text.slice(j, i)
+				vskip(strwh(str)[1]  * cfmt.lineskipfac
+					+ font.pad * 2)
 				xy_str(x, font.pad, str, action)
+				if (i < 0)
+					break
 			}
 			j = i + 1
 		}
@@ -474,24 +475,25 @@ function write_text(text, action) {
 			else
 				words = text.slice(j, i);
 			words = words.split(/\s+/);
-			w = k = 0
-			font = gene.curfont
+			w = k = wh = 0
 			for (j = 0; j < words.length; j++) {
-				ww = strwh(words[j])[0];
-				w += ww
+				ww = strwh(words[j])
+				w += ww[0]
 				if (w >= strlw) {
-					str = str2svg(words.slice(k, j).join(' '))
-					vskip(str.wh[1]  * cfmt.lineskipfac)
-					xy_str(0, 0, str, action, strlw)
+					vskip(wh * cfmt.lineskipfac)
+					xy_str(0, 0, words.slice(k, j).join(' '),
+						action, strlw)
 					k = j;
-					w = ww
+					w = ww[0]
+					wh = 0
 				}
 				w += cwidf(' ')
+				if (ww[1] > wh)
+					wh = ww[1]
 			}
 			if (w != 0) {			// last line
-				str = str2svg(words.slice(k).join(' '))
-				vskip(str.wh[1]  * cfmt.lineskipfac)
-				xy_str(0, 0, str)
+				vskip(wh * cfmt.lineskipfac)
+				xy_str(0, 0, words.slice(k).join(' '))
 			}
 			vskip(parskip);
 			blk_flush()
@@ -518,12 +520,16 @@ function put_words(words) {
 
 	// output a line of words after tune
 	function put_wline(p, x) {
-		var i = 0, j, k
+	    var i = 0,
+		k = 0
 
-		if (p[i] == '$' && p[i +  1] >= '0' && p[i + 1] <= '9')
-			i += 2;
-		k = 0;
-		j = i
+		if (p[0] == '$'		// if font change
+		 && p[1] >= '0' && p[1] <= '9') {
+			gene.curfont = p[1] == '0' ? gene.deffont
+						: get_font("u" + p[1])
+			p = p.slice(2)
+		}
+
 		if ((p[i] >= '0' && p[i] <= '9') || p[i + 1] == '.') {
 			while (i < p.length) {
 				i++
@@ -538,7 +544,7 @@ function put_words(words) {
 		}
 
 		if (k != 0)
-			xy_str(x, 0, p.slice(j, k), 'r')
+			xy_str(x, 0, p.slice(0, k), 'r')
 		if (i < p.length)
 			xy_str(x + 5, 0, p.slice(i), 'l')
 	} // put_wline()
@@ -681,7 +687,7 @@ var info_font_init = {
 function write_headform(lwidth) {
 	var	c, font, font_name, align, x, y, sz,
 		info_val = {},
-		info_font = clone(info_font_init),
+		info_font = Object.create(info_font_init),
 		info_sz = {
 			A: cfmt.infospace,
 			C: cfmt.composerspace,

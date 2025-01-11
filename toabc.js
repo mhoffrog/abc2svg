@@ -1,6 +1,6 @@
 // abc2svg - toabc.js - convert ABC to ABC
 //
-// Copyright (C) 2016-2020 Jean-Francois Moine
+// Copyright (C) 2016-2021 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -63,9 +63,9 @@
 		"G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#"
 	]
 
-function abc_dump(tsfirst, voice_tb, info) {
+function abc_dump(tsfirst, voice_tb, info, cfmt) {
     var	i, v, s, g, line, ulen, tmp, tmp2, grace, bagpipe, curv,
-	cfmt = abc.cfmt(),
+	cfmtg = abc.cfmt(),	// global format
 	nv = voice_tb.length,
 	vo = [],		// dump line per voice
 	vold = [],		// false/true for voice name
@@ -229,14 +229,22 @@ function abc_dump(tsfirst, voice_tb, info) {
 	} // clef_dump()
 
 	function deco_dump(a_dd) {
-	    var	i, n
+	    var	i, n, dd
 //fixme: check if user deco
 		for (i = 0; i < a_dd.length; i++) {
-			n = a_dd[i].name
-			if (deco_l[n])
-				line += deco_l[n]
-			else
-				line += '!' + n + '!'
+			dd = a_dd[i]
+			n = dd.name
+			if (dd.ty) {
+				if (dd.ty != '@')
+					line += '!' +dd.ty + n + '!'
+				else
+					line += '!@' + dd.x + ',' + dd.y + n + '!'
+			} else {
+				if (deco_l[n])
+					line += deco_l[n]
+				else
+					line += '!' + n + '!'
+			}
 		}
 	} // deco_dump
 
@@ -392,35 +400,30 @@ break
 			for (s = voice_tb[v].sym; s; s = s.next) {
 				if (s.type != C.NOTE)
 					continue
-				ly = s.a_ly
-				if (!ly) {
+				if (!s.a_ly) {
 					for (i = 0; i < nly; i++)
 						w[i] += "*"
 					continue
 				}
 				for (i = 0; i < nly; i++) {
+					ly = s.a_ly[i]
 					if (!w[i])
 						w[i] = ""
-					if (!ly[i]) {
+					if (!ly) {
 						w[i] += '*'
 						continue
 					}
-					t = ly[i].t
-					switch (t) {
-					case '-\n':
-						w[i] += '-'
-						break
-					case '_\n':
-						w[i] += '_'
-						break
-					default:
-						t = t.replace(/ /g, '~')
+					t = ly.t
+					if (ly.ln) {
+						w[i] += t
+						if (ly.ln == 1)
+							w[i] += '-'
+					} else {
+						t = t.replace(/ /g, '~')
 						t = t.replace(/-/g, '\\-')
-						t = t.replace(/\n/g, '-');
 						if (t.slice(-1) != "-")
 							t += ' '
 						w[i] += t
-						break
 					}
 				}
 			}
@@ -449,7 +452,7 @@ break
 	} // meter_dump()
 
 	function note_dump(s, note, tie_ch) {
-	    var	p, j, sl, s2
+	    var	p, j, sl, s2, a, d
 		if (note.sls) {
 			for (j = 0; j < note.sls.length; j++) {
 				sl = note.sls[j];
@@ -461,26 +464,29 @@ break
 					s2.sl2 = 1
 			}
 		}
-		if (note.a_dcn) {
-			for (j = 0; j < note.a_dcn.length; j++)
-				line += '!' + note.a_dcn[j] + '!'
-		}
+		if (note.a_dd)
+			deco_dump(note.a_dd)
 		if (note.color)
 			line += "!" + note.color + "!"
-		switch (note.acc) {
-		case -2: line += '__'; break
-		case -1: line += '_'; break
-		case 1: line += '^'; break
-		case 2: line += '^^'; break
-		case 3: line += '='; break
-		}
-		if (note.micro_n) {
-			if (s.p_v.uscale)
-				line += note.micro_n
-			else
-				line += dur_dump(C.BLEN / 4 *
-							note.micro_n / note.micro_d,
-						true)
+		a = note.acc
+		if (typeof a == "object") {
+			d = a[1]
+			a = a[0]
+			if (a > 0) {
+				line += '^'
+			} else {
+				line += '_'
+				a = -a
+			}
+			dur_dump(C.BLEN / 4 * a / d, true)
+		} else {
+			switch (a) {
+			case -2: line += '__'; break
+			case -1: line += '_'; break
+			case 1: line += '^'; break
+			case 2: line += '^^'; break
+			case 3: line += '='; break
+			}
 		}
 		p = note.pit
 		if (p >= 23) {
@@ -706,25 +712,8 @@ break
 			gch_dump(s.a_gch)
 		if (s.a_dd)
 			deco_dump(s.a_dd)
-		if (s.invis) {
-			switch (s.type) {
-			case C.REST:
-			case C.SPACE:
-			case C.TEMPO:
-				break
-			case C.BAR:
-				if (s.bar_type == '[' || s.bar_type == ']')
-					break
-				// fall thru
-			default:
-				line += "!invisible!"
-				break
-			}
-		}
 		if (s.color)
 			line += "!" + s.color + "!"
-		if (s.feathered_beam)
-			line += s.feathered_beam > 0 ? "!beam-accel!" : "!beam-rall!"
 		switch (s.type) {
 		case C.BAR:
 			if (s.beam_on)
@@ -733,7 +722,7 @@ break
 				line += '.';
 			line += s.bar_type
 			if (s.text) {
-				if (!s.bar_type)
+				if (s.bar_type != '[')
 					line += '['
 				if (s.text[0] >= '0' && s.text[0] <= '9')
 					line += s.text + ' '
@@ -781,27 +770,12 @@ break
 					}
 				}
 			}
-			if (s.beam_br1)
-				line += "!beambr1!"
-			if (s.beam_br2)
-				line += "!beambr2!"
-			if (s.trem1)
-				line += '!' + "///".slice(0, s.ntrem) + '!'
-			if (s.xstem)
-				line += "!xstem!"
-			if (s.stemless
-			 && s.notes[0].dur < C.BLEN)	// head duration
-				line += "!stemless!"
-			if (s.trem22)
-				line += "!trem" + s.ntrem + "!"
-			else if (s.trem2 && s.next && s.next.trem2)
-				s.next.trem22 = true
-			tie_ch = true
+			tie_ch = s.ti1
 			if (s.notes.length == 1) {
 				note_dump(s, s.notes[0], tie_ch)
 			} else {
 				for (i = 0; i < s.notes.length; i++) {
-					if (!s.notes[i].tie_n) {
+					if (!s.notes[i].tie_ty) {
 						tie_ch = false
 						break
 					}
@@ -826,7 +800,7 @@ break
 					tmp /= 2;
 				dur_dump(tmp)
 			}
-			if (s.tie_s && tie_ch)
+			if (tie_ch)
 				slti_dump(s.notes[0].tie_ty, '-');
 			tmp = s.sl2
 			while (tmp) {
@@ -851,7 +825,7 @@ break
 			break
 		case C.REST:
 			line += s.invis ? 'x' : 'z';
-			dur_dump(s.dur)
+			dur_dump(s.dur_orig)
 			break
 		case C.SPACE:
 			line += 'y'
@@ -907,6 +881,8 @@ break
 	font_dump()
 
 	abc2svg.print('\nX:' + info['X'])
+	if (cfmt["abc-version"] != cfmtg["abc-version"])
+		abc2svg.print("%%abc-version " + cfmt["abc-version"])
 	header_dump("TC")
 
 	abc2svg.print(meter_dump(voice_tb[0].meter));
@@ -937,26 +913,24 @@ break
 
 	// loop by time
 	for (s = tsfirst; s; s = s.ts_next) {
-		if (s.type == C.PART) {		// new part
-			voice_out()
-			if (s.invis && cfmt.writefields.indexOf('P') >= 0) {
-				abc2svg.print("%%writefields P 0")
-				cfmt.writefields =
-						cfmt.writefields.replace('P', '')
-			} else if (!s.invis && cfmt.writefields.indexOf('P') < 0) {
-				abc2svg.print("%%writefields P 1")
-				cfmt.writefields += 'P'
-			}
-			font_def("parts", s.text)
-			abc2svg.print('P:' + s.text)
-			while (s.ts_next && s.ts_next.type == C.PART)
-				s = s.ts_next
-			continue
-		}
 		v = s.v
 		if (s.soln && s.seqst) {
 			vo[v] += '$'
-			voice_out();
+			voice_out()
+		}
+		if (s.part) {			// new part
+			voice_out()
+			q = s.part
+			if (q.invis && cfmt.writefields.indexOf('P') >= 0) {
+				abc2svg.print("%%writefields P 0")
+				cfmt.writefields =
+						cfmt.writefields.replace('P', '')
+			} else if (!q.invis && cfmt.writefields.indexOf('P') < 0) {
+				abc2svg.print("%%writefields P 1")
+				cfmt.writefields += 'P'
+			}
+			font_def("parts", q.text)
+			abc2svg.print('P:' + q.text)
 		}
 		line = "";
 
@@ -986,15 +960,19 @@ break
 
 // -- local functions
 abc2svg.abc_init = function(args) {
-	abc2svg.print('%abc-2.2\n\
-% generated by abc2svg toabc from\n\
-%\t' + args.join(' ') + '\n\
-%%linebreak $')
+	abc2svg.args = args.join(' ')
 }
 
 abc2svg.abc_end = function() {
     var	t,
 	tunes = abc.tunes.slice(0)	// get a copy of the generated tunes
+
+	t = abc.cfmt()["abc-version"]
+	if (t != "1")
+		abc2svg.print('%abc-' + t) // explicit ABC version
+	abc2svg.print('\
+I:abc-creator abc2svg CLI "toabc.js ' + abc2svg.args + '"\n\
+I:linebreak $')
 
 	if (user.errtxt)
 		abc2svg.print("\n--- Errors ---\n" + user.errtxt)
@@ -1003,7 +981,7 @@ abc2svg.abc_end = function() {
 		t = tunes.shift()
 		if (!t)
 			break
-		abc_dump(t[0], t[1], t[2])
+		abc_dump(t[0], t[1], t[2], t[3])
 	}
 }
 

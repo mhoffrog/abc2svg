@@ -112,10 +112,12 @@ build jazzchord-$MAJOR.js: jscu modules/jazzchord.js
 build jianpu-$MAJOR.js: jscu modules/jianpu.js
 build mdnn-$MAJOR.js: jscu modules/mdnn.js
 build MIDI-$MAJOR.js: jscu modules/MIDI.js
+build nns-$MAJOR.js: jscu modules/nns.js
 build page-$MAJOR.js: jscu modules/page.js modules/strftime.js
 build pedline-$MAJOR.js: jscu modules/pedline.js
 build perc-$MAJOR.js: jscu modules/perc.js
 build psvg-$MAJOR.js: jscu modules/wps.js modules/psvg.js
+build roman-$MAJOR.js: jscu modules/roman.js
 build soloffs-$MAJOR.js: jscu modules/soloffs.js
 build sth-$MAJOR.js: jscu modules/sth.js
 build strtab-$MAJOR.js: jscu modules/strtab.js
@@ -151,9 +153,9 @@ build all: phony abc2svg-$MAJOR.js abcdoc-$MAJOR.js $
  chordnames-$MAJOR.js clair-$MAJOR.js clip-$MAJOR.js $
  combine-$MAJOR.js diag-$MAJOR.js equalbars-$MAJOR.js gamelan-$MAJOR.js $
  grid-$MAJOR.js grid2-$MAJOR.js grid3-$MAJOR.js jianpu-$MAJOR.js $
- jazzchord-$MAJOR.js  mdnn-$MAJOR.js $
- MIDI-$MAJOR.js page-$MAJOR.js pedline-$MAJOR.js perc-$MAJOR.js $
- soloffs-$MAJOR.js sth-$MAJOR.js strtab-$MAJOR.js $
+ jazzchord-$MAJOR.js  mdnn-$MAJOR.js MIDI-$MAJOR.js $
+ nns-$MAJOR.js page-$MAJOR.js pedline-$MAJOR.js perc-$MAJOR.js $
+ roman-$MAJOR.js soloffs-$MAJOR.js sth-$MAJOR.js strtab-$MAJOR.js $
  temper-$MAJOR.js edit-$MAJOR.css edit-$MAJOR.js edit-$MAJOR.xhtml $
  abckbd-$MAJOR.js abckbd2-$MAJOR.js follow-$MAJOR.js
 # not mei2svg-$MAJOR.js
@@ -166,7 +168,7 @@ rule version
 	tag=`ag -Q '"version"' package.json|cut -d'"' -f4`;$
 	fossil commit -m "New release v$$tag" -tag v$$tag;$
 	$tool -v;$
-	npm publish
+	echo 'do "npm publish --otp <authy_code>"'
 build minor: version
 build patch: version
 

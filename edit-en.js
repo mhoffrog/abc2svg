@@ -8,7 +8,6 @@ function loadtxt() {
 	var text_kv = {
 		a: 'About',
 		b: 'ABC files:',
-		cmpa: 'All',
 		cmpt: 'Tune',
 		cmps: 'Selection',
 		cmpl: 'Loop',

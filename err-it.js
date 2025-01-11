@@ -23,6 +23,8 @@ user.textrans = {
 	"!$1! must be on the last of a couple of notes":
 				"!$1! deve stare sulla seconda di due note",
 	"!beamon! must be on a bar": "!beamon! deve stare su una stanghetta",
+	"%%combinevoices is deprecated - use %%voicecombine instead":
+		"%%combinevoices is deprecated - use %%voicecombine instead",
 	"%%deco: abnormal h/wl/wr value '$1'":
 				"%%deco: valore '$1' illegale per h/wl/wr",
 	"%%deco: bad C function index '$1'":
@@ -42,6 +44,7 @@ user.textrans = {
 				"Numero $1 in %%staff errato (attuale $2, max $3)",
 	"Bad %%staff value '$1'": "Valore errato '$1' in %%staff",
 	"Bad %%stafflines value": "Valore errato in %%stafflines",
+	"Bad %%staffnonote value": "Bad %%staffnonote value",
 	"Bad %%staffscale value": "Valore errato in %%staffscale",
 	"Bad char '$1' in M:": "Carattere errato '$1' in M:",
 	"Bad character '$1'": "Carattere errato '$1'",
@@ -53,11 +56,13 @@ user.textrans = {
 	"Bad integer value": "Valore intero errato",
 	"Bad instr= value": "Valore errato di instr=",
 	"Bad L: value": "Valore errato per L:",
+	"Bad length of the macro sequence": "Bad length of the macro sequence",
 	"Bad measure duration": "Bad measure duration",
 	"Bad note in %%map": "Nota errata in %%map",
 	"Bad page width": "Larghezza di pagina errata",
 	"Bad program in %%MIDI": "Numero di programma non valido in %%MIDI",
 	"Bad scale value in %%font": "Valore di scala non valido in %%font",
+	"Bad strings in tablature": "Bad strings in tablature",
 	"Bad tempo value": "Bad tempo value",
 	"Bad tie": "Legatura non valida",
 	"Bad transpose value": "Valore non valido per la trasposizione",
@@ -69,6 +74,8 @@ user.textrans = {
 	"Bar in repeat sequence": "Stanghetta in sequenza ripetuta",
 	"Cannot have !$1! on a head": "!$1! non è consentito su una nota",
 	"Cannot have '$1' inside a tune": "'$1' non è consentito entro il brano",
+	"Cannot have %%beginml with %%pageheight":
+				"Cannot have %%beginml with %%pageheight",
 	"Cannot have a bar in grace notes":
 			"Stanghette non consentite nelle note di abbellimento",
 	"Cannot have a broken rhythm in grace notes":
@@ -77,16 +84,20 @@ user.textrans = {
 			"V:* non consentito nel corpo del brano",
 	"Cannot read file '$1'": "File '$1' inesistente",
 	"Decoration ignored": "Decorazione ignorata",
+	"Decoration without symbol": "Decoration without symbol",
+	"Double voice in %%score": "Double voice in %%score",
 	"Empty line in tune header - ignored":
 				"Linea vuota nella testata - ignorata",
 	"End of slur without start": "End of slur without start",
 	"Erroneous end of voice overlap": "Fine di voice overlay errata",
+	"Error in %%pos": "Error in %%pos",
 	"Error loading the module $1": "Error loading the module $1",
 	"Incorrect 1st value in %%repeat": "Primo valore in %%repeat errato",
 	"Incorrect 2nd value in %%repeat": "Secondo valore in %%repeat errato",
 	"Invalid 'r' in tuplet": "'r' non valido in gruppo irregolare",
 	"Invalid decoration '$1'": "Decorazione '$1' non valida",
 	"Invalid note duration $1": "Durée de note $1 non valida",
+	"K:P is deprecated": "K:P is deprecated",
 	"Lack of ']'": "']' mancante",
 	"Lack of bar after multi-measure rest":
 				"Lack of bar after multi-measure rest",
@@ -97,6 +108,8 @@ user.textrans = {
 		"Problema di linea divisa - modificare maxshrink e/o breaklimit",
 	"Line too much shrunk $1 $2 $3": "Linea troppo compressa $1 $2 $3",
 	"Line underfull ($1pt of $2pt)": "Linea troppo vuota ($1pt di $2pt)",
+	"Microtone transposition not coded":
+				"Microtone transposition not coded",
 	"Misplaced '$1' in %%score": "'$1' in posizione errata in %%score",
 	"Misplaced dot": "Punto in posizione errata",
 	"Mix of old and new transposition syntaxes":
@@ -107,13 +120,16 @@ user.textrans = {
 	"No </style> in %%beginsvg sequence":
 				"manca </style> nella sequenza %%beginsvg",
 	"No accidental after 'exp'": "Manca l'alterazione dopo 'exp'",
+	"No end of chord symbol/annotation": "Accordo di accompagnamento non terminato",
 	"No end of decoration": "Decorazione non terminata",
 	"No end of grace note sequence": "Sequenza di note di abbellimento non terminata",
-	"No end of guitar chord": "Accordo di accompagnamento non terminato",
 	"No end of repeat string": "Stringa di ripetizione non terminata",
+	"No end of string in font family": "No end of string in font family",
 	"No end of tuplet": "Gruppo irregolare non terminato",
 	"No end of tuplet in this music line":
 				"Gruppo irregolare non terminato in questa linea",
+	"No end of url in font family": "No end of url in font family",
+	"No end of voice overlay": "No end of voice overlay",
 	"No function for decoration '$1'": "Funzione inesistente per la decorazione '$1'",
 	"No note before '-'": "Nota mancante davanti a '-'",
 	"No note before '<'": "Nota mancante davanti a '<'",
@@ -134,7 +150,10 @@ user.textrans = {
 				 "Note o pause insufficienti in %%repeat",
 	"Note too long": "Durata della nota troppo lunga",
 	"Note too short": "Durata della nota troppo corta",
+	"Start of slur without note": "Start of slur without note",
 	"s: without music": "s: senza musica",
+	"There cannot be chord symbols on measure bars":
+			"There cannot be chord symbols on measure bars",
 	"Too many elements in symbol line": "Troppi elementi nella linea s:",
 	"Too many include levels": "Troppi livelli di inclusione di file",
 	"Too many ties": "Troppi simboli di legato",
@@ -148,6 +167,8 @@ user.textrans = {
         "Unsecure code": "Codice pericoloso",
         "Unterminated string": "Stringa di testo non terminata",
 	"Unterminated string in Q:": "Stringa di testo non terminata in Q:",
+	"Variant ending on a left repeat bar":
+				"Variant ending on a left repeat bar",
 	"Voice overlay already started": "Voce sovrapposta (overlay) già iniziata",
 	"w: without music": "w: senza musica",
 	"Wrong duration in voice overlay":

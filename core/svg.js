@@ -1,6 +1,6 @@
 // abc2svg - svg.js - svg functions
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -56,9 +56,11 @@ var	output = "",		// output buffer
 var tgls = {
  "mtr ": {x:0, y:0, c:"\u0020"},	// space
   brace: {x:0, y:0, c:"\ue000"},
-  lphr: {x:0, y:24, c:"\ue030"},
-  mphr: {x:0, y:24, c:"\ue038"},
-  sphr: {x:0, y:27, c:"\ue039"},
+  lphr: {x:0, y:23, c:"\ue030"},
+  mphr: {x:0, y:23, c:"\ue038"},
+  sphr: {x:0, y:26, c:"\ue039"},
+  short: {x:0, y:32, c:"\ue038"},
+  tick: {x:0, y:29, c:"\ue039"},
   rdots: {x:-1, y:0, c:"\ue043"},	// repeat dots
   dsgn: {x:-4, y:-4, c:"\ue045"},	// D.S.
   dcap: {x:-4, y:-4, c:"\ue046"},	// D.C.
@@ -73,6 +75,7 @@ var tgls = {
   scclef: {x:-8, y:0, c:"\ue07b"},
   sbclef: {x:-7, y:0, c:"\ue07c"},
   oct: {x:0, y:2, c:"\ue07d"},		// 8 for clefs
+  oct2: {x:0, y:2, c:"\ue07e"},		// 15 for clefs
   mtr0: {x:0, y:0, c:"\ue080"},		// meters
   mtr1: {x:0, y:0, c:"\ue081"},
   mtr2: {x:0, y:0, c:"\ue082"},
@@ -128,13 +131,14 @@ var tgls = {
  "acc-3_2": {x:-3, y:0, c:"\ue281"},	// three-quarter-tones flat
   acc1_2: {x:-1, y:0, c:"\ue282"},	// quarter-tone sharp
   acc3_2: {x:-3, y:0, c:"\ue283"},	// three-quarter-tones sharp
-  accent: {x:-3, y:0, c:"\ue4a0"},
+  accent: {x:-3, y:2.5, c:"\ue4a0"},
   stc: {x:-1, y:-2, c:"\ue4a2"},	// staccato
   emb: {x:-4, y:-2, c:"\ue4a4"},
   wedge: {x:-1, y:0, c:"\ue4a8"},
-  marcato: {x:-3, y:0, c:"\ue4ac"},
-  hld: {x:-7, y:0, c:"\ue4c0"},		// fermata
+  marcato: {x:-3, y:-2, c:"\ue4ac"},
+  hld: {x:-7, y:-2, c:"\ue4c0"},	// fermata
   brth: {x:0, y:0, c:"\ue4ce"},
+  caes: {x:0, y:8, c:"\ue4d1"},
   r00: {x:-1.5, y:0, c:"\ue4e1"},
   r0: {x:-1.5, y:0, c:"\ue4e2"},
   r1: {x:-3.5, y:-6, c:"\ue4e3"},
@@ -145,32 +149,32 @@ var tgls = {
   r32: {x:-4, y:0, c:"\ue4e8"},
   r64: {x:-4, y:0, c:"\ue4e9"},
   r128: {x:-4, y:0, c:"\ue4ea"},
-  mrest: {x:-10, y:0, c:"\ue4ee"},
+//  mrest: {x:-10, y:0, c:"\ue4ee"},
   mrep: {x:-6, y:0, c:"\ue500"},
   mrep2: {x:-9, y:0, c:"\ue501"},
   p: {x:-4, y:-6, c:"\ue520"},
-  f: {x:-4, y:-6, c:"\ue522"},
-  pppp: {x:-4, y:-6, c:"\ue529"},
-  ppp: {x:-4, y:-6, c:"\ue52a"},
-  pp: {x:-4, y:-6, c:"\ue52b"},
-  mp: {x:-4, y:-6, c:"\ue52c"},
-  mf: {x:-4, y:-6, c:"\ue52d"},
-  ff: {x:-4, y:-6, c:"\ue52f"},
-  fff: {x:-4, y:-6, c:"\ue530"},
-  ffff: {x:-4, y:-6, c:"\ue531"},
-  sfz: {x:-4, y:-6, c:"\ue539"},
-  trl: {x:-4, y:-4, c:"\ue566"},	// trill
-  turn: {x:-5, y:-4, c:"\ue567"},
-  turnx: {x:-5, y:-4, c:"\ue569"},
-  umrd: {x:-7, y:-2, c:"\ue56c"},
-  lmrd: {x:-7, y:-2, c:"\ue56d"},
-  dplus: {x:-4, y:10, c:"\ue582"},	// plus
+  f: {x:-2.5, y:-6, c:"\ue522"},
+  pppp: {x:-15, y:-6, c:"\ue529"},
+  ppp: {x:-11, y:-6, c:"\ue52a"},
+  pp: {x:-8, y:-6, c:"\ue52b"},
+  mp: {x:-8.5, y:-6, c:"\ue52c"},
+  mf: {x:-8, y:-6, c:"\ue52d"},
+  ff: {x:-6, y:-6, c:"\ue52f"},
+  fff: {x:-9, y:-6, c:"\ue530"},
+  ffff: {x:-12, y:-6, c:"\ue531"},
+  sfz: {x:-9, y:-6, c:"\ue539"},
+  trl: {x:-4, y:-2, c:"\ue566"},	// trill
+  turn: {x:-5, y:3, c:"\ue567"},
+  turnx: {x:-5, y:3, c:"\ue569"},
+  umrd: {x:-7, y:2, c:"\ue56c"},
+  lmrd: {x:-7, y:2, c:"\ue56d"},
+  dplus: {x:-4, y:0, c:"\ue582"},	// plus
   sld: {x:-8, y:12, c:"\ue5d0"},	// slide
   grm: {x:-2, y:0, c:"\ue5e2"},		// grace mark
   dnb: {x:-4, y:0, c:"\ue610"},		// down bow
   upb: {x:-3, y:0, c:"\ue612"},		// up bow
   opend: {x:-2, y:0, c:"\ue614"},	// harmonic
-  roll: {x:0, y:0, c:"\ue618"},
+  roll: {x:0, y:2, c:"\ue618"},
   thumb: {x:0, y:0, c:"\ue624"},
   snap: {x:-2, y:0, c:"\ue630"},
   ped: {x:-10, y:0, c:"\ue650"},
@@ -199,7 +203,7 @@ function m_gl(s) {
 		    var	m = tgls["mtr" + e]
 //fixme: !! no m.x nor m.y yet !!
 //			if (!m.x && !m.y)
-				return m.c
+				return m ? m.c : 0
 //			return '<tspan dx="'+ m.x.toFixed(1) +
 //				'" dy="' + m.y.toFixed(1) +
 //				'">' +
@@ -430,8 +434,9 @@ function a_stop(s, t) {
 }
 function empty_function() {
 }
-var	anno_start = user.anno_start ? a_start : empty_function,
-	anno_stop = user.anno_stop ? a_stop : empty_function
+	// the values are updated on generate()
+    var	anno_start = empty_function,
+	anno_stop = empty_function
 
 // output the stop user annotations
 function anno_put() {
@@ -558,6 +563,51 @@ function xypath(x, y, fill) {
 		out_XYAB('<path class="stroke" d="mX Y', x, y)
 }
 Abc.prototype.xypath = xypath
+
+// draw all the helper/ledger lines
+	function draw_all_hl() {
+	    var	st, p_st
+
+		function hlud(hla, d) {
+		    var	hl, hll, i, xp, dx2, x2,
+			n = hla.length
+
+			if (!n)
+				return
+			for (i = 0; i < n; i++) {	// for all lines
+				hll = hla[i]
+				if (!hll || !hll.length)
+					continue
+				xp = sx(hll[0][0])	// previous x
+				output +=
+				    '<path class="stroke" stroke-width="1" d="M' +
+					xp.toFixed(1) + ' ' +
+					sy(p_st.y + d * i).toFixed(1)
+				dx2 = 0
+				while (1) {
+					hl = hll.shift()
+					if (!hl)
+						break
+					x2 = sx(hl[0])
+					output += 'm' +
+						(x2 - xp + hl[1] - dx2).toFixed(2) +
+						' 0h' + (-hl[1] + hl[2]).toFixed(2)
+					xp = x2
+					dx2 = hl[2]
+				}
+				output += '"/>\n'
+			}
+		} // hlud()
+
+		for (st = 0; st <= nstaff; st++) {
+			p_st = staff_tb[st]
+			if (!p_st.hlu)
+				continue	// (staff not yet displayed)
+			set_sscale(st)
+			hlud(p_st.hlu, 6)
+			hlud(p_st.hld, -6)
+		}
+	} // draw_all_hl()
 
 // output the list of glyphs and the stems
 // [0] = x glyph
@@ -792,11 +842,12 @@ function out_tubr(x, y, dx, dy, up) {
 	out_sxsy(x, ' ', y);
 	output += 'v' + h.toFixed(1) +
 		'l' + dx.toFixed(1) + ' ' + (-dy).toFixed(1) +
-		'v' + (-h).toFixed() + '"/>\n'
+		'v' + (-h).toFixed(1) + '"/>\n'
 }
 // tuplet bracket with number - the staves are not defined
 function out_tubrn(x, y, dx, dy, up, str) {
-    var	sw = str.length * 10,
+    var	dxx,
+	sw = str.length * 10,
 	h = up ? -3 : 3;
 
 	set_font("tuplet")
@@ -807,11 +858,16 @@ function out_tubrn(x, y, dx, dy, up, str) {
 		y += 6;
 	output += '<path class="stroke" d="m';
 	out_sxsy(x, ' ', y);
+	dxx = dx - sw + 1
+	if (dy > 0)
+		sw += dy / 8
+	else
+		sw -= dy / 8
 	output += 'v' + h.toFixed(1) +
 		'm' + dx.toFixed(1) + ' ' + (-dy).toFixed(1) +
 		'v' + (-h).toFixed(1) + '"/>\n' +
 		'<path class="stroke" stroke-dasharray="' +
-		((dx - sw) / 2).toFixed(1) + ' ' + sw.toFixed(1) +
+		(dxx / 2).toFixed(1) + ' ' + sw.toFixed(1) +
 		'" d="m';
 	out_sxsy(x, ' ', y - h);
 	output += 'l' + dx.toFixed(1) + ' ' + (-dy).toFixed(1) + '"/>\n'
@@ -828,33 +884,33 @@ var deco_str_style = {
 crdc:	{
 		dx: 0,
 		dy: 5,
-		style: 'font:italic 14px serif'
+		style: 'font:italic 14px text,serif'
 	},
 dacs:	{
 		dx: 0,
 		dy: 3,
-		style: 'font:16px serif',
-		anchor: ' text-anchor="middle"'
-	},
-fng:	{
-		dx: 0,
-		dy: 1,
-		style: 'font-family:Bookman; font-size:8px',
+		style: 'font:16px text,serif',
 		anchor: ' text-anchor="middle"'
 	},
 pf:	{
 		dx: 0,
 		dy: 5,
-		style: 'font:italic bold 16px serif'
+		style: 'font:italic bold 16px text,serif'
 	},
 '@':	{
 		dx: 0,
 		dy: 5,
-		style: 'font: 12px sans-serif'
+		style: 'font:12px text,sans-serif'
 	}
 }
 
 function out_deco_str(x, y, name, str) {
+	if (name == 'fng') {
+		out_XYAB('\
+<text x="X" y="Y" style="font-size:14px" text-anchor="middle">A</text>\n',
+			x, y, m_gl(str))
+		return
+	}
 	var	a, f,
 		a_deco = deco_str_style[name]
 
@@ -886,10 +942,10 @@ function out_arp(x, y, val) {
 	g_close()
 }
 function out_cresc(x, y, val, defl) {
-	x += val;
+	x += val * stv_g.scale
 	val = -val;
 	out_XYAB('<path class="stroke"\n\
-	d="mX YlA ', x, y + 5, val)
+	d="mX YlF ', x, y + 5, val)
 	if (defl.nost)
 		output += '-2.2m0 -3.6l' + (-val).toFixed(1) + ' -2.2"/>\n'
 	else
@@ -898,7 +954,7 @@ function out_cresc(x, y, val, defl) {
 }
 function out_dim(x, y, val, defl) {
 	out_XYAB('<path class="stroke"\n\
-	d="mX YlA ', x, y + 5, val)
+	d="mX YlF ', x, y + 5, val)
 	if (defl.noen)
 		output += '-2.2m0 -3.6l' + (-val).toFixed(1) + ' -2.2"/>\n'
 	else
@@ -920,15 +976,17 @@ Abc.prototype.out_lped = function(x, y, val, defl) {
 		xygl(x + val + 6, y, "pedoff")
 }
 function out_8va(x, y, val, defl) {
+	if (val < 18) {
+		val = 18
+		x -= 4
+	}
 	if (!defl.nost) {
 		out_XYAB('<text x="X" y="Y" \
-style="font:italic bold 12px serif">8\
+style="font:italic bold 12px text,serif">8\
 <tspan dy="-4" style="font-size:10px">va</tspan></text>\n',
 			x - 8, y);
 		x += 12;
 		val -= 12
-	} else {
-		val -= 5
 	}
 	y += 6;
 	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhF"/>\n',
@@ -937,15 +995,17 @@ style="font:italic bold 12px serif">8\
 		out_XYAB('<path class="stroke" d="mX Yv6"/>\n', x + val, y)
 }
 function out_8vb(x, y, val, defl) {
+	if (val < 18) {
+		val = 18
+		x -= 4
+	}
 	if (!defl.nost) {
 		out_XYAB('<text x="X" y="Y" \
-style="font:italic bold 12px serif">8\
-<tspan dy="-4" style="font-size:10px">vb</tspan></text>\n',
+style="font:italic bold 12px text,serif">8\
+<tspan dy=".5" style="font-size:10px">vb</tspan></text>\n',
 			x - 8, y);
-		x += 4;
-		val -= 4
-	} else {
-		val -= 5
+		x += 10
+		val -= 10
 	}
 //	y -= 2;
 	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhF"/>\n',
@@ -954,15 +1014,17 @@ style="font:italic bold 12px serif">8\
 		out_XYAB('<path class="stroke" d="mX Yv-6"/>\n', x + val, y)
 }
 function out_15ma(x, y, val, defl) {
+	if (val < 25) {
+		val = 25
+		x -= 6
+	}
 	if (!defl.nost) {
 		out_XYAB('<text x="X" y="Y" \
-style="font:italic bold 12px serif">15\
+style="font:italic bold 12px text,serif">15\
 <tspan dy="-4" style="font-size:10px">ma</tspan></text>\n',
 			x - 10, y);
 		x += 20;
 		val -= 20
-	} else {
-		val -= 5
 	}
 	y += 6;
 	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhF"/>\n',
@@ -971,15 +1033,17 @@ style="font:italic bold 12px serif">15\
 		out_XYAB('<path class="stroke" d="mX Yv6"/>\n', x + val, y)
 }
 function out_15mb(x, y, val, defl) {
+	if (val < 24) {
+		val = 24
+		x -= 5
+	}
 	if (!defl.nost) {
 		out_XYAB('<text x="X" y="Y" \
-style="font:italic bold 12px serif">15\
-<tspan dy="-4" style="font-size:10px">mb</tspan></text>\n',
+style="font:italic bold 12px text,serif">15\
+<tspan dy=".5" style="font-size:10px">mb</tspan></text>\n',
 			x - 10, y);
-		x += 7;
-		val -= 7
-	} else {
-		val -= 5
+		x += 18
+		val -= 18
 	}
 //	y -= 2;
 	out_XYAB('<path class="stroke" stroke-dasharray="6,6" d="mX YhF"/>\n',
@@ -1108,7 +1172,7 @@ function tempo_build(s) {
 		w += strwh(s.tempo_str1)[0]
 	}
 	if (s.tempo_notes) {
-		dy = ' dy="-.05em"'			// notes a bit higher
+		dy = ' dy="-1"'			// notes a bit higher
 		for (i = 0; i < s.tempo_notes.length; i++) {
 			p = tempo_note(s, s.tempo_notes[i])
 			str.push('<tspan\nclass="' +
@@ -1121,7 +1185,7 @@ function tempo_build(s) {
 			w += j * gene.curfont.swfac
 			dy = ''
 		}
-		str.push('<tspan dy=".065em">=</tspan>')
+		str.push('<tspan dy="1">=</tspan>')
 		w += cwidf('=')
 		if (s.tempo_ca) {
 			str.push(s.tempo_ca)
@@ -1137,7 +1201,7 @@ function tempo_build(s) {
 					font_class(cfmt.musicfont) +
 				'" style="font-size:' +
 				(gene.curfont.size * 1.3).toFixed(1) +
-				'px" dy="-.05em">' +
+				'px" dy="-1">' +
 				p + '</tspan>')
 			j = p.length > 1 ? 2 : 1
 			w += j * gene.curfont.swfac
@@ -1146,7 +1210,7 @@ function tempo_build(s) {
 	}
 	if (s.tempo_str2) {
 		if (dy)
-			str.push('<tspan\n\tdy=".065em">' +
+			str.push('<tspan\n\tdy="1">' +
 					s.tempo_str2 + '</tspan>')
 		else
 			str.push(s.tempo_str2)
@@ -1157,18 +1221,16 @@ function tempo_build(s) {
 	s.tempo_str = str.join(' ')
 	w += cwidf(' ') * (str.length - 1)
 	s.tempo_wh = [w, 13.0]		// (the height is not used)
-	if (dy)
-		s.tempo_dy = dy
 } // tempo_build()
 
 // output a tempo
 function writempo(s, x, y) {
-    var	bx
+    var	bh
 
 	set_font("tempo")
 	if (gene.curfont.box) {
 		gene.curfont.box = false
-		bx = x
+		bh = gene.curfont.size + 4
 	}
 
 //fixme: xy_str() cannot be used because <tspan> in s.tempo_str
@@ -1178,11 +1240,10 @@ function writempo(s, x, y) {
 	out_sxsy(x, '" y="', y + gene.curfont.size * .2)
 	output += '">' + s.tempo_str + '</text>\n'
 
-	if (bx) {
+	if (bh) {
 		gene.curfont.box = true
-		bh = gene.curfont.size + 4;
 		output += '<rect class="stroke" x="'
-		out_sxsy(bx - 2, '" y="', y + bh - 1)
+		out_sxsy(x - 2, '" y="', y + bh - 1)
 		output += '" width="' + (s.tempo_wh[0] + 2).toFixed(1) +
 			'" height="' + bh.toFixed(1) +
 			'"/>\n'
@@ -1229,18 +1290,16 @@ function svg_flush() {
 			' viewBox="0 0 ' + img.width.toFixed(0) + ' ' +
 			 posy.toFixed(0) + '">\n'
 	} else {
-		head += ' width="' + img.width.toFixed(0) +
+		head += ' viewBox="0 0 ' + img.width.toFixed(0) + ' ' +
+			posy.toFixed(0) +
+			'" width="' + img.width.toFixed(0) +
 			'px" height="' + posy.toFixed(0) + 'px">\n'
 	}
 
 	head += fulldefs
 
 	if (style || font_style)
-		head += '<style>\n.' +
-				font_class(font) +	// for fill color
-					' text,tspan{fill:currentColor}' +
-			font_style + style +
-			'\n</style>\n'
+		head += '<style>' + font_style + style + '\n</style>\n'
 
 	if (defs)
 		head += '<defs>' + defs + '\n</defs>\n'

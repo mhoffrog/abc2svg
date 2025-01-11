@@ -1,6 +1,6 @@
 // abc2svg - gchord.js - chord symbols
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -47,7 +47,7 @@ function parse_gchord(type) {
 		while (1) {
 			j = line.buffer.indexOf('"', i)
 			if (j < 0) {
-				syntax(1, "No end of guitar chord")
+				syntax(1, "No end of chord symbol/annotation")
 				return
 			}
 			if (line.buffer[j - 1] != '\\')
@@ -87,10 +87,16 @@ function parse_gchord(type) {
 					i--
 			}
 			gch.x = x_abs;
-			gch.y = y_abs - h_ann / 2
+			y_abs -= h_ann * .3	// center vertically
+			gch.y = y_abs
 			break
 		case '^':
+			gch.pos = C.SL_ABOVE
+			// fall thru
 		case '_':
+			if (c == '_')
+				gch.pos = C.SL_BELOW
+			// fall thru
 		case '<':
 		case '>':
 			i++;
@@ -100,11 +106,18 @@ function parse_gchord(type) {
 			switch (type) {
 			case 'g':
 				gch.font = get_font("gchord")
+				gch.pos = curvoice.pos.gch || C.SL_ABOVE
+				break
+			case '^': 
+				gch.pos = C.SL_ABOVE
+				break
+			case '_':
+				gch.pos = C.SL_BELOW
 				break
 			case '@':
 				gch.x = x_abs;
 				y_abs -= h_ann;
-				gch.y = y_abs - h_ann / 2
+				gch.y = y_abs
 				break
 			}
 			break
@@ -205,7 +218,23 @@ function gch_transp(s) {
 // parser: add the parsed list of chord symbols and annotations
 //	to the symbol (note, rest or bar)
 function csan_add(s) {
-	s.a_gch = a_gch;
+    var	i, gch
+
+	// there cannot be chord symbols on measure bars
+	if (s.type == C.BAR) {
+		for (i = 0; i < a_gch.length; i++) {
+			if (a_gch[i].type == 'g') {
+				syntax(1,
+				       "There cannot be chord symbols on measure bars")
+				a_gch.splice(i)
+			}
+		}
+	}
+
+	if (s.a_gch)
+		s.a_gch = s.a_gch.concat(a_gch)
+	else
+		s.a_gch = a_gch
 	a_gch = null
 
 	if (curvoice.vtransp)
@@ -219,8 +248,6 @@ Abc.prototype.gch_build = function(s) {
 	/* split the chord symbols / annotations
 	 * and initialize their vertical offsets */
 	var	gch, wh, xspc, ix,
-		y_above = 0,
-		y_below = 0,
 		y_left = 0,
 		y_right = 0,
 		GCHPRE = .4;		// portion of chord before note
@@ -231,14 +258,13 @@ Abc.prototype.gch_build = function(s) {
 	for (ix = 0; ix < s.a_gch.length; ix++) {
 		gch = s.a_gch[ix]
 		if (gch.type == 'g') {
-			gch.text = gch.text.replace(/##|#|=|bb|b|  /g,
+			gch.text = gch.text.replace(/##|#|=|bb|b/g,
 				function(x) {
 					switch (x) {
 					case '##': return "&#x1d12a;"
 					case '#': return "\u266f"
 					case '=': return "\u266e"
 					case 'b': return "\u266d"
-					case '  ': return '  '
 					}
 					return "&#x1d12b;"
 				});
@@ -261,11 +287,6 @@ Abc.prototype.gch_build = function(s) {
 		case '@':
 			break
 		case '^':			/* above */
-			xspc = wh[0] * GCHPRE
-			if (xspc > 8)
-				xspc = 8;
-			gch.x = -xspc;
-			break
 		case '_':			/* below */
 			xspc = wh[0] * GCHPRE
 			if (xspc > 8)
@@ -312,11 +333,19 @@ Abc.prototype.gch_build = function(s) {
 // (unscaled delayed output)
 // (possible hook)
 Abc.prototype.draw_gchord = function(i, s, x, y) {
+	if (s.invis && s.play)	// play sequence: no chord nor annotation
+		return
     var	y2,
 	an = s.a_gch[i],
 	h = an.text.wh[1],
 	pad = an.font.pad,
-	w = an.text.wh[0] + pad * 2
+	w = an.text.wh[0] + pad * 2,
+	dy = 0
+
+	if (an.font.figb) {
+		h *= 2.4
+		dy = an.font.size * 1.3
+	}
 
 	switch (an.type) {
 	case '_':			// below
@@ -347,6 +376,10 @@ Abc.prototype.draw_gchord = function(i, s, x, y) {
 						18) * 3 :
 				12)		// fixed offset on rests and bars
 			- h / 2
+		if (y > 24)
+			y_set(s.st, 1, x, w, y + h + pad)
+		if (y < 0)
+			y_set(s.st, 0, x, w, y - pad)
 		break
 	default:			// chord symbol
 		if (y >= 0) {
@@ -380,7 +413,7 @@ Abc.prototype.draw_gchord = function(i, s, x, y) {
 	if (user.anno_start)
 		user.anno_start("annot", an.istart, an.iend,
 			x - 2, y + h + 2, w + 4, h + 4, s)
-	xy_str(x, y, an.text)
+	xy_str(x, y + dy, an.text)
 	if (user.anno_stop)
 		user.anno_stop("annot", an.istart, an.iend,
 			x - 2, y + h + 2, w + 4, h + 4, s)
@@ -389,12 +422,8 @@ Abc.prototype.draw_gchord = function(i, s, x, y) {
 // draw all chord symbols
 function draw_all_chsy() {
     var	s, san1, an, i, y, w,
-	pos = curvoice.pos.gch == C.SL_BELOW ? -1 : 1,
 	n_an = 0,		// max number of annotations
 	minmax = new Array(nstaff + 1)
-
-	if (curvoice.pos.gch == C.SL_HIDDEN)
-		pos = 0
 
 	// set a vertical offset to all the chord symbols/annotations
 	function set_an_yu(j) {
@@ -408,8 +437,7 @@ function draw_all_chsy() {
 			an = an[i]
 			if (!an)
 				continue
-			if ((an.type == 'g' && pos > 0)
-			 || an.type == '^') {
+			if (an.pos == C.SL_ABOVE) {
 				x = s.x + an.x
 				w = an.text.wh[0]
 				if (w && x + w > realwidth)
@@ -417,8 +445,8 @@ function draw_all_chsy() {
 				y = y_get(s.st, 1, x, w)	// y / staff
 				if (an.type == 'g' && y < minmax[s.st].yup)
 					y = minmax[s.st].yup
-			} else if ((an.type == 'g' && pos <= 0)
-				|| an.type == '_') {
+			} else if (an.pos == C.SL_BELOW
+				|| an.pos == C.SL_HIDDEN) {
 				continue
 			} else {
 				x = s.x + an.x
@@ -437,8 +465,7 @@ function draw_all_chsy() {
 				continue
 			an = an[i]
 			if (!an
-			 || !((an.type == 'g' && pos < 0)
-			   || an.type == '_'))
+			 || an.pos != C.SL_BELOW)
 				continue
 			x = s.x + an.x
 			w = an.text.wh[0]
@@ -471,11 +498,11 @@ function draw_all_chsy() {
 			if (an[i].type == 'g') {
 				an = an[i]
 				w = an.text.wh[0]
-				if (pos > 0) {
+				if (an.pos == C.SL_ABOVE) {
 					y = y_get(s.st, true, s.x, w)
 					if (y > minmax[s.st].yup)
 						minmax[s.st].yup = y
-				} else if (pos < 0) {
+				} else if (an.pos == C.SL_BELOW) {
 					y = y_get(s.st, false, s.x, w)
 					if (y < minmax[s.st].ydn)
 						minmax[s.st].ydn = y

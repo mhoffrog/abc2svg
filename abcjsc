@@ -1,8 +1,16 @@
 #!/bin/sh
 # abc2svg with jsc (webkit2gtk)
-progdir=`dirname $0`
+# search where are the abc2svg scripts
+c=$0
+if [ `dirname $c` = . ]; then
+	c=`which $c`
+fi
+if [ -L $c ]; then
+	c=`realpath $c`
+fi
+c=`dirname $c`
 
-exec jsc -e "var progdir='${progdir}/'
+exec jsc -e "var progdir='${c}/'
 
 // function to do utf-8 work...
 // uncommenting this function asks for also uncommenting its call in cmdline.js
@@ -50,7 +58,11 @@ var abc2svg = {
 	quit(1)
     },
     readFile: function(fname) {
-	return read(fname)
+	try {
+		return read(fname)
+	} catch(e) {
+	}
+	return null
     },
     loadjs: function(fn, relay, onerror) {
 	try {
@@ -70,6 +82,14 @@ load(progdir + 'abc2svg-1.js')
 load(progdir + 'cmdline.js')
 
 function main(args) {
+    var	i = '${ABCPATH}'
+
+	console = {
+		log: printErr
+	}
+
+	if (i)
+		abc2svg.path = i.split(':')
 	abc_cmd('abcjsc', args, 'jsc (webkit2gtk)')
 }
 
