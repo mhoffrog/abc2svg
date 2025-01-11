@@ -5,9 +5,6 @@
 
 MAJOR=1
 
-# ninja tool
-tool=samu
-
 rule cp
   command = cp $in $out
 
@@ -23,36 +20,42 @@ rule font
    echo "\") format(\"truetype\")'" >> font.js
 
 rule jsc
-  command = VERSION=`grep '"version"' package.json|cut -d'"' -f4`;$
-   if [ -e .fslckout ] && command -v fossil >/dev/null 2>&1; then $
-	c=`fossil info | grep checkout:`;$
-	t=`fossil info | grep tags: | awk '{print $$NF}'`;$
-	if [ "$${t#v}" != "$$VERSION" ]; then $
-		VERSION="$${VERSION}-$$(echo $$c | cut -d' ' -f2 | cut -c1-10)";$
-	fi;$
-	DATE=`echo $$c | cut -d' ' -f3`;$
+  command = if [ -e .fslckout ] && command -v fossil >/dev/null 2>&1; then $
+	v=`fossil describe`;$
+	d=`date -Idate`;$
+	v="abc2svg.version=\"$$v\";abc2svg.vdate=\"$$d\"";$
    else $
-	DATE=`date -r package.json '+%Y-%m-%d'`;$
+	v=`grep abc2svg.version $out`;$
    fi;$
    cp core/license $out;$
    if [ "x$$NOMIN" = "x" ]; then $
       if command -v jsmin >/dev/null 2>&1; then $
 	cat $in | jsmin >> $out;$
+	echo "" >> $out;$
       else $
-	cat $in | uglifyjs >> $out;$
+	if command -v qjs >/dev/null 2>&1; then $
+	  cat $in | ./jsmin >> $out;$
+	else $
+	  cat $in | uglifyjs >> $out;$
+	fi;$
      fi;$
    else $
 	cat $in >> $out;$
    fi;$
-   echo "abc2svg.version=\"$$VERSION\";abc2svg.vdate=\"$$DATE\"" >> $out
+   echo $$v >> $out
 
 rule jscu
   command = cp core/license $out;$
    if [ "x$$NOMIN" = "x" ]; then $
       if command -v jsmin >/dev/null 2>&1; then $
 	cat $in | jsmin >> $out;$
+	echo "" >> $out;$
       else $
-	uglifyjs $in >> $out;$
+	if command -v qjs >/dev/null 2>&1; then $
+	  cat $in | ./jsmin >> $out;$
+	else $
+	  cat $in | uglifyjs >> $out;$
+	fi;$
       fi;$
    else $
 	cat $in >> $out;$
@@ -89,7 +92,8 @@ build sf: sf | Scc1t2/
 build abc2svg-$MAJOR.js: jsc core/abc2svg.js core/deco.js core/draw.js $
  font.js core/format.js core/front.js core/music.js core/parse.js core/subs.js $
  core/svg.js core/tune.js core/lyrics.js core/gchord.js core/tail.js $
- core/modules.js | package.json
+ core/modules.js
+#| package.json
 build mei2svg-$MAJOR.js: jsc core/abc2svg.js core/deco.js core/draw.js $
  font.js core/format.js core/front.js core/music.js core/parse.js core/subs.js $
  core/svg.js core/tune.js core/lyrics.js core/gchord.js core/mei.js core/tail.js $
@@ -122,23 +126,16 @@ build soloffs-$MAJOR.js: jscu modules/soloffs.js
 build sth-$MAJOR.js: jscu modules/sth.js
 build strtab-$MAJOR.js: jscu modules/strtab.js
 build temper-$MAJOR.js: jscu modules/temper.js
+build tropt-$MAJOR.js: jscu modules/tropt.js
 
 build edit-$MAJOR.css: cp editor/edit.css
 
 build abcdoc-$MAJOR.js: jscu util/abcdoc.js
-build abcemb-$MAJOR.js: jscu util/abcemb.js
-build abcemb1-$MAJOR.js: jscu util/abcemb1.js
-build abcemb2-$MAJOR.js: jscu util/abcemb2.js
 build abcweb-$MAJOR.js: jscu util/abcweb.js
 build abcweb1-$MAJOR.js: jscu util/abcweb1.js
-build abcweb2-$MAJOR.js: jscu util/abcweb.js
-build chord-$MAJOR.js: jscu util/chord.js
 build json-$MAJOR.js: jscu util/json.js
-build toaudio-$MAJOR.js: jscu util/toaudio.js
-build play-$MAJOR.js: jscu util/play.js util/toaudio.js $
- util/toaudio5.js util/sf2-parser.js util/tomidi5.js util/follow.js
-build snd-$MAJOR.js: jscu util/play.js util/sndgen.js $
- util/sndaud.js util/sf2-parser.js util/sndmid.js util/follow.js
+build snd-$MAJOR.js: jscu util/play.js util/sndgen.js util/sndaud.js $
+ util/sf2-parser.js util/sndmid.js util/follow.js util/chord.js
 
 build edit-$MAJOR.xhtml: cpm editor/edit.xhtml
 build abckbd-$MAJOR.js: edit editor/abckbd.js
@@ -146,33 +143,45 @@ build abckbd2-$MAJOR.js: edit editor/abckbd2.js
 build edit-$MAJOR.js: edit editor/edit.js
 
 build all: phony abc2svg-$MAJOR.js abcdoc-$MAJOR.js $
- abcemb-$MAJOR.js abcemb1-$MAJOR.js abcemb2-$MAJOR.js $
- abcweb-$MAJOR.js abcweb1-$MAJOR.js abcweb2-$MAJOR.js chord-$MAJOR.js $
- json-$MAJOR.js toaudio-$MAJOR.js snd-$MAJOR.js play-$MAJOR.js psvg-$MAJOR.js $
+ abcweb-$MAJOR.js abcweb1-$MAJOR.js $
+ snd-$MAJOR.js psvg-$MAJOR.js $
  ambitus-$MAJOR.js break-$MAJOR.js capo-$MAJOR.js $
  chordnames-$MAJOR.js clair-$MAJOR.js clip-$MAJOR.js $
  combine-$MAJOR.js diag-$MAJOR.js equalbars-$MAJOR.js gamelan-$MAJOR.js $
  grid-$MAJOR.js grid2-$MAJOR.js grid3-$MAJOR.js jianpu-$MAJOR.js $
  jazzchord-$MAJOR.js  mdnn-$MAJOR.js MIDI-$MAJOR.js $
- nns-$MAJOR.js page-$MAJOR.js pedline-$MAJOR.js perc-$MAJOR.js $
+ nns-$MAJOR.js page-$MAJOR.js pedline-$MAJOR.js perc-$MAJOR.js psvg-$MAJOR.js $
  roman-$MAJOR.js soloffs-$MAJOR.js sth-$MAJOR.js strtab-$MAJOR.js $
- temper-$MAJOR.js edit-$MAJOR.css edit-$MAJOR.js edit-$MAJOR.xhtml $
- abckbd-$MAJOR.js abckbd2-$MAJOR.js follow-$MAJOR.js
+ temper-$MAJOR.js tropt-$MAJOR.js edit-$MAJOR.css edit-$MAJOR.js edit-$MAJOR.xhtml $
+ abckbd-$MAJOR.js abckbd2-$MAJOR.js
 # not mei2svg-$MAJOR.js
 
 default all
 
-# npm/fossil new release
+# fossil new release
 rule version
-  command = npm version $out;$
-	tag=`ag -Q '"version"' package.json|cut -d'"' -f4`;$
-	fossil commit -m "New release v$$tag" -tag v$$tag;$
-	$tool -v;$
-	echo 'do "npm publish --otp <authy_code>"'
+  command = v=`fossil changes|wc -l`;$
+	if [ $$v -ne 0 ]; then $
+		echo "!! There are changes !!";$
+		exit 1;$
+	fi;$
+	v=`fossil describe`;$
+	if [ "$$out"="patch" ]; then $
+		v=`echo $$v|awk -F. -v OFS=. '{$$3 += 1; print}'`;$
+	else $
+		v=`echo $$v|awk -F. -v OFS=. '{$$2 += 1; $$3=0; print}'`;$
+	fi;$
+	fossil commit --allow-empty -m "New release $$v" -tag $$v;$
+	n=`tail -1 abc2svg-1.js|wc -c`;$
+	truncate -s -$$n abc2svg-1.js;$
+	d=`date -Idate`;$
+	echo "abc2svg.version=\"$$v\";abc2svg.vdate=\"$$d\"" >> abc2svg-1.js;$
+	r="abc2svg-$$v";$
+	ln -s . $$r;$
+	sed "s#^#$$r/#" dist_bin | pax -wj -x tar -f abc2svg.tar.bz2;$
+	rm -f abc2svg.zip;$
+	sed "s#^#$$r/#" dist_bin | zip -r abc2svg.zip -@;$
+	rm $$r;$
+	echo "Don't forget to upload abc2svg.tar.bz2 and abc2svg.zip"
 build minor: version
 build patch: version
-
-# temporary
-rule nul
-  command = touch $out
-build follow-$MAJOR.js: nul

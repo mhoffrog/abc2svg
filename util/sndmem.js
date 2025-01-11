@@ -1,6 +1,6 @@
 // sndmem.js - generate play events for use with toaudio5 or tomidi5
 //
-// Copyright (C) 2020-2021 Jean-Francois Moine
+// Copyright (C) 2020-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -44,7 +44,7 @@ abc2svg.sndmem = function(abc) {
 		po.a_e.push(new Float32Array([
 				s.istart,
 				t,
-				s.instr,
+				po.c_i[po.v_c[s.v]],
 				k,
 				d,
 				1,
@@ -68,6 +68,13 @@ abc2svg.sndmem = function(abc) {
 				s.v]))
 	} // midi_ctrl()
 
+	// MIDI channel and/or program
+	function midi_prog(po, s) {
+		po.v_c[s.v] = s.chn
+		if (s.instr)
+			po.c_i[s.chn] = s.instr
+	} // midi_prog()
+
 	// define the play object
 	po = {
 		conf: {		// configuration
@@ -76,7 +83,10 @@ abc2svg.sndmem = function(abc) {
 		tgen: 3600, 	// generate by (for) 1 hour
 		get_time: get_time,
 		midi_ctrl: midi_ctrl,
+		midi_prog: midi_prog,
 		note_run: note_run,
+		v_c: [],	// voice to channel
+		c_i: [],	// channel to instrument
 
 		// sndmem specific
 		a_e: []

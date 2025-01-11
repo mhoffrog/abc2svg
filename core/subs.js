@@ -1,6 +1,6 @@
 // abc2svg - subs.js - text output
 //
-// Copyright (C) 2014-2021 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -106,20 +106,29 @@ function cwidf(c) {
 }
 
 // estimate the width and height of a string ..
-var strwh = typeof document != "undefined" ?
+var strwh
+
+(function() {
+    if (typeof document != "undefined") {
 
     // .. by the browser
-    (function() {
-	// (re)create a text element
-    var	el = document.createElement('text')
-	el.style.position = 'absolute'
-	el.style.top = '-1000px'
-	el.style.padding = '0'
-	document.body.appendChild(el)
 
-	return function(str) {
+	// create a text element if not done yet
+    var	el = abc2svg.eltxt
+
+	// change the function
+	strwh = function(str) {
 		if (str.wh)
 			return str.wh
+		if (!el) {
+			el = document.createElement('text')
+			el.style.position = 'absolute'
+			el.style.top = '-1000px'
+			el.style.padding = '0'
+			document.body.appendChild(el)
+			abc2svg.eltxt = el	// reused after new Abc()
+		}
+
 	    var	c,
 		font = gene.curfont,
 		h = font.size,
@@ -148,36 +157,35 @@ var strwh = typeof document != "undefined" ?
 
 		while (1) {
 			i = str.indexOf('$', i)
+			if (i >= 0) {
+				c = str[i + 1]
+				if (c == '0') {
+					font = gene.deffont
+				} else if (c >= '1' && c <= '9') {
+					font = get_font("u" + c)
+				} else {
+					i++
+					continue
+				}
+			}
+
+			el.innerHTML = str.slice(i0, i >= 0 ? i : undefined)
+			w += el.clientWidth
+//fixme: bad width if space(s) at end of string
+			if (el.clientHeight > h)
+				h = el.clientHeight
 			if (i < 0)
 				break
-			c = str[i + 1]
-			if (c == '0') {
-				font = gene.deffont
-			} else if (c >= '1' && c <= '9') {
-				font = get_font("u" + c)
-			} else {
-				i++
-				continue
-			}
-			el.innerHTML = str.slice(i0, i);
-			w += el.clientWidth
-//fixme: bad result if space(s) at end of string
-			if (font.size > h)
-				h = font.size;
-
 			el.style.font = style_font(font).slice(5);
 			i += 2;
 			i0 = i
 		}
-		el.innerHTML = str.slice(i0);
-		w += el.clientWidth;
-
 		return [w, h]
 	}
-    })() :
+    } else {
 
     // .. by internal tables
-    function(str) {
+    strwh = function(str) {
     var	font = gene.curfont,
 	swfac = font.swfac,
 	h = font.size,
@@ -216,7 +224,9 @@ var strwh = typeof document != "undefined" ?
 		w += cwid(c) * swfac
 	}
 	return [w, h]
-}
+    }
+  }
+})()
 
 // convert a string to a SVG text, handling the font changes
 // The string size is memorized into the String.
@@ -225,9 +235,10 @@ function str2svg(str) {
 	if (typeof str == "object")
 		return str
 
-    var	o, n_font, wh,
-	o_font = gene.curfont,
-	c_font = o_font
+    var	n_font, wh,
+	o_font = gene.deffont,
+	c_font = gene.curfont,
+	o = ""
 
 	// start a '<tspan>' element
 	function tspan(nf, of) {
@@ -245,7 +256,9 @@ function str2svg(str) {
 		return '<tspan\n\tclass="' + cl + '">'
 	} // tspan()
 
-	o = str.replace(/<|>|&[^&\s]*?;|&|\$./g, function(c){
+	if (c_font != o_font)
+		o = tspan(c_font, o_font)
+	o += str.replace(/<|>|&[^&\s]*?;|&|\$./g, function(c){
 			switch (c) {
 			case '<': return "&lt;"
 			case '>': return "&gt;"
@@ -313,13 +326,13 @@ function xy_str(x, y,
 	if (!wh)
 		wh = str.wh || strwh(str)
 
-	output += '<text class="' + font_class(gene.curfont)
+	output += '<text class="' + font_class(gene.deffont)
 	if (action != 'j' && str.length > 5
-	 && gene.curfont.wadj)
-		output += '" lengthAdjust="' + gene.curfont.wadj +
+	 && gene.deffont.wadj)
+		output += '" lengthAdjust="' + gene.deffont.wadj +
 			'" textLength="' + wh[0].toFixed(1);
 	output += '" x="';
-	out_sxsy(x, '" y="', y + wh[1] * .2)	// a bit upper for the descent
+	out_sxsy(x, '" y="', y)
 	switch (action) {
 	case 'c':
 		x -= wh[0] / 2;
@@ -454,9 +467,10 @@ function write_text(text, action) {
 					str = text.slice(j)
 				else
 					str = text.slice(j, i)
-				vskip(strwh(str)[1]  * cfmt.lineskipfac
+				ww = strwh(str)
+				vskip(ww[1] * cfmt.lineskipfac
 					+ font.pad * 2)
-				xy_str(x, font.pad, str, action)
+				xy_str(x, font.pad + ww[1] * .2, str, action)
 				if (i < 0)
 					break
 			}
@@ -477,23 +491,23 @@ function write_text(text, action) {
 			words = words.split(/\s+/);
 			w = k = wh = 0
 			for (j = 0; j < words.length; j++) {
-				ww = strwh(words[j])
+				ww = strwh(words[j] + ' ')	// &nbsp;
 				w += ww[0]
 				if (w >= strlw) {
 					vskip(wh * cfmt.lineskipfac)
-					xy_str(0, 0, words.slice(k, j).join(' '),
+					xy_str(0, ww[1] * .2,
+						words.slice(k, j).join(' '),
 						action, strlw)
 					k = j;
 					w = ww[0]
 					wh = 0
 				}
-				w += cwidf(' ')
 				if (ww[1] > wh)
 					wh = ww[1]
 			}
 			if (w != 0) {			// last line
 				vskip(wh * cfmt.lineskipfac)
-				xy_str(0, 0, words.slice(k).join(' '))
+				xy_str(0, ww[1] * .2, words.slice(k).join(' '))
 			}
 			vskip(parskip);
 			blk_flush()
@@ -543,10 +557,11 @@ function put_words(words) {
 				i++
 		}
 
+	    var	y = gene.curfont.size * .22		// descent
 		if (k != 0)
-			xy_str(x, 0, p.slice(0, k), 'r')
+			xy_str(x, y, p.slice(0, k), 'r')
 		if (i < p.length)
-			xy_str(x + 5, 0, p.slice(i), 'l')
+			xy_str(x + 5, y, p.slice(i), 'l')
 	} // put_wline()
 
 	set_font("words")
@@ -685,7 +700,7 @@ var info_font_init = {
 	X: "title"
 }
 function write_headform(lwidth) {
-	var	c, font, font_name, align, x, y, sz,
+    var	c, font, font_name, align, x, y, sz, w,
 		info_val = {},
 		info_font = Object.create(info_font_init),
 		info_sz = {

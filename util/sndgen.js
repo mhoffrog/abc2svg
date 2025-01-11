@@ -1,6 +1,6 @@
 // sndgen.js - sound generation
 //
-// Copyright (C) 2019-2021 Jean-Francois Moine
+// Copyright (C) 2019-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -26,8 +26,6 @@
 //						indexed by the repeat number
 // - in NOTE and REST
 //	s.pdur = play duration
-//	s.instr = bank + instrument
-//	s.chn = MIDI channel
 // - in the notes[] of NOTE
 //	s.notes[i].midi
 
@@ -46,15 +44,13 @@ function ToAudio() {
 	p_time = 0,		// last playing time
 	abc_time = 0,		// last ABC time
 	play_fac = C.BLEN / 4 * 120 / 60, // play time factor - default: Q:1/4=120
-	i, n, dt, d, v, c,
+	i, n, dt, d, v,
 	s = first,
 	rst = s,		// left repeat (repeat restart)
 	rst_fac,		// play factor on repeat restart
-	rsk,			// repeat variant array (repeat skip)
+	rsk = [],		// repeat variant array (repeat skip)
 	b_tim,			// time of last measure bar
-	b_typ,			// type of last measure bar
-	instr = [],		// [voice] bank + instrument
-	chn = []		// [voice] MIDI channel
+	b_typ			// type of last measure bar
 
 	// build the information about the parts (P:)
 	function build_parts(first) {
@@ -123,77 +119,6 @@ function ToAudio() {
 		}
 	} // build_parts()
 
-	// set the starting MIDI instruments and channels
-	function midi_start() {
-	    var	v, p_v, c, i, ii
-
-		for (v = 0; v < voice_tb.length; v++) {
-			p_v = voice_tb[v]
-			ii = p_v.instr || 0		// instrument
-			c = p_v.chn			// channel
-			if (c == undefined)
-				c = p_v.v < 9 ? p_v.v : p_v.v + 1
-			else if (c == 9)		// percussion
-				ii = (ii & ~0x7f) | 16384
-
-			if (p_v.midictl) {		// if MIDI controls
-				for (i in p_v.midictl) {
-					switch (Number(i)) {
-					case 0:		// MSB bank
-						ii = (ii & 0x3fff) |
-							(p_v.midictl[i] << 14)
-						break
-					case 32:	// LSB bank
-						ii = (ii & 0x1fc07f) |
-							(p_v.midictl[i] << 7)
-						break
-					}
-				}
-			}
-
-			if ((ii & ~0x7f) == 16384) // if bank 128 (percussion)
-				c = 9			// channel '10'
-			chn[v] = c
-			instr[c] = ii
-		}
-	} // midi_start()
-
-	// handle a block symbol
-	function do_block(s) {
-	    var	v = s.v,
-		c = chn[v]
-
-		switch (s.subtype) {
-		case "midichn":
-			chn[v] = s.chn
-			break
-		case "midictl":
-			switch (s.ctrl) {
-			case 0:			// MSB bank
-				instr[c] = (instr[c] & 0x3fff) |
-					(s.val << 14)
-				break
-			case 32:		// LSB bank
-				instr[c] = (instr[c] & 0x1fc07f) |
-					(s.val << 7)
-				break
-//			case 121:		// reset all controllers
-//				instr = []
-//				break
-			}
-			if ((instr[c] & ~0x7f) == 16384) { // if percussion
-				instr[9] = instr[c]	// force the channel 10
-				chn[v] = c = 9
-			}
-			s.chn = c
-			break
-		case "midiprog":
-			instr[c] = (instr[c] & ~0x7f) | s.instr
-			s.chn = c
-			break
-		}
-	} // do_block()
-
 	// generate the grace notes
 	function gen_grace(s) {
 	    var	g, i, n, t, d, s2,
@@ -213,6 +138,8 @@ function ToAudio() {
 				d = next.dur / 2	// no dot
 			else
 				d = next.dur / 3
+			if (s.p_v.key.k_bagpipe)
+				d /= 2
 			next.time += d
 			next.dur -= d
 		}
@@ -225,8 +152,6 @@ function ToAudio() {
 		for (g = s.extra; g; g = g.next) {
 			g.ptim = t
 			g.pdur = d
-			g.chn = chn[s.v]
-			g.instr = instr[g.chn]
 			t += d
 		}
 	} // gen_grace()
@@ -242,9 +167,10 @@ function ToAudio() {
 		return d * s.tempo / 60
 	} // set_tempo()
 
-	function set_variant(rsk, n, s) {
-	    var	d
-		n = n.match(/[1-8]-[2-9]|[1-9,.]|[^\s]+$/g)
+	function set_variant(s) {
+	    var	d,
+		n = s.text.match(/[1-8]-[2-9]|[1-9,.]|[^\s]+$/g)
+
 		while (1) {
 			d = n.shift()
 			if (!d)
@@ -262,28 +188,11 @@ function ToAudio() {
 	// add() main
 
 	// if some MIDI stuff, load the associated module
-	if (cfmt.chord) {
-		if (!abc2svg.chord) {
-			abc2svg.pwait = true	// don't start playing now
-
-			abc2svg.loadjs("chord-1.js",
-					function(){	// ok
-						toaud.add(first, voice_tb, cfmt)
-					},
-					function(){	// KO
-						cfmt.chord = null
-						toaud.add(first, voice_tb, cfmt)
-					})
-			return
-		}
+	if (cfmt.chord)
 		abc2svg.chord(first, voice_tb, cfmt)
-	}
 
 	if (s.parts)
 		build_parts(s)
-
-	// get the starting MIDI parameters
-	midi_start()
 
 	// set the time parameters
 	rst_fac = play_fac
@@ -310,12 +219,13 @@ function ToAudio() {
 				b_tim = s.time
 				b_typ = 0
 			}
-			if (s.text && rsk		// if new variant
+			if (s.text			// if new variant
+			 && rsk.length > 1
 			 && s.text[0] != '1') {
 				if (b_typ & 1)
 					break
 				b_typ |= 1
-				set_variant(rsk, s.text, s)
+				set_variant(s)
 				play_fac = rst_fac
 				rst = rsk[0]		// reinit the restart
 			}
@@ -326,7 +236,7 @@ function ToAudio() {
 					break
 				b_typ |= 2
 				s.rep_p = rst		// :| to |:
-				if (rsk && rst == rsk[0])
+				if (rst == rsk[0])
 					s.rep_v = rsk	// to know the number of variants
 			}
 
@@ -341,12 +251,12 @@ function ToAudio() {
 				if (rst.bar_type
 				 && rst.bar_type.slice(-1) != ':')
 					rst.bar_type += ':' // restart confirmed
-				set_variant(rsk, s.text, s)
+				set_variant(s)
 				rst_fac = play_fac
 			    }
 
 			// left repeat
-			} else if (s.rbstop) {
+			} else if (s.rbstop == 2) {
 				if (s.bar_type.slice(-1) == ':') {
 					if (b_typ & 4)
 						break
@@ -359,9 +269,6 @@ function ToAudio() {
 				rst = s			// new possible restart
 				rst_fac = play_fac
 			}
-			break
-		case C.BLOCK:
-			do_block(s)
 			break
 		case C.GRACE:
 			if (s.time == 0		// if before beat at start time
@@ -390,9 +297,6 @@ function ToAudio() {
 			d /= play_fac
 			s.pdur = d
 			v = s.v
-			c = chn[v]			// channel
-			s.chn = c
-			s.instr = instr[c]
 			break
 		case C.TEMPO:
 			if (s.tempo)
@@ -401,14 +305,6 @@ function ToAudio() {
 		}
 		s = s.ts_next
 	} // loop
-
-	// if playing was waiting for a resource, start it now
-	if (abc2svg.pwait) {
-		i = abc2svg.pwait
-		delete abc2svg.pwait
-		if (typeof i == "function")
-			i()
-	}
    } // add()
  } // return
 } // ToAudio()
@@ -432,7 +328,7 @@ function ToAudio() {
 //  - conf
 //    - speed: current speed factor
 //		must be set to 1 at startup time
-//    - new_conf: new speed factor
+//    - new_speed: new speed factor
 //		set by the user
 // - internal variables
 //  - stim: start time
@@ -449,10 +345,9 @@ function ToAudio() {
 abc2svg.play_next = function(po) {
 
 	// handle a tie
-	function do_tie(note, d) {
+	function do_tie(not_s, d) {
 	    var	i,
-		s = note.s,
-		midi = note.midi,
+		s = not_s.s,
 		C = abc2svg.C,
 		v = s.v,
 		end_time = s.time + s.dur,
@@ -478,17 +373,18 @@ abc2svg.play_next = function(po) {
 				}
 				while (s.ts_next && !s.ts_next.dur)
 					s = s.ts_next
+				continue
 			}
-			if (s.type != C.NOTE)
+			if (s.time < end_time
+			 || !s.ti2)			// if not end of tie
 				continue
 
 			i = s.notes.length
 			while (--i >= 0) {
 				note = s.notes[i]
-				if (note.midi == midi) {
-					note.ti2 = true	// the sound is generated
+				if (note.tie_s == not_s) {
 					d += s.pdur / po.conf.speed
-					return note.tie_ty ? do_tie(note, d) : d
+					return note.tie_e ? do_tie(note, d) : d
 				}
 			}
 		}
@@ -500,7 +396,6 @@ abc2svg.play_next = function(po) {
 	function set_ctrl(po, s2, t) {
 	    var	i,
 		p_v = s2.p_v,
-		tim = s2.time,
 		s = {
 			subtype: "midictl",
 			p_v: p_v,
@@ -513,10 +408,20 @@ abc2svg.play_next = function(po) {
 			s.val = p_v.midictl[i]
 			po.midi_ctrl(po, s, t)
 		}
-		for (s = p_v.sym; s && s.time <= tim; s = s.next) {
+		for (s = p_v.sym; s != s2; s = s.next) {
 			if (s.subtype == "midictl")
 				po.midi_ctrl(po, s, t)
+			else if (s.subtype == 'midiprog')
+				po.midi_prog(po, s)
 		}
+
+		// if no %%MIDI, set 'grand acoustic piano' as the instrument
+		i = po.v_c[s2.v]
+		if (i == undefined)
+			po.v_c[s2.v] = i = s2.v < 9 ? s2.v : s2.v + 1
+		if (po.c_i[i] == undefined)
+			po.c_i[i] = 0	// piano
+
 		po.p_v[s2.v] = true	// synchronization done
 	} // set_ctrl()
 
@@ -525,6 +430,29 @@ abc2svg.play_next = function(po) {
     var	d, i, st, m, note, g, s2, t, maxt, now,
 	C = abc2svg.C,
 	s = po.s_cur
+
+	// search the end of a sequence of variants
+	function var_end(s) {
+	    var	i, s2, s3,
+		a = s.rep_v || s.rep_s
+		ti = 0
+
+		for (i = 1; i < a.length; i++) {
+			s2 = a[i]
+			if (s2.time > ti) {
+				ti = s2.time
+				s3 = s2
+			}
+		}
+		for (s = s3; s != po.s_end; s = s.ts_next) {
+			if (s.time == ti)
+				continue
+			if (s.rbstop == 2)
+				break
+		}
+		po.repv = 1		// repeat end
+		return s
+	} // var_end()
 
 	if (po.stop) {
 		if (po.onend)
@@ -559,38 +487,46 @@ abc2svg.play_next = function(po) {
 			set_ctrl(po, s, t)	// set the MIDI controls
 		switch (s.type) {
 		case C.BAR:
+			s2 = null
 			if (s.rep_p) {		// right repeat
 				po.repv++
 				if (!po.repn	// if repeat a first time
 				 && (!s.rep_v	// and no variant (anymore)
-				  || po.repv < s.rep_v.length)) {
-					po.stim += (s.ptim - s.rep_p.ptim) /
-							po.conf.speed
-					s = s.rep_p	// left repeat
-					while (s.ts_next
-					 && !s.ts_next.dur)
-						s = s.ts_next
-					t = po.stim + s.ptim / po.conf.speed
+				  || po.repv <= s.rep_v.length)) {
+					s2 = s.rep_p	// left repeat
 					po.repn = true
-					break
+				} else {
+					if (s.rep_v)
+						s2 = var_end(s)
+					po.repn = false
 				}
-				po.repn = false
 			}
 			if (s.rep_s) {			// first variant
 				s2 = s.rep_s[po.repv]	// next variant
 				if (s2) {
-					po.stim += (s.ptim - s2.ptim) /
-							po.conf.speed
-					s = s2
-					t = po.stim + s.ptim / po.conf.speed
 					po.repn = false
-				} else {		// end of tune
-					s = po.s_end
-					break
+					if (s2 == s)
+						s2 = null
+				} else {		// end of variants
+					s2 = var_end(s)
+					if (s2 == po.s_end)
+						break
 				}
 			}
-			if (s.bar_type.slice(-1) == ':') // left repeat
+			if (s.bar_type.slice(-1) == ':' // left repeat
+			 && s.bar_type[0] != ':')	// but not ::
 				po.repv = 1
+
+			if (s2) {			// if skip
+				po.stim += (s.ptim - s2.ptim) / po.conf.speed
+				s = s2
+				while (s && !s.dur)
+					s = s.ts_next
+				if (!s)
+					break		// no ending variant
+				t = po.stim + s.ptim / po.conf.speed
+				break
+			}
 
 		    if (!s.part1) {
 			while (s.ts_next && !s.ts_next.seqst) {
@@ -624,13 +560,16 @@ abc2svg.play_next = function(po) {
 		case C.BLOCK:
 			if (s.subtype == "midictl")
 				po.midi_ctrl(po, s, t)
+			else if (s.subtype == 'midiprog')
+				po.midi_prog(po, s)
 			break
 		case C.GRACE:
 			for (g = s.extra; g; g = g.next) {
 				d = g.pdur / po.conf.speed
 				for (m = 0; m <= g.nhd; m++) {
 					note = g.notes[m]
-					po.note_run(po, g,
+					if (!note.noplay)
+					    po.note_run(po, g,
 						note.midi,
 						t + g.ptim - s.ptim,
 //fixme: there may be a tie...
@@ -644,12 +583,13 @@ abc2svg.play_next = function(po) {
 		    if (s.type == C.NOTE) {
 			for (m = 0; m <= s.nhd; m++) {
 				note = s.notes[m]
-				if (note.ti2)
-					continue
+				if (note.tie_s		// end of tie
+				 || note.noplay)	// (%%voicecombine)
+					continue	// already generated
 				po.note_run(po, s,
 					note.midi,
 					t,
-					note.tie_ty ?
+					note.tie_e ?
 						do_tie(note, d) : d)
 			}
 		    }

@@ -10,22 +10,9 @@ if [ -L $p ]; then
 fi
 p=`dirname $p`
 
-cat ${p}/abc2svg-1.js ${p}/cmdline.js > /tmp/toto.js
-case $1 in
-	*.js)
-		cat $1 >> /tmp/toto.js
-		if grep 'abc2svg.abc_init =' "$1" > /dev/null; then
-			x="no"
-		fi
-		shift
-		;;
-esac
-if [ "x$x" != 'xno' ]; then
-	cat ${p}/tohtml.js >> /tmp/toto.js
-fi
-
-cat <<EOF >> /tmp/toto.js
-    var	path='${p}/'
+node - "$@" <<EOF
+    var	path='${p}/',
+	abc2svg = {}
 
 // interpreter specific functions
 abc2svg.print = function(str) {
@@ -67,20 +54,22 @@ abc2svg.loadjs = function(fn, relay, onerror) {
 	}
 }
 
-// (this file is wrapped)
-global.Abc = Abc
-global.abc2svg = abc2svg
-
 // main
     var	args = process.argv,
 	i = '${ABCPATH}'
+
 	if (i)
 		abc2svg.path = i.split(':')
 
-	args.shift()
-	args.shift()
+	abc2svg.loadjs("abc2svg-1.js")
+	abc2svg.loadjs("cmdline.js")
+
+	global.Abc = Abc
+	global.abc2svg = abc2svg
+
 	global.user = user;		// (for modules/page.js)
+
+	args.shift()			// (remove 'node')
+	args.shift()			// (remove the '-')
 	abc_cmd("abcnode", args, "nodeJS")
 EOF
-
-node /tmp/toto.js "$@"

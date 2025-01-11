@@ -1,6 +1,6 @@
 // abc2svg - abc2svg.js
 //
-// Copyright (C) 2014-2021 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -29,6 +29,7 @@ abc2svg.C = {
 	BAR: 0,
 	CLEF: 1,
 	CUSTOS: 2,
+	SM: 3,		// sequence marker (transient)
 	GRACE: 4,
 	KEY: 5,
 	METER: 6,
@@ -63,7 +64,7 @@ abc2svg.C = {
     };
 
 // !! tied to the symbol types in abc2svg.js !!
-abc2svg.sym_name = ['bar', 'clef', 'custos', '', 'grace',
+abc2svg.sym_name = ['bar', 'clef', 'custos', 'smark', 'grace',
 		'key', 'meter', 'Zrest', 'note', 'part',
 		'rest', 'yspace', 'staves', 'Break', 'tempo',
 		'', 'block', 'remark']
@@ -100,12 +101,12 @@ abc2svg.b40_p = new Int8Array(			// base-40 to staff pitch
 //	      A			B
 	5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6 ])
 abc2svg.b40_a = new Int8Array(			// base-40 to accidental
-//		         C		     D
-		[-2, -1, 0, 1, 2, 0, -2, -1, 0, 1, 2, 0,
-//		E		 F		     G
-	-2, -1, 0, 1, 2, -2, -1, 0, 1, 2, 0, -2, -1, 0, 1, 2, 0,
-//		A		    B
-	-2, -1, 0, 1, 2, 0, -2, -1, 0, 1, 2 ])
+//		         C		      D
+		[-2, -1, 0, 1, 2, -3, -2, -1, 0, 1, 2, -3,
+//		E		 F		      G
+	-2, -1, 0, 1, 2, -2, -1, 0, 1, 2, -3, -2, -1, 0, 1, 2, -3,
+//		A		     B
+	-2, -1, 0, 1, 2, -3, -2, -1, 0, 1, 2 ])
 abc2svg.b40_m = new Int8Array(			// base-40 to midi
 //			 C		   D
 		[-2, -1, 0, 1, 2, 0, 0, 1, 2, 3, 4, 0,
@@ -121,7 +122,7 @@ abc2svg.b40k =  new Int8Array(		// base-40 interval to possible transposition
 	 8,13,14,19,20,13,14,19,20,25, 2,19,24,25,30,31, 2,
 //					    20
 //	       A		 B
-	25,30,31,36,37, 2,31,36,37,38, 3 ])
+	25,30,31,36,37, 2,31,36,37, 2, 3 ])
 //				    2
 abc2svg.b40sf = new Int8Array(		// base-40 interval to key signature
 //		        C		   D
@@ -177,23 +178,6 @@ abc2svg.ch_alias = {
 	"sus": "sus4",
 	"7sus": "7sus4"
 } // ch_alias
-
-// extract one of the chord symbols
-// With chords as "xxx(yyy)" or "[yyy];xxx"
-// (!sel - default) returns "xxx" and (sel) returns "yyy"
-abc2svg.cs_sel0 = /[\[(].*[\])]/g
-abc2svg.cs_sel1 = /.*[\[(]|[\])].*/g
-abc2svg.cs_filter = function(a_cs, sel) {
-    var	i, cs,
-	tcs = ""
-
-	for (i = 0; i < a_cs.length; i++) {
-		cs = a_cs[i]
-		if (cs.type == 'g')
-			tcs += cs.text
-	}
-	return tcs.replace(sel ? abc2svg.cs_sel1 : abc2svg.cs_sel0, '')
-} // cs_filter()
 
 // font weight
 // reference:

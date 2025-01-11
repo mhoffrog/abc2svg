@@ -1,7 +1,7 @@
 // mdnn.js - module to output Modernised Diatonic Numerical Notation
 // (https://medium.com/@info_70544/the-case-for-numerical-music-notation-part-1-introduction-and-history-5f1543ca8a95)
 //
-// Copyright (C) 2020-2021 Jean-Francois Moine
+// Copyright (C) 2020-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -120,7 +120,7 @@ abc2svg.mdnn = {
 		return
 	}
 
-	voice_tb[0].key.k_a_acc = []	// no accidental
+	delete voice_tb[0].key.k_a_acc	// no accidental
 	voice_tb[0].clef.invis = true	// no (visible) clef
 	cur_sy.staves[0].stafflines = "..." // empty staff
 
@@ -132,7 +132,7 @@ abc2svg.mdnn = {
 			continue
 		case C.KEY:
 //fixme:nsk
-//			s.k_a_acc = []		// don't display the accidentals
+//			delete s.k_a_acc	// don't display the accidentals
 			sf = s.k_sf
 			delta = abc2svg.mdnn.cgd2cde[sf + 7] - 2
 			nn = sf - s.k_old_sf	// delta accidentals
@@ -269,7 +269,7 @@ abc2svg.mdnn = {
 
 	if (s && s.next && s.next.type == C.KEY)
 //fixme:nsk
-		s.next.k_a_acc = []
+		delete s.next.k_a_acc
 //		s.next.a_gch = null
     }, // set_pitch()
 

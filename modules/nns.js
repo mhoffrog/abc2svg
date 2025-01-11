@@ -113,7 +113,7 @@ function build_nns(s, font) {
 		u = '',
 		t = ''
 
-		row += '   '
+		row += '   '
 		if (c.length == 1) {
 			row += c[0]	// one chord in the measure
 			return
@@ -124,7 +124,7 @@ function build_nns(s, font) {
 			k = get_l(c[i])
 			j = k
 			while (--j >= 0)
-				u += ' '	// &nbsp;
+				u += ' '
 			if (i < 3 && !c[i + 1]) {
 				while (i < 3 && !c[i + 1])
 					i++

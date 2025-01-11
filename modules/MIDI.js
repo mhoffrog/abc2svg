@@ -1,6 +1,6 @@
 // MIDI.js - module to handle the %%MIDI parameters
 //
-// Copyright (C) 2019-2021 Jean-Francois Moine
+// Copyright (C) 2019-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -134,9 +134,9 @@ abc2svg.MIDI = {
 		if (!cfmt.chord)
 			cfmt.chord = {}
 		if (abc.parse.state >= 2
-		 && abc.get_curvoice()) {
+		 && curvoice) {
 			s = abc.new_block("midigch")
-			s.play = true
+			s.play = s.invis = 1 //true
 			s.on = a[1][7] == 'n'
 		} else {
 			cfmt.chord.gchon = a[1][7] == 'n'
@@ -148,20 +148,14 @@ abc2svg.MIDI = {
 			abc.syntax(1, abc.errs.bad_val, "%%MIDI channel")
 			break
 		}
-		if (--v != 9) {			// channel range 1..16 => 0..15
+		v--				// channel range 1..16 => 0..15
 			if (abc.parse.state == 3) {
-				s = abc.new_block("midichn");
-				s.play = true
-				s.chn = v
+				s = abc.new_block("midiprog")
+				s.play = s.invis = 1 //true
+				curvoice.chn = s.chn = v
 			} else {
 				abc.set_v_param("channel", v)
 			}
-			break
-		}
-
-		// channel 10 is bank 128
-		abc2svg.MIDI.do_midi.call(abc, "MIDI control 0 1")	// MSB bank
-		abc2svg.MIDI.do_midi.call(abc, "MIDI control 32 0")	// LSB bank
 		break
 	case "drummap":
 //fixme: should have a 'MIDIdrum' per voice?
@@ -196,8 +190,9 @@ abc2svg.MIDI = {
 		}
 		if (abc.parse.state == 3) {
 			s = abc.new_block("midiprog");
-			s.play = true
+			s.play = s.invis = 1 //true
 			s.instr = v
+			s.chn = curvoice.chn
 		} else {
 			abc.set_v_param("instr", v)
 		}
@@ -215,7 +210,7 @@ abc2svg.MIDI = {
 		}
 		if (abc.parse.state == 3) {
 			s = abc.new_block("midictl");
-			s.play = true
+			s.play = s.invis = 1 //true
 			s.ctrl = n;
 			s.val = v
 		} else {
@@ -296,16 +291,27 @@ abc2svg.MIDI = {
 
     // set the MIDI parameters in the current voice
     set_vp: function(of, a) {
-    var	i, item,
-	curvoice = this.get_curvoice()
+    var	i, item, s,
+	abc = this,
+	curvoice = abc.get_curvoice()
 
 	for (i = 0; i < a.length; i++) {
 		switch (a[i]) {
 		case "channel=":		// %%MIDI channel
-			curvoice.chn = a[++i]
+			s = abc.new_block("midiprog")
+			s.play = s.invis = 1 //true
+			s.chn = curvoice.chn = a[++i]
 			break
 		case "instr=":			// %%MIDI program
-			curvoice.instr = a[++i]
+			s = abc.new_block("midiprog")
+			s.play = s.invis = 1 //true
+			s.instr = a[++i]
+			if (curvoice.chn == undefined) {
+				curvoice.chn = curvoice.v < 9 ?
+						curvoice.v :
+						curvoice.v + 1
+			}
+			s.chn = curvoice.chn
 			break
 		case "midictl=":		// %%MIDI control
 			if (!curvoice.midictl)

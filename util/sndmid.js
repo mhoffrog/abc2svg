@@ -1,6 +1,6 @@
 // sndmid.js - audio output using HTML5 MIDI
 //
-// Copyright (C) 2019-2021 Jean-Francois Moine
+// Copyright (C) 2019-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -66,31 +66,14 @@ function Midi5(i_conf) {
 	function note_run(po, s, k, t, d) {
 	    var	j,
 		a = (k * 100) % 100,	// detune in cents
-		i = s.instr,
-		c = s.chn
+		c = po.v_c[s.v],
+		i = po.c_i[c]
 
 		k |= 0			// remove the detune value
 
 		t *= 1000		// convert to ms
 		d *= 1000		
 
-		if (i != po.c_i[c]) {		// if program change
-
-			// at channel start, reset and initialize the controllers
-			if (po.c_i[c] == undefined) {
-//fixme: does not work with fluidsynth
-				po.op.send(new Uint8Array([0xb0 + c, 121, 0]))
-				if (s.p_v.midictl) {
-				    for (j in s.p_v.midictl)
-					po.op.send(new Uint8Array([0xb0 + c,
-								j,
-								s.p_v.midictl[j]]))
-				}
-			}
-
-			po.c_i[c] = i
-			po.op.send(new Uint8Array([0xc0 + c, i & 0x7f])) // program
-		}
 		if (a && Midi5.ma.sysexEnabled) {	// if microtone
 // fixme: should cache the current microtone values
 			po.op.send(new Uint8Array([
@@ -117,6 +100,32 @@ function Midi5(i_conf) {
 					s.ctrl, s.val]),
 			t * 1000)
 	} // midi_ctrl()
+
+	// change the channel and/or send a MIDI program	
+	function midi_prog(po, s) {
+	    var	i,
+		c = s.chn
+
+		po.v_c[s.v] = c
+		if (s.instr != undefined)
+			return
+		i = po.c_i[c]
+
+		// at channel start, reset and initialize the controllers
+		if (i == undefined) {
+//fixme: does not work with fluidsynth
+			po.op.send(new Uint8Array([0xb0 + c, 121, 0]))
+			if (s.p_v.midictl) {
+			    for (i in s.p_v.midictl)
+				po.op.send(new Uint8Array([0xb0 + c,
+							i,
+							s.p_v.midictl[i]]))
+			}
+		}
+
+		po.c_i[c] = i = s.instr
+		po.op.send(new Uint8Array([0xc0 + c, i & 0x7f])) // program
+	} // midi_prog()
 
 	// MIDI output is possible,
 	// return the possible ports in return to get_outputs()
@@ -196,11 +205,13 @@ function Midi5(i_conf) {
 				tgen: 2, 	// generate by 2 seconds
 				get_time: get_time,
 				midi_ctrl: midi_ctrl,
+				midi_prog: midi_prog,
 				note_run: note_run,
 				timouts: [],
 
 				// MIDI specific
 				op: op,		// output port
+				v_c: [],	// voice to channel
 				c_i: []		// channel to instrument
 			}
 if (0) {

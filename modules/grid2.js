@@ -1,6 +1,6 @@
 // grid2.js - module to replace a voice in the music by a chord grid
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -21,21 +21,29 @@
 //
 // Parameters
 //	%%grid2 y
-// This command must appear in a voice.
+// This command may appear globally or in a voice.
 
 abc2svg.grid2 = {
 
 // function called before tune generation
     do_grid: function() {
-    var s, v, p_v, ix, cs, c_a_cs, bt,
+    var s, v, p_v, ix, cs, c_a_cs, bt, gch,
 	voice_tb = this.get_voice_tb()
+
+	if (this.cfmt().grid2)
+		for (v = 0; v < voice_tb.length; v++)
+			if (voice_tb[v].grid2 == undefined)
+				voice_tb[v].grid2 = 1
 
 	for (v = 0; v < voice_tb.length; v++) {
 		p_v = voice_tb[v]
 		if (!p_v.grid2)
 			continue
+		curvoice = p_v
+		this.set_v_param("stafflines", "...")	// no staff
 		p_v.clef.invis = true;		// no clef
-		p_v.key.k_sf = p_v.key.k_a_acc = 0; // no key signature
+		p_v.key.k_sf = 0		// no key signature
+		delete p_v.key.k_a_acc
 		p_v.staffnonote = 2		// draw the staff
 		for (s = p_v.sym; s; s = s.next) {
 			delete s.a_dd		// no decoration
@@ -48,20 +56,21 @@ abc2svg.grid2 = {
 			// set all notes
 				s.invis = true;	//  as invisible
 				delete s.sl1;	//  with no slur
-				delete s.tie_s	//  and no tie
+				delete s.ti1	//  and no tie
+				delete s.ti2
 				for (ix = 0; ix <= s.nhd; ix++)
 					delete s.notes[ix].tie_ty
 				if (s.tf)	// don't show the tuplets
 					s.tf[0] = 1
 				if (!s.a_gch) {
 					if (s.time == bt)
-						s.a_gch = c_a_cs
+						s.a_gch = [ this.clone(c_a_cs) ]
 					continue
 				}
 				for (ix = 0; ix < s.a_gch.length; ix++) {
 					gch = s.a_gch[ix]
 					if (gch.type == 'g') {
-						c_a_cs = s.a_gch
+						c_a_cs = gch
 						break
 					}
 				}
@@ -93,11 +102,13 @@ abc2svg.grid2 = {
 
     set_fmt: function(of, cmd, param) {
 	if (cmd == "grid2") {
-	    var	curvoice = this.get_curvoice()
-		if (curvoice) {
-			this.set_v_param("stafflines", "...");	// no staff lines
-			curvoice.grid2 = param
-		}
+	    var	curvoice = this.get_curvoice(),
+		v = this.get_bool(param)
+
+		if (curvoice)
+			curvoice.grid2 = v
+		else
+			this.cfmt().grid2 = v
 		return
 	}
 	of(cmd, param)

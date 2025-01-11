@@ -1,6 +1,6 @@
 // equalbars.js - module to set equal spaced measure bars
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -31,14 +31,18 @@ abc2svg.equalbars = {
     },
 
     // get the equalbars parameter
-    set_fmt: function(of, cmd, param) {
-	if (cmd == "equalbars")
-		this.cfmt().equalbars = this.get_bool(param)
-	else
-		of(cmd, param)
+   set_fmt: function(of, cmd, parm) {
+	if (cmd != "equalbars") {
+		of(cmd, parm)
+		return
+	}
+    var	fmt = this.cfmt()
+	fmt.equalbars = this.get_bool(parm)
+	fmt.stretchlast = 1
     },
 
     // adjust the symbol offsets of a music line
+    // only the bars of the first voice are treated
     set_sym_glue: function(of, width) {
     var	C = abc2svg.C,
 	s, s2, w, i, n, x, g, t, t0,
@@ -50,7 +54,7 @@ abc2svg.equalbars = {
 		return
 
 	// search the first note/rest/space
-	for (s2 = tsfirst; s2; s2 = s2.ts_next) {
+	for (s2 = tsfirst; s2; s2 = s2.next) {
 		switch (s2.type) {
 		default:
 			continue
@@ -68,7 +72,7 @@ abc2svg.equalbars = {
 
 	// build an array of the bars
 	t0 = t = s2.time
-	for (s = s2; s.ts_next; s = s.ts_next) {
+	for (s = s2; s.next; s = s.next) {
 		if (s.type == C.BAR && s.seqst) {
 			bars.push([s, s.time - t]);
 			t = s.time
@@ -76,11 +80,11 @@ abc2svg.equalbars = {
 	}
 
 	// push the last bar if it is not the invisible bar after a key change
-	if (!s.invis || s.prev.type != C.KEY)
+	if (!s.invis || (s.prev && s.prev.type != C.KEY))
 		bars.push([s, s.time - t])
 	else
 		bars[bars.length - 1][0] = s	// replace the last bar
-	width = s.x
+
 	t = s.time
 	if (s.dur)
 		t += s.dur;
@@ -88,6 +92,21 @@ abc2svg.equalbars = {
 	n = bars.length
 	if (n <= 1)
 		return				// one or no bar
+
+	// if small width, get the widest measure
+	if (s.x < width) {
+		w = 0
+		x = 0
+		for (i = 0; i < n; i++) {
+			s = bars[i][0]
+			if (s.x - x > w)
+				w = s.x - x
+			x = s.x
+		}
+		if (w * n < width)
+			width = w * n
+		this.set_realwidth(width)
+	}
 
 	// set the measure parameters
 	x = s2.type == C.GRACE ? s2.extra.x : s2.x;
@@ -99,6 +118,11 @@ abc2svg.equalbars = {
 
 	// loop on the bars
 	for (i = 0; i < n; i++) {
+		do {				// don't shift the 1st note
+			s2.x = d + s2.x - x	// from the bar
+			s2 = s2.ts_next
+		} while (!s2.seqst)
+
 		s = bars[i][0];			// next bar
 		f = w * bars[i][1] / (s.x - x)
 

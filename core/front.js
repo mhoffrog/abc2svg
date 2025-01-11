@@ -1,6 +1,6 @@
 // abc2svg - front.js - ABC parsing front-end
 //
-// Copyright (C) 2014-2021 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -273,12 +273,6 @@ function tosvg(in_fname,		// file name
 
 	function end_tune() {
 		generate()
-		set_page()		// the page layout may have changed
-		if (info.W)
-			put_words(info.W);
-		put_history();
-		parse.state = 0		// file header
-		blk_flush()		// (force end of block)
 		cfmt = sav.cfmt;
 		info = sav.info;
 		char_tb = sav.char_tb;
@@ -289,7 +283,7 @@ function tosvg(in_fname,		// file name
 		parse.tune_v_opts = null;
 		parse.scores = null;
 		parse.ufmt = false
-		delete parse.part
+		delete parse.ctrl
 		init_tune()
 		img.chg = true;
 		set_page();
@@ -426,6 +420,7 @@ function tosvg(in_fname,		// file name
 				syntax(1, "Empty line in tune header - ignored")
 			} else if (parse.state >= 2) {
 				end_tune()
+				parse.state = 0
 				if (parse.select) {	// skip to next tune
 					eol = file.indexOf('\nX:', parse.eol)
 					if (eol < 0)
@@ -492,6 +487,7 @@ function tosvg(in_fname,		// file name
 				}
 				self.do_begin_end(b, uncomment(a[2]),
 					file.slice(eol + 1, i)
+						.replace(/\n%[^%].*$/gm,'')
 						.replace(/^%%/gm,''))
 				parse.eol = file.indexOf('\n', i + 6)
 				if (parse.eol < 0)

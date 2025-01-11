@@ -25,7 +25,7 @@ var	output = "",		// output buffer
 \n.slW{stroke:currentColor;fill:none;stroke-width:.7}\
 \n.slthW{stroke:currentColor;fill:none;stroke-width:1.5}\
 \n.sW{stroke:currentColor;fill:none;stroke-width:.7}\
-\n.box{outline: 1px solid black;outline-offset: 1px}',
+\n.box{outline:1px solid black;outline-offset:1px}',
 	font_style = '',
 	posx = cfmt.leftmargin / cfmt.scale,	// default x offset of the images
 	posy = 0,		// y offset in the block
@@ -308,8 +308,7 @@ function set_g() {
 	if (stv_g.color) {
 		if (stv_g.scale != 1)
 			output += ' ';
-		output += 'color="' + stv_g.color +
-			'" fill="' + stv_g.color + '"'
+		output += 'color="' + stv_g.color + '"'
 	}
 	output += ">\n";
 	stv_g.started = true
@@ -371,6 +370,11 @@ function set_scale(s) {
 // -- set the staff output buffer and scale when delayed output
 function set_dscale(st, no_scale) {
 	if (output) {
+		if (stv_g.started) {	// close the previous sequence
+			stv_g.started = false
+			glout()
+			output += "</g>\n"
+		}
 		if (stv_g.st < 0) {
 			staff_tb[0].output += output
 		} else if (stv_g.scale == 1) {
@@ -732,7 +736,7 @@ function out_hyph(x, y, w) {
 	out_XYAB('<path class="stroke" stroke-width="1.2"\n\
 	stroke-dasharray="5,A"\n\
 	d="mX YhB"/>\n',
-		x, y + 6,		// set the line a bit upper
+		x, y + 4,		// set the line a bit upper
 		Math.round((d - 5) / stv_g.scale), d * n + 5)
 }
 // stem [and flags]
@@ -851,7 +855,7 @@ function out_tubrn(x, y, dx, dy, up, str) {
 	h = up ? -3 : 3;
 
 	set_font("tuplet")
-	xy_str(x + dx / 2, y + dy / 2 - gene.curfont.size * .5 + 2,
+	xy_str(x + dx / 2, y + dy / 2 - gene.curfont.size * .1,
 		str, 'c')
 		dx /= stv_g.scale
 	if (!up)
@@ -876,7 +880,7 @@ function out_tubrn(x, y, dx, dy, up, str) {
 // underscore line
 function out_wln(x, y, w) {
 	out_XYAB('<path class="stroke" stroke-width="0.8" d="mX YhF"/>\n',
-		x, y + 3, w)
+		x, y + 1, w)
 }
 
 // decorations with string
@@ -1073,16 +1077,25 @@ function out_deco_val(x, y, name, val, defl) {
 }
 
 function out_glisq(x2, y2, de) {
-	var	de1 = de.start,
+    var	ar, a, len,
+	de1 = de.start,
 		x1 = de1.x,
 		y1 = de1.y + staff_tb[de1.st].y,
-		ar = Math.atan2(y1 - y2, x2 - x1),
-		a = ar / Math.PI * 180,
-		len = (x2 - x1) / Math.cos(ar);
+		dx = x2 - x1,
+		dy = self.sh(y1 - y2)
+
+	if (!stv_g.g)
+		dx /= stv_g.scale
+
+	ar = Math.atan2(dy, dx)
+	a = ar / Math.PI * 180
+	len = (dx - (de1.s.dots ? 13 + de1.s.xmx : 8)
+		- 8 - (de.s.notes[0].shac || 0))
+			/ Math.cos(ar)
 
 	g_open(x1, y1, a);
 	x1 = de1.s.dots ? 13 + de1.s.xmx : 8;
-	len = (len - x1 - 6) / 6 | 0
+	len = len / 6 | 0
 	if (len < 1)
 		len = 1
 	while (--len >= 0) {
@@ -1093,17 +1106,24 @@ function out_glisq(x2, y2, de) {
 }
 
 function out_gliss(x2, y2, de) {
-	var	de1 = de.start,
+    var	ar, a, len,
+	de1 = de.start,
 		x1 = de1.x,
 		y1 = de1.y + staff_tb[de1.st].y,
-		ar = -Math.atan2(y2 - y1, x2 - x1),
-		a = ar / Math.PI * 180,
-		len = (x2 - x1) / Math.cos(ar);
+		dx = x2 - x1,
+		dy = self.sh(y1 - y2)
+
+	if (!stv_g.g)
+		dx /= stv_g.scale
+
+	ar = Math.atan2(dy, dx)
+	a = ar / Math.PI * 180
+	len = (dx - (de1.s.dots ? 13 + de1.s.xmx : 8)
+		- 8 - (de.s.notes[0].shac || 0))
+			/ Math.cos(ar)
 
 	g_open(x1, y1, a);
-	x1 = de1.s.dots ? 13 + de1.s.xmx : 8;
-	len -= x1 + 8;
-	xypath(x1, 0);
+	xypath(de1.s.dots ? 13 + de1.s.xmx : 8, 0)
 	output += 'h' + len.toFixed(1) + '" stroke-width="1"/>\n';
 	g_close()
 }
@@ -1237,14 +1257,14 @@ function writempo(s, x, y) {
 //fixme: then there cannot be font changes by "$n" in the Q: texts
 	output += '<text class="' + font_class(gene.curfont) +
 		'" x="'
-	out_sxsy(x, '" y="', y + gene.curfont.size * .2)
+	out_sxsy(x, '" y="', y + gene.curfont.size * .22)
 	output += '">' + s.tempo_str + '</text>\n'
 
 	if (bh) {
 		gene.curfont.box = true
 		output += '<rect class="stroke" x="'
 		out_sxsy(x - 2, '" y="', y + bh - 1)
-		output += '" width="' + (s.tempo_wh[0] + 2).toFixed(1) +
+		output += '" width="' + (s.tempo_wh[0] + 4).toFixed(1) +
 			'" height="' + bh.toFixed(1) +
 			'"/>\n'
 	}
@@ -1266,19 +1286,10 @@ function svg_flush() {
     var	i, font,
 	head = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
 	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
-	color="',
+	fill="currentColor" stroke-width=".7"',
 	g = ''
 
 	glout()
-
-	if (cfmt.fgcolor)
-		head += cfmt.fgcolor + '" fill="' + cfmt.fgcolor + '"'
-	else
-		head += 'black"';
-	head += ' stroke-width=".7"'
-
-	if (cfmt.bgcolor)
-		head += ' style="background-color: ' + cfmt.bgcolor + '"';
 
 	font = get_font("music")
 	head += ' class="' + font_class(font) +
@@ -1298,8 +1309,19 @@ function svg_flush() {
 
 	head += fulldefs
 
-	if (style || font_style)
-		head += '<style>' + font_style + style + '\n</style>\n'
+	if (style || font_style) {
+		head += '<style>' + font_style
+		if (cfmt.fgcolor || cfmt.bgcolor) {
+			head += '\n.f' + font.fid + (cfmt.fullsvg || '')
+				+ '{'
+				+ (cfmt.fgcolor ? ('color:' + cfmt.fgcolor + ';')
+						: '')
+				+ (cfmt.bgcolor ? ('background-color:' + cfmt.bgcolor)
+						: '')
+				+ '}'
+		}
+		head += style + '\n</style>\n'
+	}
 
 	if (defs)
 		head += '<defs>' + defs + '\n</defs>\n'
@@ -1328,7 +1350,7 @@ function svg_flush() {
 	output = ""
 
 	font_style = ''
-	if (cfmt.fullsvg && typeof document == "undefined") {
+	if (cfmt.fullsvg) {
 		defined_glyph = {}
 		for (i = 0; i < font_tb.length; i++)
 			font_tb[i].used = false

@@ -1,6 +1,6 @@
 // abcweb1-1.js file to include in html pages with abc2svg-1.js
 //
-// Copyright (C) 2019-2021 Jean-Francois Moine
+// Copyright (C) 2019-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -222,10 +222,12 @@ function dom_loaded() {
 			s.src = fn		// absolute URL
 		else
 			s.src = jsdir + fn
-		if (relay)
-			s.onload = relay
-		s.onerror = onerror || function() {
-			alert('error loading ' + fn)
+		s.onload = relay
+		s.onerror = function() {
+			if (onerror)
+				onerror(fn)
+			else
+				alert('error loading ' + fn)
 		}
 		document.head.appendChild(s)
 	} // loadjs()
@@ -342,7 +344,7 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 		new_page += '\
 <div id="dd" class="dd nop">\
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" class="db">\
-<path d="M4 6h15v2.5H4zm0 5h15v2.5H4zm0 5h15v2.5H4z" fill=black/>\
+<path d="M4 6h15v2.5H4zm0 5h15v2.5H4zm0 5h15v2.5H4z" fill="black"/>\
 </svg>\
 <div id="dc" class="dc">\
 <label id="edit" onclick="abc2svg.src_edit()">Source edit</label>\
@@ -360,6 +362,11 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 				"\nStack:\n" + e.stack)
 			return
 		}
+
+		// add the event handlers
+	   var	elts = document.getElementsByTagName('svg')
+		for (var i = 0; i < elts.length; i++)
+			elts[i].addEventListener('click', click)
 
 		// update the menu
 		setTimeout(function() {
@@ -423,8 +430,8 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 	// get the page content
 	page = fix_abc(document.body.innerHTML)
 
-	// mouse/tap events
-	window.onclick = function(evt) {
+	// click on a SVG element
+	function click(evt) {
 		if (playing) {			// stop playing
 			abcplay.stop()
 			return
@@ -442,12 +449,17 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 
 		// search if click in a SVG image
 		e = c				// keep the clicked element
-		while (c && c.tagName != 'svg')
+		while (1) {
+			if (c == document)
+				return
+			if (c.tagName.toLowerCase() == 'svg')
+				break
 			c = c.parentNode
-		if (!c)
-			return
+		}
 
 		c = c.getAttribute('class')
+		if (!c)
+			return
 
 		// if click in the menu button, show the menu
 		if (c == "db") {
@@ -501,7 +513,7 @@ onclick="abc2svg.do_render(\'.*\')">' + tt +
 
 		playing = true
 		abcplay.play(s, null)
-	} // onclick()
+	} // click()
 
 	// accept page formatting
 	abc2svg.abc_end = function() {}

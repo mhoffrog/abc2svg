@@ -1,6 +1,6 @@
 // abc2svg - grid.js - module to insert a chord grid before or after a tune
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -47,7 +47,7 @@ abc2svg.grid = {
 
 // generate the grid
 function build_grid(s, font) {
-    var	i, k, l, nr, bar, w, hr, x0, x, y, yl, ps,
+    var	i, k, l, nr, bar, w, hr, x0, x, y, yl, ps, d,
 	lc = '',
 	chords = s.chords,
 	bars = s.bars,
@@ -128,6 +128,58 @@ function build_grid(s, font) {
 		}
 	} // build_cell()
 
+	// draw the horizontal lines
+	function draw_hl() {
+	    var	i, i1, j, x,
+		y = -1
+
+		for (i = 0; i <= nr + 1; i++) {
+			j = 0
+			i1 = i > 0 ? i - 1 : 0
+			while (1) {
+				while (j <= nc && !d[i1][j])
+					j++
+				if (j > nc)
+					break
+				x = wmx * j
+				while (j <= nc && d[i1][j])
+					j++
+				if (i && i1 < nr) {
+					while (j <= nc && d[i1 + 1][j])
+						j++
+				}
+				abc.out_svg('M')
+				abc.out_sxsy(x0 + x, ' ', y)
+				abc.out_svg('h' + (wmx * j - x).toFixed(1)+ '\n')
+			}
+			y -= hr
+		}
+	} // draw_hl()
+
+	// draw the vertical lines
+	function draw_vl() {
+	    var	i, i1, j, y,
+		x = x0
+
+		for (i = 0; i <= nc; i++) {
+			j = 0
+			i1 = i > 0 ? i - 1 : 0
+			while (1) {
+				while (j <= nr && !d[j][i1])
+					j++
+				if (j > nr)
+					break
+				y = hr * j
+				while (j <= nr && d[j][i1])
+					j++
+				abc.out_svg('M')
+				abc.out_sxsy(x, ' ', -y - .5)
+				abc.out_svg('v' + (hr * j - y + 1).toFixed(1) + '\n')
+			}
+			x += wmx
+		}
+	} // draw_vl()
+
 	// ------- build_grid() -------
 
 	// set some chords in each cell
@@ -180,8 +232,9 @@ function build_grid(s, font) {
 	// generate the cells
 	yl = -1
 	y = -1 + font.size * .6
-	nr = 0
+	nr = -1
 	x0 = (x0 / cfmt.scale - w) / 2
+	d = []
 	for (i = 0; i < cells.length; i++) {
 		if (i == 0
 		 || (grid.repbrk
@@ -193,7 +246,9 @@ function build_grid(s, font) {
 			x = x0 + wmx / 2
 			k = 0
 			nr++
+			d[nr] = []
 		}
+		d[nr][k] = 1
 		k++
 		build_cell(cells[i], x, y, yl, hr)
 		x += wmx
@@ -201,20 +256,8 @@ function build_grid(s, font) {
 
 	// draw the lines
 	abc.out_svg('<path class="stroke" stroke-width="1" d="\n')
-	y = -1
-	for (i = 0; i <= nr; i++) {
-		abc.out_svg('M')
-		abc.out_sxsy(x0, ' ', y)
-		abc.out_svg('h' + w.toFixed(1)+ '\n')
-		y -= hr
-	}
-	x = x0
-	for (i = 0; i <= nc; i++) {
-		abc.out_svg('M')
-		abc.out_sxsy(x, ' ', -1)
-		abc.out_svg('v' + (hr * nr).toFixed(1) + '\n')
-		x += wmx
-	}
+	draw_hl()
+	draw_vl()
 	abc.out_svg('"/>\n')
 
 	// show the repeat signs and the parts
@@ -253,7 +296,7 @@ function build_grid(s, font) {
 		}
 		x += wmx
 	}
-	abc.vskip(hr * nr + 6)
+	abc.vskip(hr * (nr + 1) + 6)
 } // build_grid()
 
 	// ----- block_gen() -----
@@ -262,8 +305,6 @@ function build_grid(s, font) {
 	img = abc.get_img()
 
 	// set the text style
-	if (!cfmt.gridfont)
-		abc.param_set_font("gridfont", "serif 16")
 	font = abc.get_font('grid')
 	if (font.class)
 		font.class += ' mid'
@@ -293,7 +334,32 @@ function build_grid(s, font) {
 	abc = this,
 	tsfirst = abc.get_tsfirst(),
 	voice_tb = abc.get_voice_tb(),
-	grid = abc.cfmt().grid
+	cfmt = abc.cfmt(),
+	grid = cfmt.grid
+
+	// extract one of the chord symbols
+	// With chords as "[yyy];xxx"
+	// (!sel - default) returns "yyy" and (sel) returns "xxx"
+	function cs_filter(a_cs) {
+	    var	i, cs, t
+
+		for (i = 0; i < a_cs.length; i++) {
+			cs = a_cs[i]
+			if (cs.type != 'g')
+				continue
+			t = cs.text
+			if (cfmt.altchord) {
+				for (i++; i < a_cs.length; i++) {
+					cs = a_cs[i]
+					if (cs.type != 'g')
+						continue
+					t = cs.text
+					break
+				}
+			}
+			return t.replace(/\[|\]/g, '')
+		}
+	} // cs_filter()
 
 	function get_beat(s) {
 	    var	beat = C.BLEN / 4
@@ -337,19 +403,16 @@ function build_grid(s, font) {
 			case C.REST:
 				if (!s.a_gch || chord[beat_i])
 					break
-				bt = abc2svg.cs_filter(s.a_gch,
-							abc.cfmt().altchord)
+				bt = cs_filter(s.a_gch)
 				if (!bt)
 					break
+					w = abc.strwh(bt.replace(
+						/<[^>]+>/gm,''))
+					if (w[0] > wmx)
+						wmx = w[0]
+					bt = new String(bt)
+					bt.wh = w
 				chord[beat_i] = bt
-				for (i = 0; i < s.a_gch.length; i++) {
-					if (s.a_gch[i].type == 'g')
-						break
-				}
-				abc.set_font(s.a_gch[i].font)
-				w = abc.strwh(bt)[0]
-				if (w > wmx)
-					wmx = w
 				break
 			case C.BAR:
 				i = s.bar_num		// check if normal measure bar
@@ -441,6 +504,9 @@ function build_grid(s, font) {
 			st: p_v.st
 		}
 
+		if (!cfmt.gridfont)
+			abc.param_set_font("gridfont", "serif 16")
+		abc.set_font('grid')
 		build_chords(s)			// build the array of the chords
 
 		// and insert it in the tune

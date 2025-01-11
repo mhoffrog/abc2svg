@@ -100,5 +100,6 @@ svg {display:block;background-color:#ffffff}
 	}
 	#dright { margin:0; padding:0; border:0 }
 	.newpage { page-break-before: always }
+	.newpage:first-of-type { page-break-before: avoid }
 	.nobrk { page-break-inside: avoid }
 }

@@ -241,7 +241,7 @@ p span {line-height:' + ((cfmt.lineskipfac * 100) | 0).toString() + '%}\n' +
 			abc2svg.print('@page{margin:' + topmargin + ' 0 ' +
 							botmargin + ' 0}')
 		abc2svg.print('</style>\n\
-<title> ' + abc.parse.fname.replace(/.*\//, '') + '</title>\n\
+<title>' + abc.parse.fname.replace(/.*\//, '') + '</title>\n\
 </head>\n\
 <body>')
 		if (header)

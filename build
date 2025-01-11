@@ -7,6 +7,7 @@ if command -v jsmin >/dev/null 2>&1; then
 # binary program
 gen() {
  cat "$@" | jsmin
+ echo ""
 }
 elif command -v qjs >/dev/null 2>&1; then
 # script using QuickJS
@@ -24,8 +25,8 @@ gen() {
 fi
 
 out=abc2svg-$MAJOR.js
-VERSION=`grep '"version"' package.json|cut -d'"' -f4`
-DATE=`date -r package.json '+%Y-%m-%d'`
+VERSION='??????'
+DATE=`date -Idate`
 cp core/license $out
 gen core/abc2svg.js core/deco.js core/draw.js\
  font.js core/format.js core/front.js core/music.js core/parse.js core/subs.js\
@@ -68,27 +69,17 @@ gen modules/soloffs.js > soloffs-$MAJOR.js
 gen modules/sth.js > sth-$MAJOR.js
 gen modules/strtab.js > strtab-$MAJOR.js
 gen modules/temper.js > temper-$MAJOR.js
+gen modules/tropt.js > tropt-$MAJOR.js
 
 cp editor/edit.css edit-$MAJOR.css
 
 gen util/abcdoc.js > abcdoc-$MAJOR.js
-gen util/abcemb.js > abcemb-$MAJOR.js
-gen util/abcemb1.js > abcemb1-$MAJOR.js
-gen util/abcemb2.js > abcemb2-$MAJOR.js
 gen util/abcweb.js > abcweb-$MAJOR.js
 gen util/abcweb1.js > abcweb1-$MAJOR.js
-gen util/abcweb.js > abcweb2-$MAJOR.js
-gen util/chord.js > chord-$MAJOR.js
-gen util/json.js > json-$MAJOR.js
-gen util/toaudio.js > toaudio-$MAJOR.js
-gen util/play.js util/toaudio.js util/toaudio5.js\
- util/sf2-parser.js util/tomidi5.js util/follow.js > play-$MAJOR.js
-gen util/play.js util/sndgen.js util/sndaud.js\
- util/sf2-parser.js util/sndmid.js util/follow.js > snd-$MAJOR.js
+gen util/play.js util/sndgen.js util/sndaud.js util/sf2-parser.js\
+ util/sndmid.js util/follow.js util/chord.js > snd-$MAJOR.js
 
 sed "s+@MAJOR@+$MAJOR+" editor/edit.xhtml > edit-$MAJOR.xhtml
 sed "s+@MAJOR@+$MAJOR+" editor/abckbd.js > abckbd-$MAJOR.js
 sed "s+@MAJOR@+$MAJOR+" editor/abckbd2.js > abckbd2-$MAJOR.js
 sed "s+@MAJOR@+$MAJOR+" editor/edit.js > edit-$MAJOR.js
-
-touch follow-$MAJOR.js

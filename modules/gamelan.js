@@ -1,6 +1,6 @@
 // gamelan.js - module to output Gamelan (indonesian) music sheets
 //
-// Copyright (C) 2020-2021 Jean-Francois Moine
+// Copyright (C) 2020-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -169,7 +169,7 @@ abc2svg.gamelan = {
 		sf = p_v.key.k_sf,
 		delta = abc2svg.gamelan.cgd2cde[sf + 7] - 2
 
-		p_v.key.k_a_acc = []	// no accidental
+		delete p_v.key.k_a_acc		// no accidental
 
 		// no (visible) clef
 		p_v.clef.invis = true
@@ -358,25 +358,30 @@ abc2svg.gamelan = {
 			x = s.x
 			y = staff_tb[s.st].y
 			draw_hd(s, x, y)
+			break
+		}
+	}
 
-			if (s.nflags > 0) {
-				if (s.beam_st) {
+	// draw the (pseudo) beams
+	for (s = p_voice.sym; s; s = s.next) {
+		if (s.invis)
+			continue
+		switch (s.type) {
+		case C.NOTE:
+		case C.REST:
+			nl = s.nflags
+			if (nl <= 0)
+				continue
+			y = staff_tb[s.st].y
+			s2 = s
+			while (s.next && s.next.nflags > 0) {
+				s = s.next
+				if (s.nflags > nl)
 					nl = s.nflags
-					s2 = s
-					while (1) {
-						if (s2.nflags && s2.nflags > nl)
-							nl = s2.nflags
-						if (s2.beam_end)
-							break
-						if (!s2.next
-						 || !s2.next.nflags
-						 || s2.next.nflags <= 0)
-							break
-						s2 = s2.next
-					}
-					draw_dur(s, y + 7, s2, 1, nl)
-				}
+				if (s.beam_end)
+					break
 			}
+			draw_dur(s2, y + 7, s, 1, nl)
 			break
 		}
 	}
@@ -438,7 +443,7 @@ abc2svg.gamelan = {
 	case C.CLEF:
 	case C.KEY:
 	case C.METER:
-		s.wl = s.wr = 0
+		s.wl = s.wr = .1		// (must not be null)
 		break
 	}
     }, // set_width()

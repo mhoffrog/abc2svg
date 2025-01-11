@@ -34,9 +34,9 @@ abc2svg.sth = {
 	s2 = bm.s2,
 	y2 = staff_tb[s2.st].y
 
-	if (s.sth)
+	if (s.sth != undefined)
 		s.ys = s.sth
-	if (s2.sth)
+	if (s2.sth != undefined)
 		s2.ys = s2.sth;
 	bm.a = (s.ys + y - s2.ys - y2) / (s.xs - s2.xs);
 	bm.b = s.ys - s.xs * bm.a + y

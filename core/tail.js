@@ -1,6 +1,6 @@
 // abc2svg - tail.js
 //
-// Copyright (C) 2014-2020 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -56,7 +56,7 @@ Abc.prototype.get_newpage = function() {
 		return true
 	}
 };
-Abc.prototype.get_posy = function() { var t = posy; posy = 0; return t };
+Abc.prototype.get_posy = function() { return posy }
 Abc.prototype.get_staff_tb = function() { return staff_tb };
 Abc.prototype.get_top_v = function() { return par_sy.top_voice };
 Abc.prototype.get_tsfirst = function() { return tsfirst };
@@ -79,7 +79,9 @@ Abc.prototype.set_font = set_font;
 Abc.prototype.set_a_gch = function(s, a) { a_gch = a; csan_add(s) }
 Abc.prototype.set_hl = set_hl
 Abc.prototype.set_pagef = function() { blkdiv = 1 }
+Abc.prototype.set_realwidth = function(v) { realwidth = v }
 Abc.prototype.set_scale = set_scale;
+Abc.prototype.set_sscale = set_sscale
 Abc.prototype.set_tsfirst = function(s) { tsfirst = s };
 Abc.prototype.set_v_param = set_v_param;
 Abc.prototype.strwh = strwh;

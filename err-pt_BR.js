@@ -2,7 +2,7 @@
 //			Tradução dos códigos de erro para português brasileiro
 // Adicione este arquivo na linha de comando para obter as
 // mensagens de erro em português do Brasil.
-// (Hudson Lacerda - 11/dez/2016 - 23/set/2021)
+// (Hudson Lacerda - 11/dez/2016 - 23/set/2021 - 02/nov/2022)
 
 user.textrans = {
 	"+: lyric without music": "+: palavras sem música",
@@ -96,6 +96,7 @@ user.textrans = {
 	"Invalid decoration '$1'": "Decoração '$1' inválida",
 	"Invalid note duration $1": "Duração de nota $1 inválida",
 	"K:P is deprecated": "K:P é obsoleto",
+	"Key with double sharps/flats": "Tonalidade com sustenidos/bemóis duplos",
 	"Lack of ']'": "']' faltando",
 	"Lack of bar after multi-measure rest":
 				"Falta barra de compasso após pausa de múltiplos compassos",
@@ -112,6 +113,8 @@ user.textrans = {
 	"Misplaced dot": "Ponto fora de lugar",
 	"Mix of old and new transposition syntaxes":
 				"Mistura de sintaxes de transposição antiga e nova",
+	"multi-measure rest, but no measure!":
+		"Pausa de múltiplos compassos, porém o compasso não foi definido!",
 	"No $1 after %%$2": "Falta $1 após %%$2",
 	"No </defs> in %%beginsvg sequence":
 				"Falta </defs> em bloco %%beginsvg",
@@ -156,6 +159,7 @@ user.textrans = {
 	"Too many include levels": "Excessivos níveis de inclusão de arquivos",
 	"Too many ties": "Excesso de ligaduras de prolongamento",
 	"Too many words in lyric line": "Excesso de palavras",
+	"triple sharp/flat": "sustenido/bemol triplo",
 	"Unknown bagpipe-like key": "Armadura desconhecida para gaita de foles",
 	"Unknown clef '$1'": "Clave '$1' desconhecida",
 	"Unknown decoration '$1'": "Decoração '$1' desconhecida",
@@ -166,9 +170,9 @@ user.textrans = {
 	"Unterminated string": "Cadeia de caracteres não terminada",
 	"Unterminated string in Q:": "Cadeia de caracteres não terminada em Q:",
 	"Variant ending on a left repeat bar":
-				"Variant ending on a left repeat bar",
-	"Voice overlay already started": "Divisão de vozes já se iniciou",
+				"Variante de repetição em início de ritornello",
+	"Voice overlay already started": "Divisão de vozes já foi iniciada",
 	"w: without music": "w: sem música",
 	"Wrong duration in voice overlay":
-				"Duração incorreta na divisão de vozes",
+				"Duração incorreta na divisão de vozes"
 }

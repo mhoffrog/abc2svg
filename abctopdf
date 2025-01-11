@@ -41,7 +41,7 @@ else
 	fi
 fi
 # (sorted from fastest to slowest in ARM machines)
-for c in qjs jsc js24 js52 js60 d8 abc2svg node end; do
+for c in qjs jsc js78 js60 js52 js24 d8 node end; do
 	if [ $c = 'end' ]; then
 		echo "$0: could not find a javascript interpreter - abort"
 		exit 1
@@ -50,11 +50,11 @@ for c in qjs jsc js24 js52 js60 d8 abc2svg node end; do
 		case $c in
 		(qjs) c=abcqjs;;
 		(jsc) c=abcjsc;;
-		(js24) c=abcjs24;;
-		(js52) c=abcjs52;;
-		(js60) c=abcjs60;;
+		(js24) c=abcmjs;;
+		(js52) c=abcmjs;;
+		(js60) c=abcmjs;;
+		(js78) c=abcmjs;;
 		(d8) c=abcv8;;
-		(abc2svg) c=abc2svg;;
 		(node) c=abcnode;;
 		esac
 		if command -v $c >/dev/null 2>&1; then

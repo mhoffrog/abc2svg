@@ -1,6 +1,6 @@
 // combine.js - module to add a combine chord line
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -27,19 +27,35 @@ abc2svg.combine = {
     // function called at start of the generation when multi-voices
     comb_v: function() {
     var	C = abc2svg.C,
-	sy
+	abc = this
+
+    // get the symbol of the note to combine
+    function get_cmb(s) {
+    var	p,
+	s2 = s.ts_next,
+	i = s.p_v.id.indexOf('.')		// '.' is the group separator
+
+	if (i >= 0) {
+		p = s.p_v.id.slice(0, i)	// group
+		while (s2 && s2.time == s.time) {
+			if (s2.p_v.id.indexOf(p) == 0)
+				break
+			s2 = s2.ts_next
+		}
+	}
+	return s2
+    } // get_cmb()
 
     // check if voice combine may occur
     function may_combine(s) {
     var	nhd2,
-	s2 = s.ts_next
+	s2 = get_cmb(s)
 
 	if (!s2 || (s2.type != C.NOTE && s2.type != C.REST))
 		return false
 	if (s2.st != s.st
 	 || s2.time != s.time
-	 || s2.dur != s.dur
-	 || sy.voices[s2.v].range != sy.voices[s.v].range + 1)	// next voice only
+	 || s2.dur != s.dur)
 		return false
 	if (s.combine <= 0
 	 && s2.type != s.type)
@@ -68,15 +84,19 @@ abc2svg.combine = {
 
     // combine two notes
     function combine_notes(s, s2) {
-    var	nhd, type, m;
+    var	nhd, type, m, not
 
-	for (m = 0; m <= s2.nhd; m++)	// change the container of the notes
-		s2.notes[m].s = s
-	Array.prototype.push.apply(s.notes, s2.notes);
+	// put the notes of the 2nd voice into the 1st one
+	for (m = 0; m <= s2.nhd; m++) {
+		not = abc.clone(s2.notes[m])
+		not.noplay = true	// and don't play it
+		s.notes.push(not)
+	}
 	s.nhd = nhd = s.notes.length - 1;
 	s.notes.sort(abc2svg.pitcmp)	// sort the notes by pitch
 
 	if (s.combine >= 3) {		// remove unison heads
+//fixme: KO for playback
 		for (m = nhd; m > 0; m--) {
 			if (s.notes[m].pit == s.notes[m - 1].pit
 			 && s.notes[m].acc == s.notes[m - 1].acc)
@@ -98,19 +118,18 @@ abc2svg.combine = {
 } // combine_notes()
 
 // combine 2 voices
+// return the remaining one
 function do_combine(s) {
-	var s2, nhd, nhd2, type
+	var s2, s3, type, i, n, sl
 
-		s2 = s.ts_next
+		s2 = get_cmb(s)
 
 		// there may be more voices
 		if (!s.in_tuplet
 		 && s2.combine != undefined && s2.combine >= 0
-		 && may_combine.call(this, s2))
-			do_combine.call(this, s2)
+		 && may_combine(s2))
+			s2 = do_combine(s2)
 
-		nhd = s.nhd;
-		nhd2 = s2.nhd
 		if (s.type != s2.type) {	// if note and rest
 			if (s2.type != C.REST) {
 				s2 = s;
@@ -121,21 +140,41 @@ function do_combine(s) {
 			 && !s2.invis)
 				delete s.invis
 		} else {
-			combine_notes.call(this, s, s2)
+			combine_notes(s, s2)
 			if (s2.ti1)
 				s.ti1 = true
 			if (s2.ti2)
 				s.ti2 = true
 		}
 
+		// if some slurs start on the second symbol
+		// move them to the combined symbol
+		// also, set a flag in the symbols of the ending slurs
 		if (s2.sls) {
 			if (s.sls)
 				Array.prototype.push.apply(s.sls, s2.sls)
 			else
 				s.sls = s2.sls
+			for (i = 0; i < s2.sls.length; i++) {
+				sl = s2.sls[i]
+				if (sl.se)
+					sl.se.slsr = s	// reverse pointer
+				sl.ty = C.SL_BELOW
+			}
+			delete s2.sls
 		}
-		if (s2.sl1)
-			s.sl1 = true
+
+		// if a combined slur is ending on the second symbol,
+		// update its starting symbol
+		s3 = s2.slsr			// pointer to the starting symbol
+		if (s3) {
+			for (i = 0; i < s3.sls.length; i++) {
+				sl = s3.sls[i]
+				if (sl.se == s2)
+					sl.se = s
+			}
+		}
+
 		if (s2.a_gch)
 			s.a_gch = s2.a_gch
 		if (s2.a_dd) {
@@ -145,23 +184,21 @@ function do_combine(s) {
 				Array.prototype.push.apply(s.a_dd, s2.a_dd)
 		}
 
-		this.unlksym(s2)			// remove the next symbol
+		s2.play = s2.invis = true	// don't display, but play
+		return s
 } // do_combine()
 
 	// code of comb_v()
 	var s, s2, g, i, r
 
-	for (s = this.get_tsfirst(); s; s = s.ts_next) {
+	for (s = abc.get_tsfirst(); s; s = s.ts_next) {
 		switch (s.type) {
 		case C.REST:
 			if (s.combine == undefined || s.combine < 0)
 				continue
-			if (may_combine.call(this, s))
-				do_combine.call(this, s)
-			continue
-		case C.STAVES:
-			sy = s.sy
-			// fall thru
+			if (may_combine(s))
+				s = do_combine(s)
+//			continue		// fall thru
 		default:
 			continue
 		case C.NOTE:
@@ -175,7 +212,7 @@ function do_combine(s) {
 
 		s2 = s
 		while (1) {
-			if (!may_combine.call(this, s2)) {
+			if (!may_combine(s2)) {
 				s2 = null
 				break
 			}
@@ -190,7 +227,7 @@ function do_combine(s) {
 			continue
 		s2 = s
 		while (1) {
-			do_combine.call(this, s2)
+			s2 = do_combine(s2)
 //fixme: may have rests in beam
 			if (s2.beam_end)
 				break

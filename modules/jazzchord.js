@@ -43,13 +43,32 @@ abc2svg.jazzchord = {
     },
 
     gch_build: function(of, s) {
-    var	gch, ix, t,
+    var	gch, ix, r, t,
 	fmt = s.fmt
 
 	if (!fmt.jazzchord) {
 		of(s)
 		return
 	}
+
+	// jazzify a chord
+	function jzch(t) {
+	    var r = '',
+		a = t.match(/(\[?[A-G])([#♯b♭]?)([^/]*)\/?(.*)\)?/)
+		// a[1]=note, a[2]=acc, a[3]=quality, a[4]=bass
+
+		if (!a)
+			return t
+		if (a[2])
+			r = "$7" + a[2]
+		if (a[3])
+			r += (a[2] ? "$0" : '') + "$8" + a[3]
+		if (a[4])
+			r += ((a[2] || a[3]) ? "$0" : '') + "$9/" + a[4]
+		if (!r)
+			return t
+		return a[1] + r + "$0"
+	} // jzch()
 
 	for (ix = 0; ix < s.a_gch.length; ix++) {
 		gch = s.a_gch[ix]
@@ -73,21 +92,17 @@ abc2svg.jazzchord = {
 		if (fmt.jazzchord == 1) {
 			if (t[0] == '(')
 				t = t.slice(1, -1)
-			a = t.match(/([A-G])([#♯b♭]?)([^/]*)\/?(.*)/)
-			// a[1]=note, a[2]=acc, a[3]=quality, a[4]=bass
-			if (!a)
-				continue
-			t = a[1] + "$7" + (a[2] || '')
-			if (a[3])
-				t += "$8" + a[3]
-			if (a[4])
-				t += "$0/$9" + a[4]
-			t += "$0"
+			t = t.split('(')	// possible "ch1(ch2)"
+			r = jzch(t[0])
+			if (t.length > 1)
+				r += '(' + jzch(t[1])
+		} else {
+			r = t
 		}
 		if (gch.text[0] == '(')
-			gch.text = '(' + t + ')'
+			gch.text = '(' + r + ')'
 		else
-			gch.text = t
+			gch.text = r
 	}
 	of(s)				// build the chord symbols
     }, // gch_build()

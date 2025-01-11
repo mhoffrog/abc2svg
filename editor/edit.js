@@ -294,7 +294,9 @@ function gotoabc(l, c) {
 	selsrc(0)
 	if (l >= 0)
 		c = soffs(l, Number(c))
-	s.focus();
+	s.blur()			// unfocus
+	s.setSelectionRange(c, c)	// just set the cursor (no range)
+	s.focus()			// should scroll the textarea
 	s.setSelectionRange(c, syms[c] ? syms[c].iend : c + 1)
 }
 
@@ -323,14 +325,12 @@ function selsvg(evt) {
 
 	// highlight the clicked element or clear the selection start
 	s = elt_ref.source;
-	if (cl && cl.substr(0, 4) == 'abcr') {
-		v = Number(cl.slice(6, -1));
-		s.setSelectionRange(v, syms[v].iend)
-	} else {
-		s.setSelectionRange(0, 0)
-	}
 	s.blur();
+	v = cl && cl.substr(0, 4) == 'abcr' ? Number(cl.slice(6, -1)) : 0
+	s.setSelectionRange(v, v)	// just a cursor
 	s.focus()
+	if (v)
+		s.setSelectionRange(v, syms[v].iend)
 }
 
 // set/clear a selection
@@ -357,22 +357,28 @@ function setsel(idx, v) {
 }
 
 function do_scroll(elt) {
-    var	r,
-	dr = elt_ref.target.parentElement,		// <div> 'dright'
-	drh = dr.getBoundingClientRect().height,	// height of the view
-	ty = elt_ref.target.getBoundingClientRect().y	// y offset of <div> 'target'
+    var	x = 0,
+	y = 0,
+	b = elt.getBoundingClientRect(),		// box of the rectangle
+	d = elt_ref.target.parentElement,		// <div> 'dright'
+	r = elt.parentNode.getBoundingClientRect()	// box of the svg container
 
-		elt = elt.parentNode;
-	r = elt.getBoundingClientRect()
-// upper -> top, lower -> bottom
-	if (r.y < 0)				// y offset of the svg container
-		dr.scrollTo(0, r.y - ty)
-	else if (r.y + r.height > drh)
-		dr.scrollTo(0, r.y - ty - drh + r.height)
-// in the middle
-//	if (r.y < 0				// y offset of the svg container
-//	 || r.y + r.height > drh)
-//		dr.scrollTo(0, r.y - ty - drh / 2 + r.height)
+	if (b.x < d.offsetLeft		// x offset of the rectangle
+	 || b.x + b.width > d.offsetLeft + d.clientWidth * .7)
+		x = b.x - d.offsetLeft - d.clientWidth * .3
+
+	if (r.y < d.offsetTop		// y offset of the svg container
+	 || r.y + r.height > d.offsetTop + d.clientHeight * .7)
+		y = r.y - d.offsetTop - d.clientHeight * .3
+
+	if (x || y)
+//		d.scrollBy(x, y)
+		d.scrollBy({
+			top: y,
+			left: x,
+			behavior: (x < 0 || y) ? 'instant' : 'smooth'
+				// 'smooth', 'instant' or 'auto' (default)
+		})
 }
 
 // source text selection callback
@@ -518,6 +524,8 @@ function endplay(repv) {
 //	2: Loop
 //	3: Continue
 function play_tune(what) {
+	if (!abc)
+		return			// no generation yet
     var	i, si, ei, elt,
 	C = abc2svg.C,
 	tunes = abc.tunes
@@ -813,22 +821,26 @@ function edit_init() {
 			elt = evt.target,
 			cl = elt.getAttribute('class')
 
-//			evt.stopImmediatePropagation();
-			evt.preventDefault()
-
 			// if right click on an element, select it
 			if (cl && cl.substr(0, 4) == 'abcr') {
 				setsel(1, Number(cl.slice(6, -1)))
-				return false
+				evt.preventDefault()
+				return
 			}
 
+			// if the play menu is already active
+			// display the default context menu
+			ctxMenu = document.getElementById("ctxMenu");
+			if (ctxMenu.style.display == "block")
+				return
+
 			// otherwise, display the play menu
+			evt.preventDefault()
 			play.click = {	// keep the click references for 'play tune'
 				svg: elt,
 				Y: evt.pageY
 			}
 
-			ctxMenu = document.getElementById("ctxMenu");
 			ctxMenu.style.display = "block";
 			x = evt.pageX - elt_ref.target.parentNode.offsetLeft
 					+ elt_ref.target.parentNode.scrollLeft;
@@ -838,10 +850,9 @@ function edit_init() {
 		} // showmenu
 
 		e = elt_ref.target
-		e.onauxclick = show_menu	// right or middle buttons
-		e.oncontextmenu = function(ev) {
-			ev.preventDefault()
-		}
+//		e.onauxclick = show_menu	// right or middle buttons (KO in Safari)
+		e.ondblclick = show_menu	// double click
+		e.oncontextmenu = show_menu
 	}
 	set_pref()	// set the preferences from local storage
 }

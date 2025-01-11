@@ -73,15 +73,17 @@ function clean_txt(txt) {
 
 // function to load javascript files
 	abc2svg.loadjs = function(fn, relay, onerror) {
-		var s = document.createElement('script');
+		var s = document.createElement('script')
 		if (/:\/\//.test(fn))
 			s.src = fn		// absolute URL
 		else
-			s.src = jsdir + fn;
-		if (relay)
-			s.onload = relay;
-		s.onerror = onerror || function() {
-			alert('error loading ' + fn)
+			s.src = jsdir + fn
+		s.onload = relay
+		s.onerror = function() {
+			if (onerror)
+				onerror(fn)
+			else
+				alert('error loading ' + fn)
 		}
 		document.head.appendChild(s)
 	}
@@ -98,10 +100,6 @@ function clean_txt(txt) {
 	else
 		re = /\n%abc|\nX:/g
 
-	abc.tosvg('abcdoc', '%%bgcolor white\n\
-%%rightmargin 0.8cm\n\
-%%leftmargin 0.8cm\n\
-%%topspace 0')
 	for (;;) {
 
 		// get the start of a ABC sequence

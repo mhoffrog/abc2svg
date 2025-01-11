@@ -92,6 +92,7 @@ user.textrans = {
     "Invalid decoration '$1'": "fehlerhafte Dekoration '$1'",
     "Invalid note duration $1": "Fehlerhafte Notendekoration '$1'",
 	"K:P is deprecated": "K:P is deprecated",
+	"Key with double sharps/flats": "Key with double sharps/flats",
     "Lack of ']'": "']' fehlt",
 	"Lack of bar after multi-measure rest":
 				"Lack of bar after multi-measure rest",
@@ -108,6 +109,8 @@ user.textrans = {
     "Misplaced dot": "fehlerhaft platzierter Punkt",
 	"Mix of old and new transposition syntaxes":
 				"Mix von alter und neuer Transponierungs-syntax",
+	"multi-measure rest, but no measure!":
+			"multi-measure rest, but no measure!",
     "No $1 after %%$2": "kein $1 nach %%$2",
     "No </defs> in %%beginsvg sequence": "kein </defs> in %%beginsvg squenz",
     "No </style> in %%beginsvg sequence": "kein </style> in %%beginsvg sequenz",
@@ -147,6 +150,7 @@ user.textrans = {
 			"There cannot be chord symbols on measure bars",
     "Too many ties": "zu viele Haltebogen",
     "Too many words in lyric line": "zu viele Worte in Liedtextzeile",
+	"triple sharp/flat": "triple sharp/flat",
     "Unknown bagpipe-like key": "unbekante Dudelsackartige Tonart",
     "Unknown clef '$1'": "unbekannter Schlüssel '$1'",
     "Unknown decoration '$1'": "unbekannte Dekoration '$1'",

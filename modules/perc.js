@@ -1,6 +1,6 @@
 // perc.js - module to handle %%percmap
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -209,7 +209,7 @@ var prn = {
 
     // set the MIDI parameters in the current voice
     set_perc: function(a) {
-    var	i, item,
+    var	i, item, s,
 	curvoice = this.get_curvoice()
 
 	for (i = 0; i < a.length; i++) {
@@ -218,9 +218,9 @@ var prn = {
 			if (!curvoice.map)
 				curvoice.map = {}
 			curvoice.map = a[i + 1];
-			if (!curvoice.midictl)
-				curvoice.midictl = []
-			curvoice.midictl[0] = 1		// bank 128
+			s = this.new_block("midiprog")
+			s.play = s.invis = 1 //true
+			curvoice.chn = s.chn = 9	// channel 10
 			break
 		}
 	}

@@ -1,6 +1,6 @@
 // chord.js - generation of accompaniment
 //
-// Copyright (C) 2020-2021 Jean-Francois Moine and Seymour Shlien
+// Copyright (C) 2020-2022 Jean-Francois Moine and Seymour Shlien
 //
 // This file is part of abc2svg.
 //
@@ -98,25 +98,25 @@ abc2svg.chord = function(first,		// first symbol in time
 		return r
 	} // chcr()
 
-	// (quite the same as abc2svg.cs_filter() but with otext)
-	function filter(a_cs, sel) {
-	    var	i, cs,
-		tcs = ""
+	// get the playback part of the first chord symbol
+	function filter(a_cs) {
+	    var	i, cs, t
 
 		for (i = 0; i < a_cs.length; i++) {
 			cs = a_cs[i]
-			if (cs.type == 'g')
-				tcs += cs.otext
+			if (cs.type != 'g')
+				continue
+			t = cs.otext
+			if (t.slice(-1) == ')')		// if alternate chord
+				t = t.replace(/\(.*/, '') // remove it
+			return t.replace(/\(|\)|\[|\]/g,'') // remove ()[]
 		}
-		return tcs.replace(sel ? abc2svg.cs_sel1 : abc2svg.cs_sel0, '')
 	} // filter()
 
 	// generate a chord
 	function gench(sb) {
 	    var	r, ch, b, m, n, not,
-		a = filter(sb.a_gch, cfmt.altchord).
-			match(/([A-G])([#♯b♭]?)([^/]*)\/?(.*)/),
-			// a[1] = note, a[2] = acc, a[3] = type, a[4] = bass
+		a = filter(sb.a_gch),
 		s = {
 			v: vch.v,
 			p_v: vch,
@@ -127,6 +127,11 @@ abc2svg.chord = function(first,		// first symbol in time
 
 		if (!a)
 			return
+		a = a.match(/([A-GN])([#♯b♭]?)([^/]*)\/?(.*)/)
+			// a[1] = note, a[2] = acc, a[3] = type, a[4] = bass
+		if (!a)
+			return
+
 		r = abc2svg.letmid[a[1]]		// root
 		if (r == undefined) {
 			if (a[1] != "N")
@@ -171,6 +176,8 @@ abc2svg.chord = function(first,		// first symbol in time
 		// generate the notes of the chord
 		n = ch.length
 		r += trans
+		if (sb.p_v.tr_snd)
+			r += sb.p_v.tr_snd
 		for (m = 0; m < n; m++) {
 			not = {
 				midi: r + ch[m]
@@ -210,30 +217,34 @@ abc2svg.chord = function(first,		// first symbol in time
 		chnm = abc2svg.ch_names
 	}
 
-	// create the chord voice
-	vch = {
-		v: voice_tb.length,
-		id: "_chord",
-		time: 0,
-		sym: {			// dummy symbol to simplify chord insersion
-			type: C.REST,
-			time: 0
-		},
-		instr: cfmt.chord.prog || 0,
-		vol: cfmt.chord.vol || .7
-	}
-	vch.last_sym = vch.sym
-	voice_tb.push(vch)
-
 	// define the MIDI channel
 	k = 0
-	for (i = 0; i < vch.v; i++) {
+	for (i = 0; i < voice_tb.length; i++) {
 		if (k < voice_tb[i].chn)
 			k = voice_tb[i].chn
 	}
 	if (k == 8)
 		k++			// skip the channel 10
-	vch.chn = k + 1
+
+	// create the chord voice
+	vch = {
+		v: voice_tb.length,
+		id: "_chord",
+		time: 0,
+		sym: {
+			type: C.BLOCK,
+			subtype: "midiprog",
+			chn: k + 1,
+			instr: cfmt.chord.prog || 0,
+			time: 0,
+			ts_prev: first,
+			ts_next: first.ts_next
+		},
+		vol: cfmt.chord.vol || .6	// (external default 76.2)
+	}
+	vch.last_sym = vch.sym
+	voice_tb.push(vch)
+	first.ts_next = vch.sym
 
 	// loop on the symbols and add the accompaniment chords
 	gchon = cfmt.chord.gchon

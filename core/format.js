@@ -1,6 +1,6 @@
 // abc2svg - format.js - formatting functions
 //
-// Copyright (C) 2014-2021 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -91,11 +91,12 @@ H "History: "',
 	partsspace: 8,
 //	pageheight: 29.7 * CM,
 	pagewidth: 21 * CM,
+	"propagate-accidentals": "o",		// octave
 	printmargin: 0,
 	rightmargin: 1.4 * CM,
 	rbmax: 4,
 	rbmin: 2,
-	repeatfont: {name: txt_ff, size: 13},
+	repeatfont: {name: txt_ff, size: 9},
 	scale: 1,
 	slurheight: 1.0,
 	spatab: 	// spacing table (see "notespacingfactor" and set_space())
@@ -130,7 +131,8 @@ H "History: "',
 //	voicescale: 1,
 	writefields: "CMOPQsTWw",
 	wordsfont: {name: txt_ff, size: 16},
-	wordsspace: 5
+	wordsspace: 5,
+	"writeout-accidentals": "n"
 }
 
 // parameters that are used in the symbols
@@ -185,7 +187,7 @@ function get_font_scale(param) {
 
 // set the width factor of a font
 function set_font_fac(font) {
-    var scale = font_scale_tb[font.name]
+    var scale = font_scale_tb[font.fname || font.name]
 
 	if (!scale)
 		scale = 1.1;
@@ -214,6 +216,8 @@ function param_set_font(xxxfont, p) {
 		font = {
 			name: font.name,
 			size: font.size,
+			weight: font.weight,
+			style: font.style,
 			box: font.box,
 			pad: font.pad || 0
 		}
@@ -228,7 +232,7 @@ function param_set_font(xxxfont, p) {
 			font.pad = 0
 		} else {
 			font.box = true
-			font.pad = font.size * .4 - 3
+			font.pad = 2.5
 		}
 		p = p.replace(a[0], a[2])
 	}
@@ -271,6 +275,8 @@ function param_set_font(xxxfont, p) {
 		p = p.replace(a[0], "")
 	}
 
+	font.fname = p			// full name for scale factor
+
 	// accept url(...) as the font name
 	if (p[0] == 'u' && p.slice(0, 4) == "url(") {
 		n = p.indexOf(')', 1)
@@ -300,6 +306,10 @@ function param_set_font(xxxfont, p) {
 		if (a) {
 			font.normal = true
 			p = p.replace(a[0], '')
+			if (font.weight)
+				font.weight = null
+			if (font.style)
+				font.style = null
 		}
 
 		// font weight
@@ -339,17 +349,17 @@ function param_set_font(xxxfont, p) {
 			break
 		}
 	}
+	font.name = p
+
 	if (font.size)
 		set_font_fac(font)
 	else
 		font.swfac = 0
-
-	font.name = p
 }
 
 // get a length with a unit - return the number of pixels
 function get_unit(param) {
-    var	v = param.toLowerCase().match(/([\d.]+)(.*)/)
+    var	v = param.toLowerCase().match(/(-?[\d.]+)(.*)/)
 	if (!v)
 		return NaN
 
@@ -449,7 +459,9 @@ function set_writefields(parm) {
 // set a voice specific parameter
 function set_v_param(k, v) {
 	k = [k + '=', v]
-	if (curvoice)
+	if (parse.state < 3)
+		memo_kv_parm(curvoice ? curvoice.id : '*', k)
+	else if (curvoice)
 		set_kv_parm(k)
 	else
 		memo_kv_parm('*', k)
@@ -512,7 +524,9 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "abc-version":
 	case "bgcolor":
 	case "fgcolor":
+	case "propagate-accidentals":
 	case "titleformat":
+	case "writeout-accidentals":
 		cfmt[cmd] = param
 		break
 	case "beamslope":
@@ -562,7 +576,6 @@ Abc.prototype.set_format = function(cmd, param) {
 	case "keywarn":
 	case "linewarn":
 	case "quiet":
-	case "singleline":
 	case "squarebreve":
 	case "splittune":
 	case "straightflags":
@@ -675,11 +688,16 @@ Abc.prototype.set_format = function(cmd, param) {
 			cfmt[cmd][i] = +v[i]
 		break
 	case "tuplets":
-		cfmt[cmd] = param.split(/\s+/);
-		v = cfmt[cmd][3]
-		if (v			// if 'where'
-		 && (posval[v]))	// translate the keyword
-			cfmt[cmd][3] = posval[v]
+		v = param.split(/\s+/)
+		f = v[3]
+		if (f)			// if 'where'
+			f = posval[f]	// translate the keyword
+		if (f)
+			v[3] = f
+		if (curvoice)
+			curvoice.tup = v
+		else
+			cfmt[cmd] = v
 		break
 	case "infoname":
 		set_infoname(param)
@@ -728,6 +746,26 @@ Abc.prototype.set_format = function(cmd, param) {
 			syntax(1, "Error in %%pos")
 			break
 		}
+		if (cmd[1].slice(0, 3) == 'tup'		// special case for %%pos tuplet
+		 && curvoice) {				// inside tune
+			if (!curvoice.tup)
+				curvoice.tup = cfmt.tuplets
+			else
+				curvoice.tup = Object.create(curvoice.tup)
+			v = posval[cmd[2]]
+			switch (v) {
+			case C.SL_ABOVE:
+				curvoice.tup[3] = 1
+				break
+			case C.SL_BELOW:
+				curvoice.tup[3] = 2
+				break
+			case C.SL_HIDDEN:
+				curvoice.tup[2] = 1
+				break
+			}
+			break
+		}
 		set_pos(cmd[1], cmd[2])
 		break
 	case "sounding-score":
@@ -756,12 +794,13 @@ Abc.prototype.set_format = function(cmd, param) {
 		cfmt[cmd] = get_textopt(param)
 		break
 	case "dynalign":
+	case "singleline":
 	case "stretchlast":
 	case "titletrim":
 		v = +param
 		if (isNaN(v))
 			v = get_bool(param) ? 0 : 1
-		if (cmd[0] == 's') {		// stretchlast
+		if (cmd[1] == 't') {		// stretchlast
 			if (v < 0 || v > 1) {
 				syntax(1, errs.bad_val, '%%' + cmd)
 				break
@@ -851,7 +890,7 @@ function use_font(font) {
 		if (font == cfmt.musicfont)	// add more music font style
 			add_fstyle(".f" + font.fid
 				+ (cfmt.fullsvg || "")
-				+ ' text,tspan{fill:currentColor;white-space:pre}')
+				+ ' text,tspan{white-space:pre}')
 	}
 }
 
@@ -862,7 +901,7 @@ function get_font(fn) {
 	fn += "font"
 	font = cfmt[fn]
 	if (!font) {
-		syntax(1, "Unknown font $1", '$' + fn[1]);
+		syntax(1, "Unknown font $1", fn)
 		return gene.curfont
 	}
 

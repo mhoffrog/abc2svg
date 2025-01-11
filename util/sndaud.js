@@ -1,6 +1,6 @@
 // sndaud.js - audio output using HTML5 audio
 //
-// Copyright (C) 2019-2021 Jean-Francois Moine
+// Copyright (C) 2019-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -127,13 +127,13 @@ function Audio5(i_conf) {
 	}
 
 	// create all notes of an instrument
-	function sf2_create(instr) {
+	function sf2_create(instr, sf2par, sf2pre) {	// parser, presets
 
 		// get the instrument parameters
 		// adapted from getInstruments() in sf2-parser.js
 		function get_instr(i) {
-		    var	instrument = parser.instrument,
-			zone = parser.instrumentZone,
+		    var	instrument = sf2par.instrument,
+			zone = sf2par.instrumentZone,
 			j = instrument[i].instrumentBagIndex,
 			jl = instrument[i + 1]
 				? instrument[i + 1].instrumentBagIndex
@@ -142,9 +142,9 @@ function Audio5(i_conf) {
 
 			while (j < jl) {
 				instrumentGenerator =
-					parser.createInstrumentGenerator_(zone, j)
+					sf2par.createInstrumentGenerator_(zone, j)
 //				instrumentModulator =
-//					parser.createInstrumentModulator_(zone, j)
+//					sf2par.createInstrumentModulator_(zone, j)
 
 				info.push({
 					generator: instrumentGenerator.generator,
@@ -152,7 +152,7 @@ function Audio5(i_conf) {
 				})
 				j++
 			}
-//console.log('instr: '+instrument[i].instrumentName)
+//console.log('created instr: '+instrument[i].instrumentName)
 		return {
 //			name: instrument[i].instrumentName,
 			info: info
@@ -164,7 +164,7 @@ function Audio5(i_conf) {
 		sampleRate, scale,
 		b = instr >> 7,			// bank
 		p = instr % 128,		// preset
-		pr = presets
+		pr = sf2pre
 
 		rates[instr] = []
 
@@ -225,8 +225,8 @@ function Audio5(i_conf) {
 				continue
 
 			sid = gen.sampleID.amount
-			sampleRate = parser.sampleHeader[sid].sampleRate
-			sample = parser.sample[sid]
+			sampleRate = sf2par.sampleHeader[sid].sampleRate
+			sample = sf2par.sample[sid]
 			parm.buffer = ac.createBuffer(1,
 						sample.length,
 						sampleRate)
@@ -243,9 +243,9 @@ function Audio5(i_conf) {
 			sample_cp(parm.buffer, sample)
 
 			if (parm.sm) {
-				parm.loopStart = parser.sampleHeader[sid].startLoop /
+				parm.loopStart = sf2par.sampleHeader[sid].startLoop /
 					sampleRate
-				parm.loopEnd = parser.sampleHeader[sid].endLoop /
+				parm.loopEnd = sf2par.sampleHeader[sid].endLoop /
 					sampleRate
 			}
 
@@ -254,10 +254,10 @@ function Audio5(i_conf) {
 					gen.scaleTuning.amount : 100) / 100,
 			tune = (gen.coarseTune ? gen.coarseTune.amount : 0) +
 				(gen.fineTune ? gen.fineTune.amount : 0) / 100 +
-				parser.sampleHeader[sid].pitchCorrection / 100 -
+				sf2par.sampleHeader[sid].pitchCorrection / 100 -
 				(gen.overridingRootKey ?
 					gen.overridingRootKey.amount :
-					parser.sampleHeader[sid].originalPitch)
+					sf2par.sampleHeader[sid].originalPitch)
 
 			for (j = gen.keyRange.lo; j <= gen.keyRange.hi; j++) {
 				rates[instr][j] = Math.pow(Math.pow(2, 1 / 12),
@@ -273,10 +273,11 @@ function Audio5(i_conf) {
 		w_instr++
 		abc2svg.loadjs(conf.sfu + '/' + instr + '.js',
 			function() {
-				parser = new sf2.Parser(b64dcod(abcsf2[instr]))
-				parser.parse()
-				presets = parser.getPresets()
-				sf2_create(instr)
+			    var	sf2par = new sf2.Parser(b64dcod(abcsf2[instr]))
+				sf2par.parse()
+			    var	sf2pre = sf2par.getPresets()
+				sf2_create(instr, sf2par, sf2pre)
+
 				if (--w_instr == 0)
 					play_start()
 			},
@@ -288,6 +289,71 @@ function Audio5(i_conf) {
 					play_start()
 			})
 	} // load_instr()
+
+	// define the instruments of the tune
+	function def_instr(s, f, sf2par, sf2pre) {
+	    var	i,
+		bk = [],		// bank number per voice
+		nv = -1,		// highest voice number
+		vb = 0			// bitmap of voices with instruments
+
+		// scan from the beginning of the tune
+		s = s.p_v.sym
+		while (s.ts_prev)
+			s = s.ts_prev
+
+		for ( ; s; s = s.ts_next) {
+			if (s.v < nv) {			// if new voice
+				nv = s.v
+				bk[nv] = 0		// bank 0
+				if (p_v.midictl) {
+					if (p_v.midictl[0])	// MSB
+						bk[s.v] = (bk[s.v] & ~0x1fc000)
+								+ (p_v.midictl[0] << 14)
+					if (p_v.midictl[32])	// LSB
+						bk[s.v] = (bk[s.v] & ~0x3f80)
+								+ (p_v.midictl[32] << 7)
+				}
+			}
+			switch (s.subtype) {
+			case "midiprog":
+				break
+			case "midictl":
+				if (s.ctrl != 0 && s.ctrl != 32)
+					continue	// not bank LSB or MSB
+				if (bk[s.v] == undefined)
+					bk[s.v] = 0
+				if (s.ctrl == 0)			// MSB
+					bk[s.v] = (bk[s.v] & ~0x1fc000)
+							+ (s.val << 14)
+				else					// LSB
+					bk[s.v] = (bk[s.v] & ~0x3f80)
+							+ (s.val << 7)
+//				continue
+			default:
+				continue
+			}
+			vb |= 1 << s.v
+			i = s.instr
+			if (i == undefined) {		// channel only
+				if (s.chn != 9)
+					continue
+				i = bk[s.v] ? 0 : 128 * 128	// bank 256 program 0
+			}
+			if (bk[s.v]) 
+				i += bk[s.v]		// bank number
+			if (!params[i]) {
+				params[i] = []		// instrument being loaded
+				f(i, sf2par, sf2pre)	// sf2_create or load_instr
+			}
+		}
+		nv = (2 << nv) - 1
+		if (!(nv & vb)			// if some voice(s) without instrument
+		 && !params[0]) {
+			params[0] = []		// load the piano
+			f(0, sf2par, sf2pre)
+		}
+	} // def_instr()
 
 	// load the needed instruments
 	function load_res(s) {
@@ -303,7 +369,7 @@ function Audio5(i_conf) {
 				presets = parser.getPresets()
 			}
 
-		// load the soundfont if no done yet
+		// load the soundfont if not done yet
 		} else if (!parser) {
 		    if (conf.sfu.slice(-3) == ".js") {
 			abc2svg.loadjs(conf.sfu,
@@ -339,31 +405,13 @@ function Audio5(i_conf) {
 			return
 		}
 
-		// create the instruments
-		while (s) {
-		    var	i = s.instr
-			if (i != undefined && !params[i]) {
-				params[i] = []	// instrument being loaded
-				sf2_create(i)
-			}
-			s = s.ts_next
-		}
-		play_start()
-	   } else {
+		// create the instruments and start playing
+		def_instr(s, sf2_create, parser, presets)
+	    } else {
 
 	// (case instruments as base64 encoded js file,
 	//  one file per instrument)
-		w_instr++			// play lock
-		while (s) {
-		    var	i = s.instr
-			if (i != undefined && !params[i]) {
-				params[i] = []	// instrument being loaded
-				load_instr(i)
-			}
-			s = s.ts_next
-		}
-		if (--w_instr == 0)		// all resources were there already
-			play_start()
+		def_instr(s, load_instr)
 	    }
 	} // load_res()
 
@@ -374,9 +422,40 @@ function Audio5(i_conf) {
 
 	// MIDI control
 	function midi_ctrl(po, s, t) {
-		if (s.ctrl == 7)		// if volume
+		switch (s.ctrl) {
+		case 0:				// bank MSB
+			if (po.v_b[s.v] == undefined)
+				po.v_b[s.v] = 0
+			po.v_b[s.v] = (po.v_b[s.v] & ~0x1fc000)
+					+ (s.val << 14)
+			break
+		case 7:				// volume
 			s.p_v.vol = s.val / 127
+			break
+		case 32:			// bank LSB
+			if (po.v_b[s.v] == undefined)
+				po.v_b[s.v] = 0
+			po.v_b[s.v] = (po.v_b[s.v] & ~0x3f80)
+					+ (s.val << 7)
+			break
+		}
 	} // midi_ctrl()
+
+	// MIDI prog or channel
+	function midi_prog(po, s) {
+	    var	i = s.instr
+
+		po.v_c[s.v] = s.chn
+		if (i == undefined) {
+			if (s.chn != 9)			// if not channel 9
+				return
+			i = po.v_b[s.v] ? 0 : 128 * 128	// bank 256 program 0
+		}
+		if (po.v_b[s.v])
+			i += po.v_b[s.v]
+		po.c_i[s.chn] = i
+//console.log('prog i:'+i+' ch:'+s.chn+' v:'+s.v)
+	} // midi_prog()
 
 	// create a note
 	// @po = play object
@@ -385,10 +464,12 @@ function Audio5(i_conf) {
 	// @t = audio start time
 	// @d = duration adjusted for speed
 	function note_run(po, s, key, t, d) {
+//console.log('run c:'+po.v_c[s.v]+' i:'+po.c_i[po.v_c[s.v]])
 	    var	g, st,
-		instr = s.instr,
+		c = po.v_c[s.v],
+		instr = po.c_i[c],
 		k = key | 0,
-		parm = po.params[instr][k],
+		parm = params[instr][k],
 		o = po.ac.createBufferSource(),
 		v = s.p_v.vol == undefined ? 1 : s.p_v.vol	// volume (gain)
 
@@ -435,6 +516,7 @@ function Audio5(i_conf) {
 
 	// wait for all resources, then start playing
 	function play_start() {
+//console.log('- play start')
 		if (po.stop) {			// stop playing
 			po.onend(repv)
 			return
@@ -515,16 +597,22 @@ function Audio5(i_conf) {
 			tgen: 2,	// // generate by 2 seconds
 			get_time: get_time,
 			midi_ctrl: midi_ctrl,
+			midi_prog: midi_prog,
 			note_run: note_run,
 			timouts: [],
+			v_c: [],	// voice to channel
+			c_i: [],	// channel to instrument
+			v_b: [],	// voice to bank
 
 			// audio specific
 			ac: ac,
 			gain: gain,
-			params: params,
 			rates: rates
 		}
+		w_instr++			// play lock
 		load_res(i_start)
+		if (--w_instr == 0)		// all resources are there
+			play_start()
 	}, // play()
 
 	// stop playing

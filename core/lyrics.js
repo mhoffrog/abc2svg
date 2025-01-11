@@ -1,6 +1,6 @@
 // abc2svg - lyrics.js - lyrics
 //
-// Copyright (C) 2014-2021 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -204,7 +204,7 @@ function get_lyrics(text, cont) {
 				case '\t':
 					break
 				case '~':
-					word += ' ';	// (&nbsp;)
+					word += ' '
 					i++
 					continue
 				case '-':
@@ -317,7 +317,7 @@ function ly_set(s) {
 			if (p[0] == '(') {
 				sz = spw
 			} else {
-				j = p.indexOf(' ');	// (&nbsp;)
+				j = p.indexOf(' ')
 				set_font(ly.font)
 				if (j > 0)
 					sz = strwh(p.slice(0, j))[0]
@@ -386,7 +386,7 @@ function ly_set(s) {
 /* (the staves are not yet defined) */
 function draw_lyric_line(p_voice, j, y) {
 	var	p, lastx, w, s, s2, ly, lyl, ln,
-		hyflag, lflag, x0, font, shift
+		hyflag, lflag, x0, shift
 
 	if (p_voice.hy_st & (1 << j)) {
 		hyflag = true;
@@ -416,7 +416,7 @@ function draw_lyric_line(p_voice, j, y) {
 			continue
 		}
 		if (ly.font != gene.curfont)		/* font change */
-			gene.curfont = font = ly.font;
+			gene.curfont = ly.font
 		p = ly.t;
 		w = p.wh[0]
 		shift = ly.shift
@@ -450,9 +450,12 @@ function draw_lyric_line(p_voice, j, y) {
 			hyflag = true
 		if (user.anno_start || user.anno_stop) {
 			s2 = {
+				p_v: s.p_v,
 				st: s.st,
 				istart: ly.istart,
 				iend: ly.iend,
+				ts_prev: s,
+				ts_next: s.ts_next,
 				x: x0,
 				y: y,
 				ymn: y,

@@ -1,6 +1,6 @@
 {
   "name": "abc2svg",
-  "version": "1.21.6",
+  "version": "1.22.1",
   "description": "ABC music notation translator",
   "files": [
     "COPYING",
@@ -15,6 +15,10 @@
     "abcemb-1.js",
     "abcemb1-1.js",
     "abcemb2-1.js",
+    "abcjsc",
+    "abcqjs",
+    "abcmjs",
+    "abcnode",
     "abctopdf",
     "abcweb-1.js",
     "abcweb1-1.js",
@@ -43,6 +47,7 @@
     "err-fr.js",
     "err-it.js",
     "err-pt_BR.js",
+    "gamelan-1.js",
     "grid-1.js",
     "grid2-1.js",
     "grid3-1.js",
@@ -78,6 +83,10 @@
   "bin": {
     "abc2odt": "abc2odt",
     "abc2svg": "abc2svg",
+    "abcjsc": "abcjsc",
+    "abcqjs": "abcqjs",
+    "abcmjs": "abcmjs",
+    "abcnode": "abcnode",
     "abctopdf": "abctopdf"
   },
   "repository": {

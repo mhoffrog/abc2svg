@@ -21,7 +21,7 @@
 // the result is added in the global variable a_gch
 // 'type' may be a single '"' or a string '"xxx"' created by U:
 function parse_gchord(type) {
-    var	c, text, gch, x_abs, y_abs, type,
+    var	c, text, gch, x_abs, y_abs,
 	i, j, istart, iend,
 		ann_font = get_font("annotation"),
 		h_ann = ann_font.size,
@@ -50,7 +50,8 @@ function parse_gchord(type) {
 				syntax(1, "No end of chord symbol/annotation")
 				return
 			}
-			if (line.buffer[j - 1] != '\\')
+			if (line.buffer[j - 1] != '\\'
+			 || line.buffer[j - 2] == '\\')	// (string ending with \\")
 				break
 			i = j + 1
 		}
@@ -87,7 +88,6 @@ function parse_gchord(type) {
 					i--
 			}
 			gch.x = x_abs;
-			y_abs -= h_ann * .3	// center vertically
 			gch.y = y_abs
 			break
 		case '^':
@@ -130,9 +130,11 @@ function parse_gchord(type) {
 			switch (c) {
 			case '\\':
 				c = text[++i]
-				if (!c || c == 'n')
+				if (c == 'n')
 					break
 				gch.text += '\\'
+				if (!c)
+					break
 			default:
 				gch.text += c;
 				i++
@@ -174,8 +176,9 @@ function parse_gchord(type) {
 var	note_names = "CDEFGAB",
 	acc_name = ["bb", "b", "", "#", "##"]
 
-	function gch_tr1(p, transp) {
+	function gch_tr1(p) {
 	    var	i, o, n, a, ip, b40,
+		tr = curvoice.tr_sco,
 		csa = p.split('/')
 
 		for (i = 0; i < csa.length; i++) {	// main and optional bass
@@ -194,7 +197,7 @@ var	note_names = "CDEFGAB",
 				ip++
 			}
 			n = note_names.indexOf(p[o]) + 16
-			b40 = (abc2svg.pab40(n, a) + transp + 200) % 40
+			b40 = (abc2svg.pab40(n, a) + tr + 200) % 40
 			b40 = abc2svg.b40k[b40]
 			csa[i] = p.slice(0, o) +
 					note_names[abc2svg.b40_p[b40]] +
@@ -204,19 +207,9 @@ var	note_names = "CDEFGAB",
 		return csa.join('/')
 	} // gch_tr1
 
-function gch_transp(s) {
-    var	gch,
-	i = s.a_gch.length
-
-	while (--i >= 0) {
-		gch = s.a_gch[i]
-		if (gch.type == 'g')
-			gch.text = gch_tr1(gch.text, curvoice.vtransp)
-	}
-}
-
 // parser: add the parsed list of chord symbols and annotations
 //	to the symbol (note, rest or bar)
+//	and transpose the chord symbols
 function csan_add(s) {
     var	i, gch
 
@@ -224,10 +217,18 @@ function csan_add(s) {
 	if (s.type == C.BAR) {
 		for (i = 0; i < a_gch.length; i++) {
 			if (a_gch[i].type == 'g') {
-				syntax(1,
+				error(1, s,
 				       "There cannot be chord symbols on measure bars")
 				a_gch.splice(i)
 			}
+		}
+	}
+
+	if (curvoice.tr_sco) {
+		for (i = 0; i < a_gch.length; i++) {
+			gch = a_gch[i]
+			if (gch.type == 'g')
+				gch.text = gch_tr1(gch.text)
 		}
 	}
 
@@ -236,9 +237,6 @@ function csan_add(s) {
 	else
 		s.a_gch = a_gch
 	a_gch = null
-
-	if (curvoice.vtransp)
-		gch_transp(s)
 } // csan_add
 
 // generator: build the chord symbols / annotations
@@ -273,7 +271,6 @@ Abc.prototype.gch_build = function(s) {
 			 && !user.anno_start && !user.anno_stop) {
 				set_font(gch.font)
 				gch.text = str2svg(gch.text)
-				gch.text.wh = [0, 0]
 				continue		/* no width */
 			}
 		}
@@ -282,7 +279,6 @@ Abc.prototype.gch_build = function(s) {
 		set_font(gch.font);
 		gch.text = str2svg(gch.text)
 		wh = gch.text.wh
-		wh[1] += gch.font.pad * 2
 		switch (gch.type) {
 		case '@':
 			break
@@ -340,22 +336,19 @@ Abc.prototype.draw_gchord = function(i, s, x, y) {
 	h = an.text.wh[1],
 	pad = an.font.pad,
 	w = an.text.wh[0] + pad * 2,
-	dy = 0
+	dy = h * .22			// descent
 
 	if (an.font.figb) {
 		h *= 2.4
-		dy = an.font.size * 1.3
+		dy += an.font.size * 1.3
 	}
 
 	switch (an.type) {
 	case '_':			// below
 		y -= h + pad
-		y_set(s.st, 0, x, w, y - pad)
 		break
 	case '^':			// above
-		y = y_get(s.st, 1, x, w)
 		y += pad
-		y_set(s.st, 1, x, w, y + h + pad)
 		break
 	case '<':			// left
 	case '>':			// right
@@ -376,37 +369,38 @@ Abc.prototype.draw_gchord = function(i, s, x, y) {
 						18) * 3 :
 				12)		// fixed offset on rests and bars
 			- h / 2
-		if (y > 24)
-			y_set(s.st, 1, x, w, y + h + pad)
-		if (y < 0)
-			y_set(s.st, 0, x, w, y - pad)
 		break
 	default:			// chord symbol
-		if (y >= 0) {
+		if (y >= 0)
 			y += pad
-			y_set(s.st, 1, x, w, y + h + pad)
-		} else {
+		else
 			y -= h + pad
-			y_set(s.st, 0, x, w, y - pad)
-		}
 		break
 	case '@':			// absolute
 		y += (s.type == C.NOTE ?
 				(((s.notes[s.nhd].pit + s.notes[0].pit) >> 1) -
 						18) * 3 :
 				12)		// fixed offset on rests and bars
-			+ h * .2
+			- h / 2
 		if (y > 0) {
-			y2 = y + h * .8
+			y2 = y + h + pad + 2
 			if (y2 > staff_tb[s.st].ann_top)
 				staff_tb[s.st].ann_top = y2
 		} else {
-			y2 = y
+			y2 = y - 2
 			if (y2 < staff_tb[s.st].ann_bot)
 				staff_tb[s.st].ann_bot = y2
 		}
 		break
 	}
+
+	if (an.type != '@') {
+		if (y > 24)
+			y_set(s.st, 1, x, w, y + h + pad + 2)
+		else if (y < 0)
+			y_set(s.st, 0, x, w, y - pad)
+	}
+
 	use_font(an.font)
 	set_font(an.font)
 	set_dscale(s.st)
@@ -442,7 +436,7 @@ function draw_all_chsy() {
 				w = an.text.wh[0]
 				if (w && x + w > realwidth)
 					x = realwidth - w // let the text in the page
-				y = y_get(s.st, 1, x, w)	// y / staff
+				y = y_get(s.st, 1, x, w) + 2	// y / staff
 				if (an.type == 'g' && y < minmax[s.st].yup)
 					y = minmax[s.st].yup
 			} else if (an.pos == C.SL_BELOW
@@ -471,7 +465,7 @@ function draw_all_chsy() {
 			w = an.text.wh[0]
 			if (w && x + w > realwidth)	// let the text inside the page
 				x = realwidth - w
-			y = y_get(s.st, 0, x, w)	// y / staff
+			y = y_get(s.st, 0, x, w) - 2	// y / staff
 			if (an.type == 'g' && y > minmax[s.st].ydn)
 				y = minmax[s.st].ydn
 			self.draw_gchord(i, s, x, y)
@@ -499,11 +493,11 @@ function draw_all_chsy() {
 				an = an[i]
 				w = an.text.wh[0]
 				if (an.pos == C.SL_ABOVE) {
-					y = y_get(s.st, true, s.x, w)
+					y = y_get(s.st, true, s.x, w) + 2
 					if (y > minmax[s.st].yup)
 						minmax[s.st].yup = y
 				} else if (an.pos == C.SL_BELOW) {
-					y = y_get(s.st, false, s.x, w)
+					y = y_get(s.st, false, s.x, w) - 2
 					if (y < minmax[s.st].ydn)
 						minmax[s.st].ydn = y
 				}

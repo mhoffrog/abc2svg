@@ -1,6 +1,6 @@
 // grid3.js - module to insert a manual chords
 //
-// Copyright (C) 2020-2021 Jean-Francois Moine
+// Copyright (C) 2020-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -40,9 +40,12 @@ abc2svg.grid3 = {
 		return
 	}
 
+	this.blk_flush()
+
     var	abc = this,
 	cfmt = abc.cfmt(),
 	img = abc.get_img(),
+	posy = abc.get_posy(),
 	txt = s.text,
 	font, font_cl, cls, w,
 	ln, i,
@@ -118,8 +121,8 @@ abc2svg.grid3 = {
 		w = wc * nc				// grid width
 
 		// generate the cells
-		yl = 3
-		y = 3 - font.size * .7
+		yl = posy + 3
+		y = posy + 3 - font.size * .7
 		x0 = (img.width / cfmt.scale - w) / 2
 		while (1) {
 			cl = cells.shift()
@@ -139,15 +142,17 @@ abc2svg.grid3 = {
 
 		// draw the lines
 		line = '<path class="stroke" d="\n'
-		y = 3
+		y = posy + 3
 		for (i = 0; i <= nr; i++) {
 			line += 'M' + x0.toFixed(1) + ' ' + y.toFixed(1) +
 				'h' + w.toFixed(1)+ '\n'
 			y += hr
 		}
 		x = x0
+		y = posy + 3
 		for (i = 0; i <= nc; i++) {
-			line += 'M' + x.toFixed(1) + ' 3v' + (hr * nr).toFixed(1) + '\n'
+			line += 'M' + x.toFixed(1) + ' ' + y.toFixed(1) +
+				'v' + (hr * nr).toFixed(1) + '\n'
 			x += wc
 		}
 		line += '"/>\n'
@@ -156,7 +161,7 @@ abc2svg.grid3 = {
 		line += lc
 
 		// show the repeat signs
-		y = 3 - font.size * .7
+		y = posy + 3 - font.size * .7
 		while (1) {
 			bl = bars.shift()
 			if (!bl)
@@ -254,7 +259,6 @@ abc2svg.grid3 = {
 	wc += abc.strwh('  ')[0]
 
 	// build the grid and insert it in the music
-	abc.blk_flush()
 	build_grid()
 	abc.blk_flush()
     }, // block_gen()

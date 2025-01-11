@@ -1,6 +1,6 @@
 // page.js - module to generate pages
 //
-// Copyright (C) 2018-2021 Jean-Francois Moine
+// Copyright (C) 2018-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -24,35 +24,22 @@
 
 abc2svg.page = {
 
-    // output a new block
-    img_out: function(page, p) {
-    var	cur_img_out = user.img_out;
-
-	page.user_out(p)
-	
-	// if user.img_out has been changed
-	if (user.img_out != cur_img_out) {
-		page.user_out = user.img_out	// save the new function
-		user.img_out = cur_img_out	// and restore ours
-	}
-    },
-
     // function called at end of generation
     abc_end: function(of) {
     var page = this.page
-	if (page && page.in_page) {
+	if (page && page.in_page)
 		abc2svg.page.close_page(page)
-		if (user.img_out == page.img_out_sav)
-			user.img_out = page.user_out
+	if (abc2svg.page.user_out) {
+		user.img_out = abc2svg.page.user_out
+		abc2svg.page.user_out = null
 	}
 	of()
     }, // abc_end()
 
     // generate a header or a footer in page.hf and return its height
     gen_hf: function(page, ty) {
-    var	a, i, j, k, x, y, y0, s,
+    var	a, i, j, k, x, y, y0, s, str,
 	font = page.abc.get_font(ty),
-	str = page[ty],
 	cfmt = page.abc.cfmt(),
 	fh = font.size * 1.1,
 	pos = [ '">',
@@ -190,6 +177,11 @@ abc2svg.page = {
 
 	// gen_hf
 
+	if (!(page.pn & 1))
+		str = page[ty + '2'] || page[ty]
+	else
+		str = page[ty]
+
 	if (str[0] == '-') {		// not on 1st page
 		if (page.pn == 1)
 			return 0
@@ -251,7 +243,7 @@ abc2svg.page = {
 	if (page.gutter)
 		sty += ";margin-left:" +
 			((page.pn & 1) ? page.gutter : -page.gutter).toFixed(1) + "px"
-	abc2svg.page.img_out(page, sty + '">')
+	abc2svg.page.user_out(sty + '">')
 	page.in_page = true
 
 	ht += page.topmargin
@@ -269,7 +261,7 @@ abc2svg.page = {
 		} else {
 			sty = ''
 		}
-		abc2svg.page.img_out(page,
+		abc2svg.page.user_out(
 			'<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
 	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
 	width="' + cfmt.pagewidth.toFixed(0) +
@@ -281,7 +273,7 @@ abc2svg.page = {
 		page.hmax -= h;
 		page.hf = ''
 	} else {
-		abc2svg.page.img_out(page,
+		abc2svg.page.user_out(
 			'<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
 	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
 	width="' + cfmt.pagewidth.toFixed(0) +
@@ -311,7 +303,7 @@ abc2svg.page = {
 	page.in_page = false
 	if (page.footer) {
 		h = page.hmax + page.fh - page.h
-		abc2svg.page.img_out(page,
+		abc2svg.page.user_out(
 			'<svg xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
 	xmlns:xlink="http://www.w3.org/1999/xlink"\n\
 	width="' + cfmt.pagewidth.toFixed(0) +
@@ -321,7 +313,7 @@ abc2svg.page = {
 				(h - page.fh).toFixed(1) + ')">' +
 			page.hf + '</g>\n</svg>')
 	}
-	abc2svg.page.img_out(page, '</div>')
+	abc2svg.page.user_out('</div>')
 	page.h = 0
     }, // close_page()
 
@@ -333,7 +325,7 @@ abc2svg.page = {
 	// copy a block
 	function blkcpy(page) {
 		while (page.blk.length)
-			abc2svg.page.img_out(page, page.blk.shift())
+			abc2svg.page.user_out(page.blk.shift())
 		page.blk = null			// direct output
 	} // blkcpy()
 
@@ -380,7 +372,7 @@ abc2svg.page = {
 		if (page.blk)
 			page.blk.push(p)
 		else
-			abc2svg.page.img_out(page, p)
+			abc2svg.page.user_out(p)
 		page.h += h
 		break
 	case "</di":				// end of block
@@ -405,10 +397,14 @@ abc2svg.page = {
 			this.syntax(1, this.errs.bad_val, '%%' + cmd)
 			return
 		}
+		if (!user.img_out || !abc2svg.abc_end)
+			v = 0
 		cfmt.pageheight = v
+		if (!v)
+			return
 
 		// if first definition, install the hook
-		if (!page && user.img_out && abc2svg.abc_end) {
+		if (!page || !abc2svg.page.user_out) {
 			this.page = page = {
 				abc: this,
 				topmargin: 38,	// 1cm
@@ -417,8 +413,7 @@ abc2svg.page = {
 				h: 0,		// current page height
 				pn: 0,		// page number
 				pna: 0,		// absolute page number
-				first: true,	// no skip to next page
-				user_out: user.img_out
+				first: true	// no skip to next page
 			}
 
 			// don't let the backend handle the header/footer
@@ -429,6 +424,14 @@ abc2svg.page = {
 			if (cfmt.footer) {
 				page.footer = cfmt.footer;
 				cfmt.footer = null
+			}
+			if (cfmt.header2) {
+				page.header2 = cfmt.header2
+				cfmt.header2 = null
+			}
+			if (cfmt.footer2) {
+				page.footer2 = cfmt.footer2
+				cfmt.footer2 = null
 			}
 
 			// get the previously defined page parameters
@@ -453,8 +456,9 @@ abc2svg.page = {
 				cfmt.dateformat = "%b %e, %Y %H:%M"
 
 			// set the hooks
+			if (!abc2svg.page.user_out)
+				abc2svg.page.user_out = user.img_out
 			user.img_out = abc2svg.page.img_in.bind(this);
-			page.img_out_sav = user.img_out;
 			abc2svg.abc_end = abc2svg.page.abc_end.bind(this,
 								abc2svg.abc_end)
 		}
@@ -464,6 +468,8 @@ abc2svg.page = {
 		switch (cmd) {
 		case "header":
 		case "footer":
+		case "header2":
+		case "footer2":
 			page[cmd] = parm
 			return
 		case "newpage":

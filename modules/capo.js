@@ -36,8 +36,10 @@ abc2svg.capo = {
 
 		while (1) {
 			gch = a_gch[i++]
-			if (!gch)
+			if (!gch) {
+				of(s)
 				return
+			}
 			if (gch.type == 'g')
 				break
 		}

@@ -1,6 +1,6 @@
 // abc2svg - tohtml.js - HTML+SVG generation
 //
-// Copyright (C) 2014-2021 Jean-Francois Moine
+// Copyright (C) 2014-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -17,7 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with abc2svg.  If not, see <http://www.gnu.org/licenses/>.
 
-    var	init_done, pw, ml, mr, pkf, lkf
+    var	init_done, pw, ml, mr, pkf, lkf, fn
 
 // replace <>& by XML character references
 function clean_txt(txt) {
@@ -149,7 +149,7 @@ function set_pstyle() {
 }
 
 // entry point from cmdline
-abc2svg.abc_init = function() {
+abc2svg.abc_init = function(args) {
     var cfmt = abc.cfmt()
 
 	// output a header or footer
@@ -182,6 +182,11 @@ abc2svg.abc_init = function() {
 
 	// output the html header
 	user.img_out = function(str) {
+		if (init_done) {
+			abc2svg.print(str)
+			return
+		}
+
 		var	header = cfmt.header,
 			footer = cfmt.footer,
 			topmargin = cfmt.topmargin || "1cm",
@@ -251,7 +256,7 @@ p span {line-height:' + ((cfmt.lineskipfac * 100) | 0).toString() + '%}\n' +
 				(cfmt.pageheight / 96).toFixed(2) + 'in;margin:0}')
 
 		abc2svg.print('</style>\n\
-<title> ' + abc.parse.fname.replace(/.*\//, '')
+<title>' + fn.replace(/.*\//,'')
 			+ '</title>\n\
 <body>')
 		if (header || footer) {
@@ -273,9 +278,18 @@ p span {line-height:' + ((cfmt.lineskipfac * 100) | 0).toString() + '%}\n' +
 
 		// output the first generated string
 		abc2svg.print(str)
+	}
 
-		// change the output function
-		user.img_out = abc2svg.print
+	// get the main ABC source file name
+	for (var i = 0; i < args.length; i++) {
+	    var	a = args[i]
+
+		if (a[0] == '-') {
+			i++
+			continue
+		}
+		fn = a
+		break
 	}
 }
 

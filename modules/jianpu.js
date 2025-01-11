@@ -1,6 +1,6 @@
 // jianpu.js - module to output jiănpŭ (简谱) music sheets
 //
-// Copyright (C) 2020-2022 Jean-Francois Moine
+// Copyright (C) 2020-2023 Jean-Francois Moine
 //
 // This file is part of abc2svg.
 //
@@ -35,45 +35,80 @@ abc2svg.jianpu = {
 
 // don't calculate the beams
   calc_beam: function(of, bm, s1) {
-	if (!this.cfmt().jianpu)
+	if (!s1.p_v.jianpu)
 		return of(bm, s1)
 //	return 0
   }, // calc_beam()
 
-// change %%staves and %%score
-  do_pscom: function(of, p) {
-    if (this.cfmt().jianpu)
-	switch (p.match(/\w+/)[0]) {
-	case 'staves':
-	case 'score':
-		p = p.replace(/\(|\)/g, '')
-		break
-	}
-	of(p)
-  },
-
 // adjust some symbols before the generation
   output_music: function(of) {
-    var	C = abc2svg.C,
+    var	p_v, v,
+	C = abc2svg.C,
 	abc = this,
 	cur_sy = abc.get_cur_sy(),
 	voice_tb = abc.get_voice_tb()
 
-	if (!abc.cfmt().jianpu) {
-		of()
-		return
-	}
+	// handle the overlay voices
+	function ov_def(v) {
+	    var	s1, tim,
+		s = p_v.sym
+
+		while (s) {
+			s1 = s.ts_prev
+			if (!s.invis
+			 && s.dur
+			 && s1.v != v
+			 && s1.st == s.st	// overlay start
+			 && s1.time == s.time) {
+				while (1) {	// go back to the previous bar
+					if (!s1.prev
+					 || s1.prev.bar_type)
+						break
+					s1 = s1.prev
+				}
+				//add deco '{' on s1
+				while (!s1.bar_type) {
+					s1.dy = 14
+					s1.notes[0].pit = 30
+					s1 = s1.next
+				}
+				// add deco '}' on s1
+
+				while (1) {
+					s.dy = -14
+					s.notes[0].pit = 20
+					if (!s.next
+					 || s.next.bar_type
+					 || s.next.time >= s1.time)
+						break
+					s = s.next
+				}
+			}
+			s = s.next
+		}
+	} // ov_def()
 
 	// output the key and time signatures
 	function set_head() {
-	    var	tsfirst = abc.get_tsfirst(),
-		p_v = voice_tb[0],
-		mt = p_v.meter.a_meter[0],
-		sk = p_v.key,
-		s2 = voice_tb[0].sym,
+	    var	v, p_v, mt, s2, sk, s,
+		tsfirst = abc.get_tsfirst()
+
+		// search a jianpu voice
+		for (v = 0; v < voice_tb.length; v++) {
+			p_v = voice_tb[v]
+			if (p_v.jianpu)
+				break
+		}
+		if (v >= voice_tb.length)
+				return
+
+		mt = p_v.meter.a_meter[0]
+		sk = p_v.key
+		s2 = p_v.sym
 		s = {
 			type: C.BLOCK,
 			subtype: "text",
+			time: s2.time,
 			dur: 0,
 			v: 0,
 			p_v: p_v,
@@ -89,17 +124,23 @@ abc2svg.jianpu = {
 		if (mt)
 			s.text += ' ' + (mt.bot ? (mt.top + '/' + mt.bot) : mt.top)
 
-		s2.prev = s
-		s.next = s2
-		voice_tb[0].sym = s
-		tsfirst.ts_prev = s
-		s.ts_next = tsfirst
-		abc.set_tsfirst(s)
+		// insert the block after the first %%staves
+		s2 = tsfirst
+		s.next = s2.next
+		if (s.next)
+			s.next.prev = s
+		s.prev = s2
+		s2.next = s
+		s.ts_next = s2.ts_next
+		s.ts_next.ts_prev = s
+		s.ts_prev = s2
+		s2.ts_next = s
 	} // set head()
 
 	// expand a long note/rest
 	function slice(s) {
-	    var	n, s2, s3
+	    var	n, s2, s3,
+		jn = s.type == C.REST ? 0 : 8	// '0' or '-'
 
 		if (s.dur >= C.BLEN)
 			n = 3 
@@ -107,6 +148,7 @@ abc2svg.jianpu = {
 			n = 1
 		else
 			n = 2
+		s.notes[0].dur =
 		s.dur = s.dur_orig = C.BLEN / 4
 		delete s.fmr
 		while (--n >= 0) {
@@ -122,8 +164,9 @@ abc2svg.jianpu = {
 				multi: 0,
 				nhd: 0,
 				notes: [{
+					dur: s.dur,
 					pit: s.notes[0].pit,
-					jn: 8
+					jn: jn
 				}],
 				xmx: 0,
 				noplay: true,
@@ -161,12 +204,71 @@ abc2svg.jianpu = {
 		}
 	} // slice()
 
-	function set_sym(p_v) {
-	    var s, s2, note, pit, nn, p, a, m, i,
-		sf = p_v.key.k_sf,
+	function set_note(s, sf) {
+	    var	i, m, note, p, pit, a, nn,
 		delta = abc2svg.jianpu.cgd2cde[sf + 7] - 2
 
-		p_v.key.k_a_acc = []	// no accidental
+		s.stem = -1
+		s.stemless = true
+
+		if (s.sls) {
+			for (i = 0; i < s.sls.length; i++)
+				s.sls[i].ty = C.SL_ABOVE
+		}
+
+		for (m = 0; m <= s.nhd; m++) {
+			note = s.notes[m]
+
+			// note head
+			p = note.pit
+			pit = p + delta
+			note.jn = ((pit + 77) % 7) + 1	// note number
+
+			// set a fixed offset to the note for the decorations
+			note.pit = 25			// "e"
+
+			note.jo = (pit / 7) | 0	// octave number
+
+			// accidentals
+			a = note.acc
+			if (a) {
+				nn = abc2svg.jianpu.cde2fcg[(p + 5 + 16 * 7) % 7] - sf
+				if (a != 3)
+					nn += a * 7
+				nn = ((((nn + 1 + 21) / 7) | 0) + 2 - 3 + 32 * 5) % 5
+				note.acc = abc2svg.jianpu.acc2[nn]
+			}
+
+			// set the slurs and ties up
+			if (note.sls) {
+				for (i = 0; i < note.sls.length; i++)
+					note.sls[i].ty = C.SL_ABOVE
+			}
+			if (note.tie_ty)
+				note.tie_ty = C.SL_ABOVE
+		}
+
+		// change the long notes
+		if (s.dur >= C.BLEN / 2
+		 && !s.invis)
+			slice(s)
+
+		// replace the staccato dot
+		if (s.a_dd) {
+			for (i = 0; i < s.a_dd.length; i++) {
+				if (s.a_dd[i].glyph == "stc") {
+					abc.deco_put("gstc", s)
+					s.a_dd[i] = s.a_dd.pop()
+				}
+			}
+		}
+	} // set_note()
+
+	function set_sym(p_v) {
+	    var s, g,
+		sf = p_v.key.k_sf
+
+		delete p_v.key.k_a_acc		// no accidental
 
 		// no (visible) clef
 		s = p_v.clef
@@ -186,15 +288,15 @@ abc2svg.jianpu = {
 			default:
 				continue
 			case C.KEY:
-				delta = abc2svg.jianpu.cgd2cde[s.k_sf + 7] - 2
+				sf = s.k_sf
 				s.a_gch = [{
 					type: '@',
 					font: abc.get_font("annotation"),
 					wh: [10, 10],
 					x: -5,
-					y: 30,
+					y: 26,
 					text: (s.k_mode + 1) + "=" +
-						(abc2svg.jianpu.k_tb[s.k_sf + 7 +
+						(abc2svg.jianpu.k_tb[sf + 7 +
 							abc2svg.jianpu.cde2fcg[s.k_mode]])
 				}]
 				continue
@@ -202,65 +304,17 @@ abc2svg.jianpu = {
 				if (s.notes[0].jn)
 					continue
 				s.notes[0].jn = 0
-				if (s.dur >= C.BLEN / 2)
+				if (s.dur >= C.BLEN / 2
+				 && !s.invis)
 					slice(s)
 				continue
 			case C.NOTE:			// change the notes
+				set_note(s, sf)
 				break
-			}
-
-			s.stem = -1
-			s.stemless = true
-
-			if (s.sls) {
-				for (i = 0; i < s.sls.length; i++)
-					s.sls[i].ty = C.SL_ABOVE
-			}
-
-			for (m = 0; m <= s.nhd; m++) {
-				note = s.notes[m]
-
-				// note head
-				p = note.pit
-				pit = p + delta
-				note.jn = ((pit + 77) % 7) + 1	// note number
-
-				// set a fixed offset to the note for the decorations
-				note.pit = 25			// "e"
-
-				note.jo = (pit / 7) | 0	// octave number
-
-				// accidentals
-				a = note.acc
-				if (a) {
-					nn = abc2svg.jianpu.cde2fcg[(p + 5 + 16 * 7) % 7] - sf
-					if (a != 3)
-						nn += a * 7
-					nn = ((((nn + 1 + 21) / 7) | 0) + 2 - 3 + 32 * 5) % 5
-					note.acc = abc2svg.jianpu.acc2[nn]
-				}
-
-				// set the slurs and ties up
-				if (note.sls) {
-					for (i = 0; i < note.sls.length; i++)
-						note.sls[i].ty = C.SL_ABOVE
-				}
-				if (note.tie_ty)
-					note.tie_ty = C.SL_ABOVE
-			}
-
-			// change the long notes
-			if (s.dur >= C.BLEN / 2)
-				slice(s)
-
-			// replace the staccato dot
-			if (s.a_dd) {
-				for (i = 0; i < s.a_dd.length; i++) {
-					if (s.a_dd[i].glyph == "stc") {
-						abc.deco_put("gstc", s)
-						s.a_dd[i] = s.a_dd.pop()
-					}
-				}
+			case C.GRACE:
+				for (g = s.extra; g; g = g.next)
+					set_note(g, sf)
+				break
 			}
 		}
 	} // set_sym()
@@ -269,14 +323,20 @@ abc2svg.jianpu = {
 
 	set_head()
 
-	for (v = 0; v < voice_tb.length; v++)
-		set_sym(voice_tb[v])
+	for (v = 0; v < voice_tb.length; v++) {
+		p_v = voice_tb[v]
+		if (p_v.jianpu) {
+			set_sym(p_v)
+			if (v > 0 && voice_tb[v - 1].st == p_v.st)
+				ov_def(v)
+		}
+	}
 
 	of()
   }, // output_music()
 
   draw_symbols: function(of, p_voice) {
-    var	i, m, nl, note, s, s2, x, y,
+    var	s, s2, nl, y,
 	C = abc2svg.C,
 	abc = this,
 	dot = "\ue1e7",
@@ -285,17 +345,18 @@ abc2svg.jianpu = {
 	out_sxsy = abc.out_sxsy,
 	xypath = abc.xypath
 
-	if (!abc.cfmt().jianpu) {
+	if (!p_voice.jianpu) {
 		of(p_voice)
 		return
 	}
 
 	// draw the duration lines under the notes
-	function draw_dur(s1, y, s2, n, nl) {
-	    var s, s3
+	function draw_dur(s1, x, y, s2, n, nl) {
+	    var s, s3,
+		sc = s1.grace ? .5 : 1
 
-		xypath(s1.x - 3, y + 5)
-		out_svg('h' + (s2.x - s1.x + 8).toFixed(1) + '"/>\n')	// "
+		xypath(x - 3, y + 5)
+		out_svg('h' + ((s2.x - s1.x) / sc + 8).toFixed(1) + '"/>\n')	// "
 		y -= 2.5
 		while (++n <= nl) {
 			s = s1
@@ -310,7 +371,7 @@ abc2svg.jianpu = {
 							break
 						s = s.next
 					}
-					draw_dur(s3, y, s, n, nl)
+					draw_dur(s3, s3.x, y, s, n, nl)
 				}
 				if (s == s2)
 					break
@@ -360,8 +421,35 @@ abc2svg.jianpu = {
 		}
 	} // draw_hd()
 
-	// -- draw_symbols --
+	function draw_note(s) {
+	    var	sc = 1,
+		x = s.x,
+		y = staff_tb[s.st].y
 
+		if (s.dy)
+			y += s.dy			// voice overlay
+
+		if (s.grace) {
+			out_svg('<g transform="translate(')
+			out_sxsy(x, ',', y + 15)	// (font height)
+			out_svg(') scale(.5)">\n')
+			abc.stv_g().g++			// in container
+			x = 0
+			y = 0
+			sc = .5
+		}
+
+		draw_hd(s, x, y)
+
+		if (s.nflags >= 0 && s.dots)
+			out_mus(x + 8 * sc, y + 13 * sc, dot)
+		if (s.grace) {
+			out_svg('</g>\n')
+			abc.stv_g().g--
+		}
+	} // draw_note()
+
+	// -- draw_symbols --
 	for (s = p_voice.sym; s; s = s.next) {
 		if (s.invis)
 			continue
@@ -371,33 +459,37 @@ abc2svg.jianpu = {
 			break
 		case C.NOTE:
 		case C.REST:
-			x = s.x
-			y = staff_tb[s.st].y
-			draw_hd(s, x, y)
+			draw_note(s)
+			break
+		case C.GRACE:
+			for (g = s.extra; g; g = g.next)
+				draw_note(g)
+			break
+		}
+	}
 
-			if (s.nflags >= 0 && s.dots)
-				out_mus(x + 8, y + 13, dot)
-			if (s.nflags > 0) {
-				if (s.time == p_voice.sym.time)
-					s.beam_st = 1	// beam continuation
-//fixme: ko with rests because no beam_st /_end
-				if (s.beam_st || s.type == C.REST) {
+	// draw the (pseudo) beams
+	for (s = p_voice.sym; s; s = s.next) {
+		if (s.invis)
+			continue
+		switch (s.type) {
+		case C.NOTE:
+		case C.REST:
+			nl = s.nflags
+			if (nl <= 0)
+				continue
+			y = staff_tb[s.st].y
+			s2 = s
+			while (s.next && s.next.nflags > 0) {
+				s = s.next
+				if (s.nflags > nl)
 					nl = s.nflags
-					s2 = s
-					while (1) {
-						if (s2.nflags && s2.nflags > nl)
-							nl = s2.nflags
-						if (s2.beam_end)
-							break
-						if (!s2.next
-						 || !s2.next.nflags
-						 || s2.next.nflags <= 0)
-							break
-						s2 = s2.next
-					}
-					draw_dur(s, y, s2, 1, nl)
-				}
+				if (s.beam_end)
+					break
 			}
+			if (s.dy)
+				y += s.dy
+			draw_dur(s2, s2.x, y, s, 1, nl)
 			break
 		}
 	}
@@ -406,15 +498,7 @@ abc2svg.jianpu = {
 // set some parameters
     set_fmt: function(of, cmd, param) {
 	if (cmd == "jianpu") {
-	    var	cfmt = this.cfmt()
-
-		if (!this.get_bool(param))
-			return
-		cfmt.jianpu = true
-		cfmt.staffsep = 20
-		cfmt.sysstaffsep = 14
-		this.set_v_param("stafflines", "...")
-		cfmt.tuplets = [0, 1, 0, 1]	// [auto, slur, number, above]
+		this.set_v_param("jianpu", param)
 		return
 	}
 	of(cmd, param)
@@ -423,13 +507,14 @@ abc2svg.jianpu = {
 // adjust some values
     set_pitch: function(of, last_s) {
 	of(last_s)
-	if (!last_s
-	 || !this.cfmt().jianpu)
+	if (!last_s)
 		return			// first time
 
     var	C = abc2svg.C
 	
 	for (var s = this.get_tsfirst(); s; s = s.ts_next) {
+		if (!s.p_v.jianpu)
+			continue
 		switch (s.type) {
 
 		// draw the key signature only in the first voice
@@ -448,15 +533,38 @@ abc2svg.jianpu = {
 				if (s.notes[s.nhd].jo > 3)
 					s.ymx += 2
 			}
+			s.ymn = 0		// bottom of line
 			break
 		}
 	}
     }, // set_pitch()
 
+    set_vp: function(of, a) {
+    var	i,
+	p_v = this.get_curvoice()
+
+	for (i = 0; i < a.length; i++) {
+		if (a[i] == "jianpu=") {
+			p_v.jianpu = this.get_bool(a[++i])
+			if (p_v.jianpu)
+				this.set_vp([
+					"staffsep=", "20",
+					"sysstaffsep=", "14",
+					"stafflines=", "...",
+					"tuplets=", "0 1 0 1"
+						// [auto, slur, number, above]
+				])
+			break
+		}
+	}
+	of(a)
+    }, // set_vp()
+
 // set the width of some symbols
     set_width: function(of, s) {
 	of(s)
-	if (!this.cfmt().jianpu)
+	if (!s.p_v			// (if voice_tb[v].clef/key/meter)
+	 || !s.p_v.jianpu)
 		return
 
     var	w, m, note,
@@ -466,7 +574,7 @@ abc2svg.jianpu = {
 	case C.CLEF:
 	case C.KEY:
 //	case C.METER:
-		s.wl = s.wr = 0
+		s.wl = s.wr = .1		// (must not be null)
 		break
 	case C.NOTE:
 		for (m = 0; m <= s.nhd; m++) {
@@ -480,11 +588,11 @@ abc2svg.jianpu = {
 
     set_hooks: function(abc) {
 	abc.calculate_beam = abc2svg.jianpu.calc_beam.bind(abc, abc.calculate_beam)
-	abc.do_pscom = abc2svg.jianpu.do_pscom.bind(abc, abc.do_pscom)
 	abc.draw_symbols = abc2svg.jianpu.draw_symbols.bind(abc, abc.draw_symbols)
 	abc.output_music = abc2svg.jianpu.output_music.bind(abc, abc.output_music)
 	abc.set_format = abc2svg.jianpu.set_fmt.bind(abc, abc.set_format)
 	abc.set_pitch = abc2svg.jianpu.set_pitch.bind(abc, abc.set_pitch)
+	abc.set_vp = abc2svg.jianpu.set_vp.bind(abc, abc.set_vp)
 	abc.set_width = abc2svg.jianpu.set_width.bind(abc, abc.set_width)
 
 	// big staccato dot

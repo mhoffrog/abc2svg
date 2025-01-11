@@ -98,6 +98,7 @@ user.textrans = {
 	"Invalid decoration '$1'": "Decorazione '$1' non valida",
 	"Invalid note duration $1": "Durée de note $1 non valida",
 	"K:P is deprecated": "K:P is deprecated",
+	"Key with double sharps/flats": "Key with double sharps/flats",
 	"Lack of ']'": "']' mancante",
 	"Lack of bar after multi-measure rest":
 				"Lack of bar after multi-measure rest",
@@ -114,6 +115,8 @@ user.textrans = {
 	"Misplaced dot": "Punto in posizione errata",
 	"Mix of old and new transposition syntaxes":
 			"Sintassi di trasposizione vecchia e nuova allo stesso tempo",
+	"multi-measure rest, but no measure!":
+			"multi-measure rest, but no measure!",
 	"No $1 after %%$2": "Manca $1 dopo %%$2",
 	"No </defs> in %%beginsvg sequence":
 				"Manca </defs> nella sequenza %%beginsvg",
@@ -158,6 +161,7 @@ user.textrans = {
 	"Too many include levels": "Troppi livelli di inclusione di file",
 	"Too many ties": "Troppi simboli di legato",
 	"Too many words in lyric line": "Troppe parole per la linea di musica",
+	"triple sharp/flat": "triple sharp/flat",
 	"Unknown bagpipe-like key": "Chiave per cornamusa sconosciuta",
 	"Unknown clef '$1'": "Chiave '$1' sconosciuta",
 	"Unknown decoration '$1'": "Decorazione '$1' sconosciuta",

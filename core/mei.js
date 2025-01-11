@@ -700,7 +700,8 @@ return true
 			}
 		}
 		if (id) {
-			note.s = s
+			note.s = s			// chord
+			note.m = s.nhd			// note index in the chord
 			do_delayed(id, curr.chord ? note : s)
 		}
 		note.dur = dur
@@ -1019,20 +1020,19 @@ return true
 		case "dotted": ty |= C.SL_DOTTED; break
 		}
 
-		sl = { ty: ty }
-		if (s2.s) {
-			sl.is_note = true	// to note
-			sl.note = s2
-		} else {
-			s2.notes[0].s = s2
-			sl.note = s2.notes[0]	// to chord
+		sl = {
+			ty: ty,
+			ss: s1.s || s1,
+			se: s2.s || s2
 		}
+		if (s1.s)
+			sl.nts = s1
+		if (s2.s)
+			sl.nte = s2	// to note
 
 		if (!s1.sls)
 			s1.sls = []
 		s1.sls.push(sl)
-		if (s1.s)			// if from note of chord
-			s1.s.sl1 = true
 //fixme: ko if grace note
 	}, // slur()
 

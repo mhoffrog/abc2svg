@@ -119,15 +119,6 @@ function AbcPlay(i_conf) {
 		abcplay.stop = current.stop
 		if (current.set_output)
 			current.set_output(out[o]);
-		if (abc2svg.pwait) {
-			if (typeof abc2svg.pwait == "boolean") {
-				abc2svg.pwait = function() {
-					abcplay.play(init.istart,
-							init.i_iend, init.a_e)
-				}
-			}
-			return
-		}
 		abcplay.play(init.istart, init.i_iend, init.a_e);
 	} // play2()
 

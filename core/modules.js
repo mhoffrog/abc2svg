@@ -1,6 +1,6 @@
 // abc2svg - modules.js - module handling
 //
-// Copyright (C) 2018-2020 Jean-Francois Moine
+// Copyright (C) 2018-2022 Jean-Francois Moine
 //
 // This file is part of abc2svg-core.
 //
@@ -21,7 +21,7 @@
 if (!abc2svg.loadjs) {
     abc2svg.loadjs = function(fn, onsuccess, onerror) {
 	if (onerror)
-		onerror()
+		onerror(fn)
     }
 }
 
@@ -53,6 +53,7 @@ abc2svg.modules = {
 	sth: {},
 	strtab: {},
 	temperament: { fn: 'temper' },
+	tropt: {},
 
 	nreq: 0,
 	hooks: [],
@@ -83,10 +84,6 @@ abc2svg.modules = {
 			if (--abc2svg.modules.nreq == 0)
 				abc2svg.modules.cbf()
 		}
-		function load_ko(fn) {
-			abc2svg.modules.errmsg('Error loading the module ' + fn)
-			load_end()
-		}
 
 		// test if some keyword in the file
 	    var	m, i, fn,
@@ -113,7 +110,11 @@ abc2svg.modules = {
 			this.nreq++
 			abc2svg.loadjs(fn + "-1.js",
 					load_end,
-					function() {load_ko(fn)})
+					function () {
+						abc2svg.modules.errmsg(
+							'Error loading the module ' + fn)
+						load_end()
+					})
 		}
 		return this.nreq == nreq_i
 	}
