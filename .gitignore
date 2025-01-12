@@ -8,3 +8,4 @@ abc2svg.woff
 abc2svg.ttf
 # important!
 !.gitignore
+!.github/
